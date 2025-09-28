@@ -170,6 +170,17 @@ const reportsService = {
       throw error;
     }
   },
+
+  // --- Annual Trends ---
+  getAnnualTrends: async () => {
+    try {
+      const response = await axiosInstance.get('/reports/annual-trends');
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch annual trends:", error);
+      throw error;
+    }
+  },
 };
 
 export default reportsService;

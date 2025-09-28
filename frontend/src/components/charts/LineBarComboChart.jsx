@@ -5,6 +5,7 @@ import { Box, Typography } from '@mui/material';
 import {
     ComposedChart,
     Bar,
+    Line,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -14,16 +15,50 @@ import {
 } from 'recharts';
 
 const LineBarComboChart = ({
-    title, data, barKeys, xAxisKey, yAxisLabelLeft
+    title, data, barKeys, xAxisKey, yAxisLabelLeft, yAxisLabelRight, lineKeys
 }) => {
     // Helper function to format currency
     const formatCurrencyCompact = (value) => {
         if (value === 0) return 'KES 0';
-        if (!value) return '';
-        const absValue = Math.abs(value);
-        if (absValue >= 1000000) return `KES ${(value / 1000000).toFixed(1)}M`;
-        if (absValue >= 1000) return `KES ${(value / 1000).toFixed(0)}K`;
-        return `KES ${value.toFixed(0)}`;
+        if (!value || value === null || value === undefined) return '';
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return '';
+        const absValue = Math.abs(numValue);
+        if (absValue >= 1000000) return `KES ${(numValue / 1000000).toFixed(1)}M`;
+        if (absValue >= 1000) return `KES ${(numValue / 1000).toFixed(0)}K`;
+        return `KES ${numValue.toFixed(0)}`;
+    };
+
+    // Helper function to format numbers (for project counts, percentages, etc.)
+    const formatNumber = (value) => {
+        if (value === 0) return '0';
+        if (!value || value === null || value === undefined) return '';
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return '';
+        return numValue.toFixed(0);
+    };
+
+    // Helper function to format percentages
+    const formatPercentage = (value) => {
+        if (value === 0) return '0%';
+        if (!value || value === null || value === undefined) return '';
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return '';
+        return `${numValue.toFixed(1)}%`;
+    };
+
+    // Determine the appropriate formatter based on the data type
+    const getYAxisFormatter = () => {
+        if (yAxisLabelLeft && yAxisLabelLeft.toLowerCase().includes('budget') || 
+            yAxisLabelLeft && yAxisLabelLeft.toLowerCase().includes('kes') ||
+            yAxisLabelLeft && yAxisLabelLeft.toLowerCase().includes('currency')) {
+            return formatCurrencyCompact;
+        } else if (yAxisLabelLeft && yAxisLabelLeft.toLowerCase().includes('rate') ||
+                   yAxisLabelLeft && yAxisLabelLeft.toLowerCase().includes('%')) {
+            return formatPercentage;
+        } else {
+            return formatNumber;
+        }
     };
 
     // Custom tooltip component
@@ -42,11 +77,22 @@ const LineBarComboChart = ({
                     <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#333' }}>
                         {dataItem.departmentName || label}
                     </p>
-                    {payload.map((entry, index) => (
-                        <p key={index} style={{ margin: '4px 0', color: entry.color, fontSize: '14px' }}>
-                            <span style={{ fontWeight: 'bold' }}>{entry.name}:</span> {formatCurrencyCompact(entry.value)}
-                        </p>
-                    ))}
+                    {payload.map((entry, index) => {
+                        let formattedValue = '';
+                        if (entry.name && entry.name.toLowerCase().includes('rate')) {
+                            formattedValue = formatPercentage(entry.value);
+                        } else if (entry.name && (entry.name.toLowerCase().includes('budget') || entry.name.toLowerCase().includes('amount'))) {
+                            formattedValue = formatCurrencyCompact(entry.value);
+                        } else {
+                            formattedValue = formatNumber(entry.value);
+                        }
+                        
+                        return (
+                            <p key={index} style={{ margin: '4px 0', color: entry.color, fontSize: '14px' }}>
+                                <span style={{ fontWeight: 'bold' }}>{entry.name}:</span> {formattedValue}
+                            </p>
+                        );
+                    })}
                 </div>
             );
         }
@@ -81,8 +127,19 @@ const LineBarComboChart = ({
                     <YAxis
                         yAxisId="left"
                         label={{ value: yAxisLabelLeft, angle: -90, position: 'insideLeft', dx: -10 }}
-                        tickFormatter={formatCurrencyCompact}
+                        tickFormatter={getYAxisFormatter()}
                     />
+
+                    {/* Right Y-Axis for line charts */}
+                    {yAxisLabelRight && (
+                        <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            label={{ value: yAxisLabelRight, angle: 90, position: 'insideRight', dx: 10 }}
+                            tickFormatter={yAxisLabelRight.toLowerCase().includes('rate') || yAxisLabelRight.toLowerCase().includes('%') ? 
+                                formatPercentage : formatNumber}
+                        />
+                    )}
 
                     <Tooltip content={<CustomTooltip />} />
 
@@ -101,6 +158,20 @@ const LineBarComboChart = ({
                             yAxisId="left"
                             dataKey={key}
                             fill={['#1f77b4', '#ff7f0e', '#2ca02c'][index % 3]}
+                        />
+                    ))}
+
+                    {/* Lines */}
+                    {lineKeys && lineKeys.map((key, index) => (
+                        <Line
+                            key={key}
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey={key}
+                            stroke={['#d62728', '#9467bd', '#8c564b'][index % 3]}
+                            strokeWidth={3}
+                            dot={{ fill: ['#d62728', '#9467bd', '#8c564b'][index % 3], strokeWidth: 2, r: 4 }}
+                            activeDot={{ r: 6 }}
                         />
                     ))}
                 </ComposedChart>

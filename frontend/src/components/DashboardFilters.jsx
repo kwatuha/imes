@@ -39,7 +39,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
         const fetchFilterOptions = async () => {
             try {
                 setIsLoadingOptions(true);
+                console.log('Fetching filter options...');
                 const options = await reportsService.getFilterOptions();
+                console.log('Filter options received:', options);
                 setFilterOptions(options);
             } catch (error) {
                 console.error('Error fetching filter options:', error);
@@ -51,6 +53,10 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
 
         fetchFilterOptions();
     }, []);
+
+    // Debug logging
+    console.log('DashboardFilters render - filterOptions:', filterOptions);
+    console.log('DashboardFilters render - isLoadingOptions:', isLoadingOptions);
 
     return (
         <Paper elevation={2} sx={{ mb: 4, p: 2 }}>

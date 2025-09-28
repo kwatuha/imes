@@ -989,12 +989,11 @@ router.get('/filter-options', async (req, res) => {
             ORDER BY d.name
         `);
 
-        // Get project types/categories
+        // Get project types/categories (since projects don't have categoryId, get all categories)
         const [projectTypes] = await pool.execute(`
             SELECT DISTINCT pc.categoryName as name 
             FROM kemri_categories pc
-            INNER JOIN kemri_projects p ON pc.categoryId = p.categoryId
-            WHERE p.voided = 0
+            WHERE pc.voided = 0 OR pc.voided IS NULL
             ORDER BY pc.categoryName
         `);
 
@@ -1006,12 +1005,11 @@ router.get('/filter-options', async (req, res) => {
             ORDER BY p.status
         `);
 
-        // Get financial years
+        // Get financial years (since projects don't have finYearId, get all financial years)
         const [financialYears] = await pool.execute(`
             SELECT DISTINCT fy.finYearName as name, fy.finYearId as id
             FROM kemri_financialyears fy
-            INNER JOIN kemri_projects p ON fy.finYearId = p.finYearId
-            WHERE p.voided = 0
+            WHERE fy.voided = 0 OR fy.voided IS NULL
             ORDER BY fy.finYearName DESC
         `);
 
@@ -1043,6 +1041,171 @@ router.get('/filter-options', async (req, res) => {
         console.error('Error fetching filter options:', error);
         res.status(500).json({ 
             error: 'Failed to fetch filter options',
+            details: error.message 
+        });
+    }
+});
+
+// --- Annual Trends Endpoints ---
+/**
+ * @route GET /api/reports/annual-trends
+ * @description Get 5-year historical trends data
+ * @access Public (for now)
+ * @returns {Object} Object containing arrays of trend data
+ */
+router.get('/annual-trends', async (req, res) => {
+    try {
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear - 4; // 5 years of data
+        
+        // Get project performance trends
+        const [projectPerformance] = await pool.execute(`
+            SELECT 
+                YEAR(p.startDate) as year,
+                COUNT(p.id) as totalProjects,
+                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completedProjects,
+                AVG(p.overallProgress) as avgProgress,
+                AVG(DATEDIFF(p.endDate, p.startDate)) as avgDuration
+            FROM kemri_projects p
+            WHERE p.voided = 0 
+                AND YEAR(p.startDate) >= ?
+                AND YEAR(p.startDate) <= ?
+            GROUP BY YEAR(p.startDate)
+            ORDER BY year
+        `, [startYear, currentYear]);
+
+        // Get financial trends
+        const [financialTrends] = await pool.execute(`
+            SELECT 
+                YEAR(p.startDate) as year,
+                SUM(p.costOfProject) as totalBudget,
+                SUM(p.paidOut) as totalExpenditure,
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        (SUM(p.paidOut) * 100.0 / SUM(p.costOfProject))
+                    ELSE 0 
+                END as absorptionRate
+            FROM kemri_projects p
+            WHERE p.voided = 0 
+                AND YEAR(p.startDate) >= ?
+                AND YEAR(p.startDate) <= ?
+            GROUP BY YEAR(p.startDate)
+            ORDER BY year
+        `, [startYear, currentYear]);
+
+        // Get department trends
+        const [departmentTrends] = await pool.execute(`
+            SELECT 
+                YEAR(p.startDate) as year,
+                d.name as departmentName,
+                d.alias as departmentAlias,
+                COUNT(p.id) as projectCount,
+                SUM(p.costOfProject) as departmentBudget,
+                SUM(p.paidOut) as departmentExpenditure
+            FROM kemri_projects p
+            INNER JOIN kemri_departments d ON p.departmentId = d.departmentId
+            WHERE p.voided = 0 
+                AND YEAR(p.startDate) >= ?
+                AND YEAR(p.startDate) <= ?
+            GROUP BY YEAR(p.startDate), d.departmentId, d.name, d.alias
+            ORDER BY year, d.name
+        `, [startYear, currentYear]);
+
+        // Get project status trends
+        const [statusTrends] = await pool.execute(`
+            SELECT 
+                YEAR(p.startDate) as year,
+                p.status,
+                COUNT(p.id) as count
+            FROM kemri_projects p
+            WHERE p.voided = 0 
+                AND YEAR(p.startDate) >= ?
+                AND YEAR(p.startDate) <= ?
+                AND p.status IS NOT NULL
+            GROUP BY YEAR(p.startDate), p.status
+            ORDER BY year, p.status
+        `, [startYear, currentYear]);
+
+        // Calculate year-over-year growth rates
+        const calculateGrowthRate = (current, previous) => {
+            const currentNum = parseFloat(current) || 0;
+            const previousNum = parseFloat(previous) || 0;
+            if (previousNum === 0) return 0;
+            return ((currentNum - previousNum) / previousNum * 100).toFixed(1);
+        };
+
+        // Process project performance with growth rates
+        const processedProjectPerformance = projectPerformance.map((item, index) => {
+            const previous = index > 0 ? projectPerformance[index - 1] : null;
+            return {
+                ...item,
+                completionRate: item.totalProjects > 0 ? 
+                    ((item.completedProjects / item.totalProjects) * 100).toFixed(1) : 0,
+                growthRate: previous ? 
+                    calculateGrowthRate(item.totalProjects, previous.totalProjects) : 0
+            };
+        });
+
+        // Process financial trends with growth rates
+        const processedFinancialTrends = financialTrends.map((item, index) => {
+            const previous = index > 0 ? financialTrends[index - 1] : null;
+            return {
+                ...item,
+                totalBudget: parseFloat(item.totalBudget) || 0,
+                totalExpenditure: parseFloat(item.totalExpenditure) || 0,
+                absorptionRate: parseFloat(item.absorptionRate) || 0,
+                growthRate: previous ? 
+                    calculateGrowthRate(parseFloat(item.totalBudget) || 0, parseFloat(previous.totalBudget) || 0) : 0,
+                budgetEfficiency: (parseFloat(item.totalBudget) || 0) > 0 ? 
+                    ((parseFloat(item.totalExpenditure) || 0) / (parseFloat(item.totalBudget) || 0) * 100).toFixed(1) : 0
+            };
+        });
+
+        // Ensure we have data for all years in the range, even if they're empty
+        const allYears = Array.from({length: 5}, (_, i) => startYear + i);
+        
+        // Fill in missing years with zero data
+        const completeProjectPerformance = allYears.map(year => {
+            const existing = processedProjectPerformance.find(item => item.year === year);
+            return existing || {
+                year: year,
+                totalProjects: 0,
+                completedProjects: 0,
+                avgProgress: 0,
+                avgDuration: 0,
+                completionRate: 0,
+                growthRate: 0
+            };
+        });
+
+        const completeFinancialTrends = allYears.map(year => {
+            const existing = processedFinancialTrends.find(item => item.year === year);
+            return existing || {
+                year: year,
+                totalBudget: 0,
+                totalExpenditure: 0,
+                absorptionRate: 0,
+                growthRate: 0,
+                budgetEfficiency: 0
+            };
+        });
+
+        res.json({
+            projectPerformance: completeProjectPerformance,
+            financialTrends: completeFinancialTrends,
+            departmentTrends: departmentTrends,
+            statusTrends: statusTrends,
+            yearRange: {
+                start: startYear,
+                end: currentYear,
+                years: allYears
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching annual trends:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch annual trends',
             details: error.message 
         });
     }

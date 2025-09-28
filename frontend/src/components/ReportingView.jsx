@@ -21,7 +21,7 @@ import {
     Button
 } from '@mui/material';
 import { tokens } from '../pages/dashboard/theme';
-import { TrendingUp, Assessment, PieChart, BarChart, Timeline, Business, AttachMoney, CheckCircle, Warning, Speed, TrendingDown, Schedule, FilterList } from '@mui/icons-material';
+import { TrendingUp, Assessment, PieChart, BarChart, Timeline, Business, AttachMoney, CheckCircle, Warning, Speed, TrendingDown, Schedule, FilterList, ShowChart, Analytics } from '@mui/icons-material';
 
 // Import your chart components and new filter component
 import CircularChart from './charts/CircularChart';
@@ -34,6 +34,7 @@ import projectService from '../api/projectService';
 import reportsService from '../api/reportsService';
 import ProjectDetailTable from './tables/ProjectDetailTable';
 import DepartmentProjectsModal from './modals/DepartmentProjectsModal';
+import YearProjectsModal from './modals/YearProjectsModal';
 import { 
     overviewTableColumns, 
     financialTableColumns, 
@@ -52,6 +53,13 @@ const ReportingView = () => {
         projectTypes: [],
         budgetAllocation: [],
         statusDistribution: []
+    });
+    const [trendsData, setTrendsData] = useState({
+        projectPerformance: [],
+        financialTrends: [],
+        departmentTrends: [],
+        statusTrends: [],
+        yearRange: { start: 0, end: 0, years: [] }
     });
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -72,6 +80,8 @@ const ReportingView = () => {
     const [activeTab, setActiveTab] = useState(0);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDepartment, setSelectedDepartment] = useState(null);
+    const [yearModalOpen, setYearModalOpen] = useState(false);
+    const [selectedYear, setSelectedYear] = useState(null);
 
     // API Integration Functions
     const fetchProjectStatusData = async (filters) => {
@@ -184,6 +194,16 @@ const ReportingView = () => {
     };
 
 
+    // Function to load trends data
+    const loadTrendsData = async () => {
+        try {
+            const trendsResponse = await reportsService.getAnnualTrends();
+            setTrendsData(trendsResponse);
+        } catch (error) {
+            console.error('Error loading trends data:', error);
+        }
+    };
+
     // Function to load data from API
     const loadDashboardData = async () => {
         setIsLoading(true);
@@ -271,6 +291,7 @@ const ReportingView = () => {
 
     useEffect(() => {
         loadDashboardData();
+        loadTrendsData();
     }, [filters]); // Re-run effect when filters change
 
     const handleFilterChange = (filterName, value) => {
@@ -313,6 +334,16 @@ const ReportingView = () => {
     const handleCloseModal = () => {
         setModalOpen(false);
         setSelectedDepartment(null);
+    };
+
+    const handleYearClick = (yearData) => {
+        setSelectedYear(yearData);
+        setYearModalOpen(true);
+    };
+
+    const handleCloseYearModal = () => {
+        setYearModalOpen(false);
+        setSelectedYear(null);
     };
 
     const renderNoDataCard = (title) => (
@@ -687,6 +718,12 @@ const ReportingView = () => {
                     <Tab 
                         label="Analytics" 
                         icon={<TrendingUp />} 
+                        iconPosition="start"
+                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                    />
+                    <Tab 
+                        label="Yearly Trends" 
+                        icon={<ShowChart />} 
                         iconPosition="start"
                         sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
                     />
@@ -1447,6 +1484,360 @@ const ReportingView = () => {
                 </Grid>
             </Grid>
                     )}
+
+                    {activeTab === 3 && (
+                        <Grid container spacing={2}>
+                            {/* Annual Trends Tab Content */}
+                            
+                            {/* Project Performance Overview */}
+                            <Grid item xs={12}>
+                                <Fade in timeout={2000}>
+                                    <Card sx={{ 
+                                        height: '500px',
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(25, 118, 210, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <ShowChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                        Project Performance Trends ({trendsData.yearRange.start}-{trendsData.yearRange.end})
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                        />
+                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
+                                            <Box sx={{ height: '420px', minWidth: '900px' }}>
+                                                {trendsData.projectPerformance.length > 0 ? (
+                                                    <LineBarComboChart
+                                                        title=""
+                                                        data={trendsData.projectPerformance}
+                                                        barKeys={['totalProjects', 'completedProjects']}
+                                                        lineKeys={['completionRate']}
+                                                        xAxisKey="year"
+                                                        yAxisLabelLeft="Project Count"
+                                                        yAxisLabelRight="Completion Rate (%)"
+                                                    />
+                                                ) : (
+                                                    renderNoDataCard("Project Performance Trends")
+                                                )}
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            {/* Financial Performance Trends */}
+                            <Grid item xs={12} md={8}>
+                                <Fade in timeout={2200}>
+                                    <Card sx={{ 
+                                        height: '500px',
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(76, 175, 80, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                        Financial Performance Trends
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                        />
+                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
+                                            <Box sx={{ height: '420px', minWidth: '700px' }}>
+                                                {trendsData.financialTrends.length > 0 ? (
+                                                    <LineBarComboChart
+                                                        title=""
+                                                        data={trendsData.financialTrends}
+                                                        barKeys={['totalBudget', 'totalExpenditure']}
+                                                        lineKeys={['absorptionRate']}
+                                                        xAxisKey="year"
+                                                        yAxisLabelLeft="Budget Amount (KSh)"
+                                                        yAxisLabelRight="Absorption Rate (%)"
+                                                    />
+                                                ) : (
+                                                    renderNoDataCard("Financial Trends")
+                                                )}
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            {/* Department Performance Summary */}
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={2400}>
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        gap: 1.5, 
+                                        height: '400px',
+                                        justifyContent: 'space-between'
+                                    }}>
+                                        {/* Total Projects Over Time */}
+                                        <Card sx={{ 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                                border: '1px solid rgba(25, 118, 210, 0.2)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                                        Total Projects
+                                                    </Typography>
+                                                    <Business sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                        {trendsData.projectPerformance.reduce((sum, item) => sum + (item.totalProjects || 0), 0)}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                        Over 5 years
+                                                    </Typography>
+                                                </Box>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Average Completion Rate */}
+                                        <Card sx={{ 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                                border: '1px solid rgba(76, 175, 80, 0.2)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                                        Avg Completion Rate
+                                                    </Typography>
+                                                    <CheckCircle sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                        {trendsData.projectPerformance.length > 0 ? 
+                                                            (trendsData.projectPerformance.reduce((sum, item) => sum + parseFloat(item.completionRate || 0), 0) / trendsData.projectPerformance.length).toFixed(1) + '%' 
+                                                            : '0%'
+                                                        }
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                        Over 5 years
+                                                    </Typography>
+                                                </Box>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Total Budget Over Time */}
+                                        <Card sx={{ 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                                border: '1px solid rgba(255, 152, 0, 0.2)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                                        Total Budget
+                                                    </Typography>
+                                                    <AttachMoney sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                        KSh {(trendsData.financialTrends.reduce((sum, item) => sum + (item.totalBudget || 0), 0) / 1000000).toFixed(1)}M
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                        Over 5 years
+                                                    </Typography>
+                                                </Box>
+                                            </CardContent>
+                                        </Card>
+                                    </Box>
+                                </Fade>
+                            </Grid>
+
+                            {/* Yearly Trends Detail Report */}
+                            <Grid item xs={12}>
+                                <Box sx={{ mt: 3 }}>
+                                    <ProjectDetailTable
+                                        data={trendsData.projectPerformance.map((year, index) => ({
+                                            id: year.year,
+                                            rowNumber: index + 1,
+                                            year: year.year,
+                                            totalProjects: year.totalProjects,
+                                            completedProjects: year.completedProjects,
+                                            completionRate: year.completionRate + '%',
+                                            avgDuration: Math.round(year.avgDuration) + ' days',
+                                            growthRate: year.growthRate + '%',
+                                            totalBudget: 'KSh ' + (trendsData.financialTrends[index]?.totalBudget ? 
+                                                (parseFloat(trendsData.financialTrends[index].totalBudget) / 1000000).toFixed(1) + 'M' : '0M'),
+                                            absorptionRate: trendsData.financialTrends[index]?.absorptionRate ? 
+                                                parseFloat(trendsData.financialTrends[index].absorptionRate).toFixed(1) + '%' : '0%'
+                                        }))}
+                                        columns={[
+                                            {
+                                                id: 'rowNumber',
+                                                label: '#',
+                                                minWidth: 60,
+                                                type: 'number'
+                                            },
+                                            {
+                                                id: 'year',
+                                                label: 'Year',
+                                                minWidth: 80,
+                                                type: 'text'
+                                            },
+                                            {
+                                                id: 'totalProjects',
+                                                label: 'Total Projects',
+                                                minWidth: 120,
+                                                type: 'number'
+                                            },
+                                            {
+                                                id: 'completedProjects',
+                                                label: 'Completed',
+                                                minWidth: 100,
+                                                type: 'number'
+                                            },
+                                            {
+                                                id: 'completionRate',
+                                                label: 'Completion Rate',
+                                                minWidth: 130,
+                                                type: 'text'
+                                            },
+                                            {
+                                                id: 'avgDuration',
+                                                label: 'Avg Duration',
+                                                minWidth: 120,
+                                                type: 'text'
+                                            },
+                                            {
+                                                id: 'growthRate',
+                                                label: 'Growth Rate',
+                                                minWidth: 100,
+                                                type: 'text'
+                                            },
+                                            {
+                                                id: 'totalBudget',
+                                                label: 'Total Budget',
+                                                minWidth: 140,
+                                                type: 'text'
+                                            },
+                                            {
+                                                id: 'absorptionRate',
+                                                label: 'Absorption Rate',
+                                                minWidth: 130,
+                                                type: 'text'
+                                            }
+                                        ]}
+                                        title="Yearly Performance Details"
+                                        onRowClick={(row) => handleYearClick(row)}
+                                    />
+                                </Box>
+                            </Grid>
+                        </Grid>
+                    )}
                     </>
                 </Box>
             </Box>
@@ -1465,6 +1856,13 @@ const ReportingView = () => {
                 open={modalOpen}
                 onClose={handleCloseModal}
                 departmentData={selectedDepartment}
+            />
+
+            {/* Year Projects Modal */}
+            <YearProjectsModal
+                open={yearModalOpen}
+                onClose={handleCloseYearModal}
+                yearData={selectedYear}
             />
         </Box>
     );
