@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://api:3000',
+        target: process.env.VITE_PROXY_TARGET || 'http://nginx_proxy:80',
         changeOrigin: true,
       },
     },

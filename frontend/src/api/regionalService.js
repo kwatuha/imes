@@ -1,0 +1,122 @@
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+const regionalService = {
+    // Get county-level data
+    getCountiesData: async (filters = {}) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/counties`, {
+                params: filters
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching counties data:', error);
+            throw error;
+        }
+    },
+
+    // Get sub-county level data
+    getSubCountiesData: async (filters = {}) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/sub-counties`, {
+                params: filters
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching sub-counties data:', error);
+            throw error;
+        }
+    },
+
+    // Get ward-level data
+    getWardsData: async (filters = {}) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/wards`, {
+                params: filters
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching wards data:', error);
+            throw error;
+        }
+    },
+
+    // Get village-level data
+    getVillagesData: async (filters = {}) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/villages`, {
+                params: filters
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching villages data:', error);
+            throw error;
+        }
+    },
+
+    // Get projects by county
+    getProjectsByCounty: async (countyName) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/projects-by-county`, {
+                params: { county: countyName }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching projects by county:', error);
+            throw error;
+        }
+    },
+
+    // Get projects by sub-county
+    getProjectsBySubCounty: async (subCountyName) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/projects-by-sub-county`, {
+                params: { subCounty: subCountyName }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching projects by sub-county:', error);
+            throw error;
+        }
+    },
+
+    // Get projects by ward
+    getProjectsByWard: async (wardName) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/projects-by-ward`, {
+                params: { ward: wardName }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching projects by ward:', error);
+            throw error;
+        }
+    },
+
+    // Get projects by village
+    getProjectsByVillage: async (villageName) => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/projects-by-village`, {
+                params: { village: villageName }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching projects by village:', error);
+            throw error;
+        }
+    },
+
+    // Get regional filter options
+    getRegionalFilterOptions: async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/reports/regional-filter-options`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching regional filter options:', error);
+            throw error;
+        }
+    }
+};
+
+export default regionalService;

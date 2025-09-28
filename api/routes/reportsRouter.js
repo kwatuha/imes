@@ -1211,4 +1211,423 @@ router.get('/annual-trends', async (req, res) => {
     }
 });
 
+// --- Regional Data Endpoints ---
+
+/**
+ * @route GET /api/reports/counties
+ * @description Get county-level data for Kitui County
+ * @access Public (for now)
+ * @returns {Object} County data with projects and metrics
+ */
+router.get('/counties', async (req, res) => {
+    try {
+        // Get Kitui County data using project mappings
+        const [countyData] = await pool.execute(`
+            SELECT 
+                c.countyId,
+                c.name as countyName,
+                c.geoLat,
+                c.geoLon,
+                COUNT(DISTINCT s.subcountyId) as totalSubCounties,
+                COUNT(DISTINCT w.wardId) as totalWards,
+                COUNT(DISTINCT p.id) as totalProjects,
+                COALESCE(SUM(p.costOfProject), 0) as totalBudget,
+                COALESCE(SUM(p.paidOut), 0) as totalPaid,
+                COALESCE(AVG(p.overallProgress), 0) as avgProgress
+            FROM kemri_counties c
+            LEFT JOIN kemri_subcounties s ON c.countyId = s.countyId AND s.voided = 0
+            LEFT JOIN kemri_wards w ON s.subcountyId = w.subcountyId AND w.voided = 0
+            LEFT JOIN kemri_project_subcounties ps ON s.subcountyId = ps.subcountyId AND ps.voided = 0
+            LEFT JOIN kemri_projects p ON ps.projectId = p.id AND p.voided = 0
+            WHERE c.countyId = 15 AND c.voided = 0
+            GROUP BY c.countyId, c.name, c.geoLat, c.geoLon
+        `);
+
+        // Get project status distribution
+        const [projectStatus] = await pool.execute(`
+            SELECT 
+                p.status,
+                COUNT(*) as count
+            FROM kemri_projects p
+            WHERE p.voided = 0
+            GROUP BY p.status
+        `);
+
+        // Get budget allocation by sub-county using project mappings
+        const [budgetAllocation] = await pool.execute(`
+            SELECT 
+                s.name as subcountyName,
+                COALESCE(SUM(p.costOfProject), 0) as budget
+            FROM kemri_subcounties s
+            LEFT JOIN kemri_project_subcounties ps ON s.subcountyId = ps.subcountyId AND ps.voided = 0
+            LEFT JOIN kemri_projects p ON ps.projectId = p.id AND p.voided = 0
+            WHERE s.countyId = 15 AND s.voided = 0
+            GROUP BY s.subcountyId, s.name
+            ORDER BY budget DESC
+        `);
+
+        res.json({
+            countyData: countyData[0] || {},
+            projectStatus: projectStatus,
+            budgetAllocation: budgetAllocation,
+            projectProgress: countyData
+        });
+
+    } catch (error) {
+        console.error('Error fetching counties data:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch counties data',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/sub-counties
+ * @description Get sub-county level data for Kitui County
+ * @access Public (for now)
+ * @returns {Object} Sub-county data with projects and metrics
+ */
+router.get('/sub-counties', async (req, res) => {
+    try {
+        const [subCounties] = await pool.execute(`
+            SELECT 
+                s.subcountyId,
+                s.name as subcountyName,
+                s.geoLat,
+                s.geoLon,
+                COUNT(DISTINCT w.wardId) as totalWards,
+                COUNT(DISTINCT p.id) as totalProjects,
+                COALESCE(SUM(p.costOfProject), 0) as totalBudget,
+                COALESCE(SUM(p.paidOut), 0) as totalPaid,
+                COALESCE(AVG(p.overallProgress), 0) as avgProgress,
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        (SUM(p.paidOut) * 100.0 / SUM(p.costOfProject))
+                    ELSE 0 
+                END as absorptionRate
+            FROM kemri_subcounties s
+            LEFT JOIN kemri_wards w ON s.subcountyId = w.subcountyId AND w.voided = 0
+            LEFT JOIN kemri_project_subcounties ps ON s.subcountyId = ps.subcountyId AND ps.voided = 0
+            LEFT JOIN kemri_projects p ON ps.projectId = p.id AND p.voided = 0
+            WHERE s.countyId = 15 AND s.voided = 0
+            GROUP BY s.subcountyId, s.name, s.geoLat, s.geoLon
+            ORDER BY s.name
+        `);
+
+        res.json({
+            subCounties: subCounties,
+            projectProgress: subCounties
+        });
+
+    } catch (error) {
+        console.error('Error fetching sub-counties data:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch sub-counties data',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/wards
+ * @description Get ward level data for Kitui County
+ * @access Public (for now)
+ * @returns {Object} Ward data with projects and metrics
+ */
+router.get('/wards', async (req, res) => {
+    try {
+        const [wards] = await pool.execute(`
+            SELECT 
+                w.wardId,
+                w.name as wardName,
+                s.name as subcountyName,
+                w.geoLat,
+                w.geoLon,
+                COUNT(DISTINCT p.id) as totalProjects,
+                COALESCE(SUM(p.costOfProject), 0) as totalBudget,
+                COALESCE(SUM(p.paidOut), 0) as totalPaid,
+                COALESCE(AVG(p.overallProgress), 0) as avgProgress,
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        (SUM(p.paidOut) * 100.0 / SUM(p.costOfProject))
+                    ELSE 0 
+                END as absorptionRate
+            FROM kemri_wards w
+            INNER JOIN kemri_subcounties s ON w.subcountyId = s.subcountyId
+            LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
+            LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
+            WHERE s.countyId = 15 AND w.voided = 0
+            GROUP BY w.wardId, w.name, s.name, w.geoLat, w.geoLon
+            ORDER BY s.name, w.name
+        `);
+
+        res.json({
+            wards: wards,
+            projectProgress: wards
+        });
+
+    } catch (error) {
+        console.error('Error fetching wards data:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch wards data',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/villages
+ * @description Get village level data for Kitui County (using wards as villages for now)
+ * @access Public (for now)
+ * @returns {Object} Village data with projects and metrics
+ */
+router.get('/villages', async (req, res) => {
+    try {
+        // For now, we'll use wards as villages since we don't have a villages table
+        const [villages] = await pool.execute(`
+            SELECT 
+                w.wardId as villageId,
+                w.name as villageName,
+                s.name as subcountyName,
+                w.name as wardName,
+                w.geoLat,
+                w.geoLon,
+                COUNT(DISTINCT p.id) as totalProjects,
+                COALESCE(SUM(p.costOfProject), 0) as totalBudget,
+                COALESCE(SUM(p.paidOut), 0) as totalPaid,
+                COALESCE(AVG(p.overallProgress), 0) as avgProgress,
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        (SUM(p.paidOut) * 100.0 / SUM(p.costOfProject))
+                    ELSE 0 
+                END as absorptionRate
+            FROM kemri_wards w
+            INNER JOIN kemri_subcounties s ON w.subcountyId = s.subcountyId
+            LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
+            LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
+            WHERE s.countyId = 15 AND w.voided = 0
+            GROUP BY w.wardId, w.name, s.name, w.geoLat, w.geoLon
+            ORDER BY s.name, w.name
+        `);
+
+        res.json({
+            villages: villages,
+            projectProgress: villages
+        });
+
+    } catch (error) {
+        console.error('Error fetching villages data:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch villages data',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/projects-by-county
+ * @description Get projects for a specific county
+ * @access Public (for now)
+ * @returns {Array} Array of projects
+ */
+router.get('/projects-by-county', async (req, res) => {
+    try {
+        const { county } = req.query;
+        
+        const [projects] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.projectName,
+                'Kitui' as countyName,
+                'N/A' as subcountyName,
+                'N/A' as wardName,
+                p.status,
+                p.overallProgress as percentCompleted,
+                p.healthScore,
+                p.startDate,
+                p.endDate,
+                p.costOfProject as allocatedBudget,
+                p.contractSum,
+                p.paidOut as amountPaid,
+                CASE 
+                    WHEN p.costOfProject > 0 THEN 
+                        (p.paidOut * 100.0 / p.costOfProject)
+                    ELSE 0 
+                END as absorptionRate,
+                p.objective,
+                p.expectedOutput,
+                p.expectedOutcome,
+                p.principalInvestigator,
+                p.statusReason
+            FROM kemri_projects p
+            WHERE p.voided = 0
+            ORDER BY p.projectName
+        `);
+
+        res.json(projects);
+
+    } catch (error) {
+        console.error('Error fetching projects by county:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch projects by county',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/projects-by-sub-county
+ * @description Get projects for a specific sub-county
+ * @access Public (for now)
+ * @returns {Array} Array of projects
+ */
+router.get('/projects-by-sub-county', async (req, res) => {
+    try {
+        const { subCounty } = req.query;
+        
+        const [projects] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.projectName,
+                'Kitui' as countyName,
+                ? as subcountyName,
+                'N/A' as wardName,
+                p.status,
+                p.overallProgress as percentCompleted,
+                p.healthScore,
+                p.startDate,
+                p.endDate,
+                p.costOfProject as allocatedBudget,
+                p.contractSum,
+                p.paidOut as amountPaid,
+                CASE 
+                    WHEN p.costOfProject > 0 THEN 
+                        (p.paidOut * 100.0 / p.costOfProject)
+                    ELSE 0 
+                END as absorptionRate,
+                p.objective,
+                p.expectedOutput,
+                p.expectedOutcome,
+                p.principalInvestigator,
+                p.statusReason
+            FROM kemri_projects p
+            WHERE p.voided = 0
+            ORDER BY p.projectName
+        `, [subCounty]);
+
+        res.json(projects);
+
+    } catch (error) {
+        console.error('Error fetching projects by sub-county:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch projects by sub-county',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/projects-by-ward
+ * @description Get projects for a specific ward
+ * @access Public (for now)
+ * @returns {Array} Array of projects
+ */
+router.get('/projects-by-ward', async (req, res) => {
+    try {
+        const { ward } = req.query;
+        
+        const [projects] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.projectName,
+                'Kitui' as countyName,
+                'N/A' as subcountyName,
+                ? as wardName,
+                p.status,
+                p.overallProgress as percentCompleted,
+                p.healthScore,
+                p.startDate,
+                p.endDate,
+                p.costOfProject as allocatedBudget,
+                p.contractSum,
+                p.paidOut as amountPaid,
+                CASE 
+                    WHEN p.costOfProject > 0 THEN 
+                        (p.paidOut * 100.0 / p.costOfProject)
+                    ELSE 0 
+                END as absorptionRate,
+                p.objective,
+                p.expectedOutput,
+                p.expectedOutcome,
+                p.principalInvestigator,
+                p.statusReason
+            FROM kemri_projects p
+            WHERE p.voided = 0
+            ORDER BY p.projectName
+        `, [ward]);
+
+        res.json(projects);
+
+    } catch (error) {
+        console.error('Error fetching projects by ward:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch projects by ward',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/projects-by-village
+ * @description Get projects for a specific village (using ward for now)
+ * @access Public (for now)
+ * @returns {Array} Array of projects
+ */
+router.get('/projects-by-village', async (req, res) => {
+    try {
+        const { village } = req.query;
+        
+        const [projects] = await pool.execute(`
+            SELECT 
+                p.id,
+                p.projectName,
+                'Kitui' as countyName,
+                'N/A' as subcountyName,
+                ? as wardName,
+                ? as villageName,
+                p.status,
+                p.overallProgress as percentCompleted,
+                p.healthScore,
+                p.startDate,
+                p.endDate,
+                p.costOfProject as allocatedBudget,
+                p.contractSum,
+                p.paidOut as amountPaid,
+                CASE 
+                    WHEN p.costOfProject > 0 THEN 
+                        (p.paidOut * 100.0 / p.costOfProject)
+                    ELSE 0 
+                END as absorptionRate,
+                p.objective,
+                p.expectedOutput,
+                p.expectedOutcome,
+                p.principalInvestigator,
+                p.statusReason
+            FROM kemri_projects p
+            WHERE p.voided = 0
+            ORDER BY p.projectName
+        `, [village, village]);
+
+        res.json(projects);
+
+    } catch (error) {
+        console.error('Error fetching projects by village:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch projects by village',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;

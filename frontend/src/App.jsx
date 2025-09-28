@@ -3,53 +3,54 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 // Import AuthProvider
-import { AuthProvider } from './context/AuthContext.jsx';
+import { AuthProvider } from './context/AuthContext';
 
 // Import Layout and Page Components
-import MainLayout from './layouts/MainLayout.jsx';
-import DashboardPage from './pages/DashboardPage.jsx';
-import RawDataPage from './pages/RawDataPage.jsx';
-import ProjectManagementPage from './pages/ProjectManagementPage.jsx';
-import ProjectDetailsPage from './pages/ProjectDetailsPage.jsx';
-import ProjectGanttChartPage from './pages/ProjectGanttChartPage.jsx';
-import ReportsPage from './pages/ReportsPage.jsx';
-import MapsPage from './pages/MapsPage.jsx';
-import UserManagementPage from './pages/UserManagementPage.jsx';
-import Login from './components/Login.jsx';
+import MainLayout from './layouts/MainLayout';
+import DashboardPage from './pages/DashboardPage';
+import RawDataPage from './pages/RawDataPage';
+import ProjectManagementPage from './pages/ProjectManagementPage';
+import ProjectDetailsPage from './pages/ProjectDetailsPage';
+import ProjectGanttChartPage from './pages/ProjectGanttChartPage';
+import ReportsPage from './pages/ReportsPage';
+import MapsPage from './pages/MapsPage';
+import UserManagementPage from './pages/UserManagementPage';
+import Login from './components/Login';
 
 // Import the StrategicPlanningPage
-import StrategicPlanningPage from './pages/StrategicPlanningPage.jsx';
+import StrategicPlanningPage from './pages/StrategicPlanningPage';
 // Import the StrategicPlanDetailsPage
-import StrategicPlanDetailsPage from './pages/StrategicPlanDetailsPage.jsx';
+import StrategicPlanDetailsPage from './pages/StrategicPlanDetailsPage';
 // Import the DataImportPage
-import DataImportPage from './pages/DataImportPage.jsx';
+import DataImportPage from './pages/DataImportPage';
 // NEW: Import the KdspProjectDetailsPage
-import KdspProjectDetailsPage from './pages/KdspProjectDetailsPage.jsx';
+import KdspProjectDetailsPage from './pages/KdspProjectDetailsPage';
 // NEW: Import the GISMapPage for the new mapping component
-import GISMapPage from './pages/GISMapPage.jsx';
+import GISMapPage from './pages/GISMapPage';
 // NEW: Import the MapDataImportPage for the map data import form
-import MapDataImportPage from './pages/MapDataImportPage.jsx';
+import MapDataImportPage from './pages/MapDataImportPage';
 // NEW: Import the SettingsPage
-import SettingsPage from './pages/SettingsPage.jsx';
+import SettingsPage from './pages/SettingsPage';
 // CORRECTED: Import the ProjectCategoryPage component
-import ProjectCategoryPage from './pages/ProjectCategoryPage.jsx';
+import ProjectCategoryPage from './pages/ProjectCategoryPage';
 // NEW: Import the ProjectPhotoManager component
-import ProjectPhotoManager from './pages/ProjectPhotoManager.jsx';
+import ProjectPhotoManager from './pages/ProjectPhotoManager';
 // NEW: Import the ContractorDashboard component
-import ContractorDashboard from './pages/ContractorDashboard.jsx';
+import ContractorDashboard from './pages/ContractorDashboard';
 // NEW: Import the ContractorManagementPage component
-import ContractorManagementPage from './pages/ContractorManagementPage.jsx';
+import ContractorManagementPage from './pages/ContractorManagementPage';
 // NEW: Import the HrModulePage component
-import HrModulePage from './pages/HrModulePage.jsx';
+import HrModulePage from './pages/HrModulePage';
 // ✨ NEW: Import the WorkflowManagementPage component
-import WorkflowManagementPage from './pages/WorkflowManagementPage.jsx';
+import WorkflowManagementPage from './pages/WorkflowManagementPage';
 // ✨ NEW: Import the ApprovalLevelsManagementPage component
-import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage.jsx';
+import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage';
  
-import ReportingPage from './pages/ReportingPage.jsx';
+import ReportingPage from './pages/ReportingPage';
 import ReportingView from './components/ReportingView';
+import RegionalReportsView from './components/RegionalReportsView';
 
-import ProjectDashboardPage from './pages/ProjectsDashboardPage.jsx';
+import ProjectDashboardPage from './pages/ProjectsDashboardPage';
 import { ColorModeContext, useMode} from "./pages/dashboard/theme";
 
 // Define your routes with basename for /impes path
@@ -101,6 +102,10 @@ const router = createBrowserRouter([
       {
         path: 'view-reports',
         element: <ReportingView />,
+      },
+      {
+        path: 'regional-reports',
+        element: <RegionalReportsView />,
       },
       {
         path: 'maps',
