@@ -1,0 +1,1000 @@
+ 1000  git status
+ 1001  cd ../impesbackend
+ 1002  	git add . && git commit -m "Formatting dates to facilitate database updates"
+ 1003  git push origin main
+ 1004  cd ../impesfront
+ 1005  ls
+ 1006  	git add . && git commit -m "Enhance leave and public holiday  management"
+ 1007  git push origin main
+ 1008  cd ../impesbackend
+ 1009  	git add . && git commit -m "Enhance leave and public holiday  management routes"
+ 1010  git push origin main
+ 1011  git status
+ 1012  	git add . && git commit -m "Enhance leave and public holiday  management routes"
+ 1013  git push origin main
+ 1014  cd ../impesfront
+ 1015  	git add . && git commit -m "Enhance leave management and status tracking"
+ 1016  git push origin main
+ 1017  cd /home/dev/dev/impesfront/src/components/hr/modals/
+ 1018  ls 
+ 1019  mysql -uroot -p
+ 1020  cd ../impesbackend
+ 1021  npm start
+ 1022  npm install
+ 1023  npm start
+ 1024  npm install html-to-pdfmake
+ 1025  npm start
+ 1026  clear
+ 1027  npm start
+ 1028  cd dev/impesfront
+ 1029  npm run dev
+ 1030  cd /home/dev/dev/impesbackend/routes/
+ 1031  node cleanfile.js 
+ 1032  mysql -uroot -p
+ 1033  mysql -uroot -pAdmin2010$$$$$
+ 1034  mysql -uroot
+ 1035  mysql -uroot -p
+ 1036  cd ../impesbackend
+ 1037  npm start
+ 1038  clear
+ 1039  npm start
+ 1040  npm install sharp
+ 1041  npm start
+ 1042  cd dev/impesfront
+ 1043  npm run dev
+ 1044  npm install react-beautiful-dnd
+ 1045  npm install @hello-pangea/dnd
+ 1046  npm run dev
+ 1047  npm install sharp
+ 1048  npm run dev
+ 1049  ifconfig
+ 1050  	git add . && git commit -m "Enhance Basic Employee Details with additional info"
+ 1051  git push origin main
+ 1052  	git add . && git commit -m "Fix SQL Errors and improve error handling for HR routes for  Employee Details with additional info"
+ 1053  git push origin main
+ 1054  cd ../impesfront
+ 1055  	git add . && git commit -m "Fix Employee 360 rendersing errors"
+ 1056  git push orgin main
+ 1057  git push origin main
+ 1058  mysql -uroot -p
+ 1059  git status
+ 1060  	git add . && git commit -m "Enhancing the payment process workflows"
+ 1061  git push origin main
+ 1062  cd ../impesbackend
+ 1063  	git add . && git commit -m "Building the project  payment process routes"
+ 1064  git push origin main
+ 1065  cd ../impesfront
+ 1066  npm install @mui/lab
+ 1067  	git add . && git commit -m "Enhance  project document management"
+ 1068  git push origin main
+ 1069  cd ../impesbackend
+ 1070  	git add . && git commit -m "Enhance  project document management routes"
+ 1071  git push origin main
+ 1072  	git add . && git commit -m "Implement photo resizing and reordering"
+ 1073  git push origin main
+ 1074  cd ../impesfront
+ 1075  	git add . && git commit -m "Implement photo resizing and reordering"
+ 1076  git push origin main
+ 1077  	git add . && git commit -m "Deactivating project photo resizing due to unreliability of the feature"
+ 1078  git push origin main
+ 1079  cd ../impesbackend
+ 1080  git status
+ 1081  cd ../impesfront
+ 1082  	git add . && git commit -m "Implement project cover photo"
+ 1083  git push origin main
+ 1084  	git add . && git commit -m "Enhance project budget linkage to milestones"
+ 1085  git push origin main
+ 1086  	git add . && git commit -m "Building supporting documents and photos for milestones"
+ 1087  git push origin main
+ 1088  cd ../impesbackend/
+ 1089  git status
+ 1090  	git add . && git commit -m "Enhancing the project milestone supporting documents routes"
+ 1091  git push origin main
+ 1092  cd dev/impesbackend/
+ 1093  npm start
+ 1094  git status
+ 1095  cd ../impesfront/'
+ 1096  '
+ 1097  mysql -uroot -p
+ 1098  cd ../frontimpes/
+ 1099  git status
+ 1100  npm run dev
+ 1101  find -iname "*complete_frd*"
+ 1102  cd "/media/dev/Data 1/"
+ 1103  find -iname "*complete_frd*"
+ 1104  cd
+ 1105  find /media -iname "*complete_frd*" 2>/dev/null
+ 1106  find /media -iname "*complete*" 2>/dev/null
+ 1107  cd dev/backimpes/
+ 1108  git status
+ 1109  npm start
+ 1110  clear
+ 1111  npm start
+ 1112  cd routes
+ 1113  ls -al
+ 1114  cd
+ 1115  cd dev/backimpes/
+ 1116  npm start
+ 1117  vscode /home/dev/dev/backimpes/routes/projectsWorkflowRoutes.js
+ 1118  code /home/dev/dev/backimpes/routes/projectsWorkflowRoutes.js
+ 1119  npm start
+ 1120  mysql -uroot -p
+ 1121  cd ../
+ 1122  mysqldump -uroot -p kemri > kemri_aug_26.sql
+ 1123  ls
+ 1124  cd frontimpes/
+ 1125  	git add . && git commit -m "Build project payment request approval workflows, enhance user role management,build approval workflows"
+ 1126  git push origin main
+ 1127  cd ../backimpes/
+ 1128  	git add . && git commit -m "Build project payment request approval workflows, enhance user role management,build approval workflows routes"
+ 1129  git push origin main
+ 1130  git status
+ 1131  cd ../frontimpes/
+ 1132  	git add . && git commit -m "Implement final stage of marking the project payment as paid"
+ 1133  git push origin main
+ 1134  	git add . && git commit -m "Enhance project review ui"
+ 1135  git push origin main
+ 1136  	git add . && git commit -m "Add dynamic payment status tracking fields"
+ 1137  git push origin main
+ 1138  git status
+ 1139  	git add . && git commit -m "Enhance Project Details Display Page"
+ 1140  git push origin main
+ 1141  git status
+ 1142  	git add . && git commit -m "Enhance Project Workplans and milestone tracking"
+ 1143  git push origin main
+ 1144  	git add . && git commit -m "Add challenges and recommendations to project monitoring"
+ 1145  git push origin main
+ 1146  cd ../backimpes/
+ 1147  git status
+ 1148  	git add . && git commit -m "Add challenges and recommendations to project monitoring routes"
+ 1149  git push origin main
+ 1150  git status
+ 1151  	git add . && git commit -m "Enhancing contractor self service routes"
+ 1152  git push origin main
+ 1153  cd ../frontimpes/
+ 1154  	git add . && git commit -m "Enhancing contractor dashboard towards self service"
+ 1155  git push origin main
+ 1156  git status
+ 1157  	git add . && git commit -m "Enhancing contractor privileges"
+ 1158  git push origin main
+ 1159  cd ../backimpes/
+ 1160  	git add . && git commit -m "Enhancing contractor processes management routes"
+ 1161  git push origin main
+ 1162  cd ../
+ 1163  ls
+ 1164  cd devEx/
+ 1165  ls
+ 1166  cd countyerp/
+ 1167  cd ../frontimpes/
+ 1168  npm run dev
+ 1169  cd dev/
+ 1170  cd backimpes/
+ 1171  npm start
+ 1172  cd dev
+ 1173  cd backimpes/dump/
+ 1174  ls
+ 1175  python3 import_csv.py 
+ 1176  mysql -uroot -p
+ 1177  ls
+ 1178  pythone3 import_csv.py 
+ 1179  python3 import_csv.py 
+ 1180  pip install mysql-connector-python
+ 1181  python3 import_csv.py 
+ 1182  desc  kemri_contractors;
+ 1183  mysql -uroot -p
+ 1184  clear
+ 1185  mysql -uroot -p
+ 1186  cd 
+ 1187  cd dev/devEx/countyerp/
+ 1188  nvm use 10
+ 1189  npm start
+ 1190  npm install @mui/icons-material
+ 1191  	git add . && git commit -m "Enhancing project summary details and data export"
+ 1192  git push origin main
+ 1193  cd ../
+ 1194  cd backimpes/
+ 1195  git status
+ 1196  	git add . && git commit -m "Enhancing project summary details and data export routes"
+ 1197  git push origin main
+ 1198  	git add . && git commit -m "Adding more  project summary report routes"
+ 1199  git push origin main
+ 1200  cd ../frontimpes/
+ 1201  	git add . && git commit -m "Adding more  project summary charts"
+ 1202  git push origin main
+ 1203  npm install xlsx react-to-pdf
+ 1204  npm install jspdf-autotable
+ 1205  cd ../../
+ 1206  cd backimpes/dump/
+ 1207  python3 import_csv.py 
+ 1208  python3 contractor_data.py 
+ 1209  cd dev/backimpes/
+ 1210  git status
+ 1211  npm start
+ 1212  	git add . && git commit -m "Adding the ward summary report"
+ 1213  git push origin main
+ 1214  cd ../backimpes/
+ 1215  	git add . && git commit -m "Adding the ward summary report routes"
+ 1216  git push origin main
+ 1217  	git add . && git commit -m "Adding the Annual summary report routes"
+ 1218  git push origin main
+ 1219  cd ../frontimpes/
+ 1220  	git add . && git commit -m "Adding the Annual summary report"
+ 1221  git push origin main
+ 1222  	git add . && git commit -m "Fixing ward summary report bugs"
+ 1223  git push origin main
+ 1224  cd ../backimpes/
+ 1225  git status
+ 1226  	git add . && git commit -m "Ward summary route cleaning"
+ 1227  git push origin main
+ 1228  git status
+ 1229  cd ../frontimpes/
+ 1230  git status
+ 1231  	git add . && git commit -m "Adding KPI Summary route"
+ 1232  git push origin main
+ 1233  cd ../frontimpes/
+ 1234  	git add . && git commit -m "Adding KPI Summary"
+ 1235  git push origin main
+ 1236  cd ../
+ 1237  nvm use 10
+ 1238  cd devEx/countyerp/
+ 1239  npm start
+ 1240  nvm use 10
+ 1241  cd ../ugapi.countyerp
+ 1242  pm2 run api.json
+ 1243  pm2 start api.json
+ 1244  cd ../frontimpes/
+ 1245  git status
+ 1246  npm run dev
+ 1247  cd dev/frontimpes/
+ 1248  npm run dev
+ 1249  cd ../backimpes/
+ 1250  npm start
+ 1251  git status
+ 1252  git add .
+ 1253  git commit -m "Enhance project summary charts, fix contractor registration"
+ 1254  git push origin main
+ 1255  cd ../backimpes/
+ 1256  git status
+ 1257  git add .
+ 1258  git commit -m "Add user field to the authroutes, add missing contractor routes"
+ 1259  git push origin main
+ 1260  git status
+ 1261  git add .
+ 1262  git commit -m "Enhance the project summary reports"
+ 1263  git push origin main
+ 1264  git status
+ 1265  cd
+ 1266  cd dev/
+ 1267  create react-app
+ 1268  npx create react-app
+ 1269  npx create-react-app
+ 1270  ls
+ 1271  npx create-react-app dashboard
+ 1272  cd dashboard/
+ 1273  code .
+ 1274  mysql -uroot -p
+ 1275  cd dev/dashboard/
+ 1276  ls
+ 1277  npm i @mui/material @emotion/react @emotion/styled @mui/x-data-grid @mui/icons-material react-router-dom@6 
+ 1278  react-pro-sidebar formik yup @fullcalendar/core @fullcalendar/daygrid @fullcalendar^Ccore
+ 1279  cd ../
+ 1280  git clone git@github.com:ed-roh/react-admin-dashboard.git
+ 1281  ls
+ 1282  cd react-admin-dashboard/
+ 1283  npm install
+ 1284  npm run dev
+ 1285  npm start
+ 1286  npm i @mui/material @emotion/react @emotion/styled @mui/x-data-grid @mui/icons-material react-router-dom@6 
+ 1287  cd ..
+ 1288  cd react-admin-dashboard/
+ 1289  code .
+ 1290  cd dev/dashboard/
+ 1291  npm run start
+ 1292  npm install
+ 1293  npm run start
+ 1294  cd ../dashboard/
+ 1295  npm run start
+ 1296  npm i @mui/material @emotion/react @emotion/styled @mui/x-data-grid @mui/icons-material react-router-dom@6 
+ 1297  react-pro-sidebar formik yup @fullcalendar/core @fullcalendar/daygrid  @fullcalendar/daygrid @fullcalendar/timegrid @fullcalendar/list  @nivo/core @nivo/pie @nivo/line @nivo/bar @nivo/geo 
+ 1298  npm run start
+ 1299  npm install react-pro-sidebar
+ 1300  npm run start
+ 1301  cd ../react-admin-dashboard/
+ 1302  npm run start
+ 1303  cd
+ 1304  cd dev/afrontimpes/
+ 1305  npm install  @nivo/core @nivo/pie @nivo/line @nivo/bar @nivo/geo 
+ 1306  npm install 	  @mui/material @emotion/react @emotion/styled @mui/x-data-grid @mui/icons-material react-router-dom@6 
+ 1307  react-pro-sidebar formik yup @fullcalendar/core @fullcalendar/daygrid 
+ 1308  cd dev/afrontimpes/
+ 1309  npm i @mui/material @emotion/react @emotion/styled @mui/x-data-grid @mui/icons-material react-router-dom@6 
+ 1310  react-pro-sidebar formik yup @fullcalendar/core @fullcalendar/daygrid @fullcalendar^core
+ 1311  npm run dev
+ 1312  npm install react-pro-sidebar
+ 1313  npm run dev
+ 1314  npm install react-pro-sidebar@0.7.1
+ 1315  npm run dev
+ 1316  cd ../ugapi.countyerp
+ 1317  nvm use 10
+ 1318  pm2 start api.json
+ 1319  cd ../react-admin-dashboard/
+ 1320  npm start
+ 1321  cd dev/
+ 1322  wget https://raw.githubusercontent.com/killerlux/cursor-cleaner/main/cursor-cleaner.sh
+ 1323  ls
+ 1324  sudo chmod +x cursor-cleaner.sh 
+ 1325  ./cursor-cleaner.sh 
+ 1326  cd afrontimpes/
+ 1327  git add .
+ 1328  git commit -m "Enhancing the grid header design"
+ 1329  git push origin main
+ 1330  git status
+ 1331  git add .
+ 1332  git commit -m "Improve project registry and registration UI"
+ 1333  git push origin main
+ 1334  cd afrontimpes/
+ 1335  git add .
+ 1336  git commit -m "UI Improvements"
+ 1337  git push origin main
+ 1338  npm run dev
+ 1339  cd ../afrontimpes/
+ 1340  npm run dev
+ 1341  docker ps docker ps
+ 1342  docker ps
+ 1343  mysqldump -uroot -p imbesdb>imbesdb.sql
+ 1344  ls
+ 1345  cd ../
+ 1346  ls
+ 1347  cd backimpes/
+ 1348  ls
+ 1349  docker ps
+ 1350  docker stop mysql_db
+ 1351  sudo docker stop mysql_db
+ 1352  cd ../
+ 1353  cd impes/
+ 1354  sudo service mysql start
+ 1355  mysqldump -uroot -p imbesdb>imbesdbData.sql
+ 1356  mysql -uroot -p
+ 1357  docker ps
+ 1358  sudo docker kill mysql_db
+ 1359  sudo docker rm --force mysql_db
+ 1360  sudo systemctl restart docker
+ 1361  sudo docker rm --force mysql_db
+ 1362  docker ps
+ 1363  sudo lsof -i :3306
+ 1364  sudo kill -9 139191
+ 1365  sudo kill -9 139206
+ 1366  sudo service mysql start
+ 1367  mysqldump -uroot -p imbesdb >imbesdbData.sql
+ 1368  sudo service mysql stop
+ 1369  la
+ 1370  sudo systemctl restart docker
+ 1371  docker ps
+ 1372  ls
+ 1373  cat imbesdbData.sql | docker exec -i mysql_db mysql -u impesUser -p imbesdb
+ 1374  cat imbesdbData.sql | docker exec -i mysql_db mysql -u root -p imbesdb
+ 1375  cat imbesdbData.sql | docker exec -i mysql_db mysql -u root -pAdmin2010$$$$$ imbesdb
+ 1376  docker exec -it mysql_db mysql -u root -p
+ 1377  docker exec -it mysql_db mysql -u root
+ 1378  docker exec -it mysql_db bash
+ 1379  sudo service mysql stop
+ 1380  docker-compose up --build --force-recreate
+ 1381  sudo lsof -i :3306
+ 1382  sudo docker rm --force 34f0c660ccc11541cbdbb2594736649536bbf1ca6f9c42d9be964f2162a2ec84
+ 1383  sudo lsof -i :3000
+ 1384  sudo kill -9 140488
+ 1385  sudo kill -9 140497
+ 1386  docker-compose up --build --force-recreate
+ 1387  sudo lsof -i :3000
+ 1388  sudo lsof -i :3306
+ 1389  sudo systemctl restart docker
+ 1390  docker ps
+ 1391  cat imbesdbData.sql | docker exec -i mysql_db mysql -u root -pAdmin2010$$$$$ imbesdb
+ 1392  docker exec -it mysql_db mysql -u root -p
+ 1393  docker ps
+ 1394  sudo lsof -i :3306
+ 1395  sudo lsof -i :3000
+ 1396  sudo systemctl restart docker
+ 1397  docker ps
+ 1398  cd dev/backimpes/
+ 1399  npm start 
+ 1400  cd 
+ 1401  cd dev/
+ 1402  ./Cursor-1.5.9-x86_64.AppImage 
+ 1403  cd afrontimpes/
+ 1404  ls -al
+ 1405  mysqldump -uimpesUser -p --no-data impesdb > api/schema.sql
+ 1406  mysqldump -uroot -p --no-data impesdb > api/schema.sql
+ 1407  mysqldump -uimpesUser -p --no-data imbesdb > api/schema.sql
+ 1408  mysqldump -uroot -p --no-data imbesdb > api/schema.sql
+ 1409  ls
+ 1410  sudo docker rm -f 6a6199a1bbd6f4516cd3673963f2c6f2b065a1b30794b2885a74ad641383960c
+ 1411  sudo docker inspect react_frontend | grep -i pid
+ 1412  sudo kill -9 2938
+ 1413  ps aux | grep 2938
+ 1414  sudo docker rm -f react_frontend
+ 1415  docker ps
+ 1416  sudo docker ps -a | grep react_frontend
+ 1417  sudo docker stop node_api
+ 1418  sudo docker rm node_api
+ 1419  docker ps
+ 1420  docker-compose up --build --force-recreate
+ 1421  docker ps
+ 1422  sudo service mysql stop
+ 1423  docker-compose up --build --force-recreate
+ 1424  docker volume ls | grep db_data
+ 1425  docker volume inspect impes_db_data
+ 1426  docker-compose down
+ 1427  sudo docker-compose down
+ 1428  # Get the container ID and force kill it
+ 1429  sudo docker kill 5d3ec75cf720
+ 1430  # Or using the container name
+ 1431  sudo docker kill react_frontend
+ 1432  sudo docker kill 5d3ec75cf720
+ 1433  docker ps
+ 1434  sudo docker kill 5d3ec75cf720 5071f8f3c37c c9109c2008d7
+ 1435  # Get the PIDs of the stuck containers
+ 1436  sudo docker inspect 5d3ec75cf720 | grep -i '"Pid"'
+ 1437  sudo docker inspect c9109c2008d7 | grep -i '"Pid"'
+ 1438  # Kill the processes directly (replace XXXX with actual PIDs)
+ 1439  sudo kill -9 XXXX YYYY
+ 1440  sudo kill 91776
+ 1441  sudo kill 91543
+ 1442  docker ps
+ 1443  sudo docker-compose down
+ 1444  docker-compose up --build --force-recreate
+ 1445  docker ps
+ 1446  docker-compose down
+ 1447  cd dev/impes/
+ 1448  docker-compose down
+ 1449  sudo docker-compose down
+ 1450  sudo lsof -i :5173
+ 1451  sudo kill -9 2994
+ 1452  sudo kill -9 3001
+ 1453  sudo docker-compose down
+ 1454  docker ps
+ 1455  sudo lsof -i :5173
+ 1456  clear
+ 1457  sudo docker-compose down
+ 1458  sudo docker kill react_frontend
+ 1459  sudo docker-compose down
+ 1460  sudo systemctl status docker
+ 1461  docker ps
+ 1462  docker ps -a | grep node_api
+ 1463  # Stop the current setup
+ 1464  docker-compose down
+ 1465  # Run the API container interactively to see what's happening
+ 1466  docker run -it --rm impes-api /bin/sh
+ 1467  # Or if it doesn't have sh:
+ 1468  docker run -it --rm impes-api /bin/bash
+ 1469  sudo docker inspect react_frontend | grep -i pid
+ 1470  sudo kill 63408
+ 1471  docker ps
+ 1472  CONTAINER ID   IMAGE       COMMAND                  CREATED         STATUS         PORTS                                                    NAMES
+ 1473  54f606ddce04   mysql:8.0   "docker-entrypoint.s…"   8 minutes ago   Up 8 minutes   0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp   mysql_db
+ 1474  docker logs 0e3026305e61
+ 1475  # Connect to MySQL container
+ 1476  docker exec -it mysql_db mysql -u root -pAdmin2010root
+ 1477  # Once inside MySQL, check the users:
+ 1478  SELECT user, host FROM mysql.user;
+ 1479  docker-compose down
+ 1480  docker volume rm impes_db_data
+ 1481  sudo docker inspect mysql_db | grep -i pid
+ 1482  sudo kill 63228
+ 1483  docker-compose down
+ 1484  mysql -uroot -p
+ 1485  docker-compose up --build --force-recreate
+ 1486  cd impes/
+ 1487  docker ps
+ 1488  sudo docker-compose down
+ 1489  sudo lsof 80
+ 1490  sudo lsof -80
+ 1491  sudo lsof -i :5173
+ 1492  sudo kill 27991
+ 1493  sudo kill 27998
+ 1494  sudo docker-compose down
+ 1495  sudo lsof -i :80
+ 1496  sudo kill 28136
+ 1497  sudo kill 28144
+ 1498  docker ps
+ 1499  sudo docker-compose down
+ 1500  docker ps
+ 1501  cd
+ 1502  cd dev/
+ 1503  ls
+ 1504  git clone git@github.com:kwatuha/imes.git 
+ 1505  cd imes/
+ 1506  git status
+ 1507  git add .
+ 1508  git commit -m "combining api and frontend apps into one repo"
+ 1509  git push origin main
+ 1510  docker ps
+ 1511  cd /home/dev/dev/original_data/
+ 1512  ls
+ 1513  sudo scp imbesdbData.sql dev@192.168.100.31:/home/dev
+ 1514  sudo scp imbesdbData.sql dev@192.168.100.31:/home/dev/min
+ 1515  sudo scp /home/dev/dev/imes/api.zip dev@192.168.100.31:/home/dev/min
+ 1516  sudo scp /home/dev/dev/impes.zip dev@192.168.100.31:/home/dev/min
+ 1517  sudo scp /home/dev/dev/deployimpes.zip dev@192.168.100.31:/home/dev/min
+ 1518  ssh kunye@165.22.227.234
+ 1519  sudo service mysql start
+ 1520  sudo service apache2 start
+ 1521  sudo lsof -i :80
+ 1522  sudo lsof -i :3306
+ 1523  cd impes/
+ 1524  sudo docker compose down
+ 1525  docker compose down
+ 1526  docker ps
+ 1527  ssh kunye@165.22.227.234
+ 1528  docker ps
+ 1529  sudo docker-compose up -d --build
+ 1530  docker compose down
+ 1531  sudo docker-compose up -d --build
+ 1532  docker compose down
+ 1533  sudo docker-compose up -d --build
+ 1534  docker ps
+ 1535  ssh kunye@165.22.227.234
+ 1536  sudo scp -i id_asusme deployimpesd.zip kunye@165.22.227.234:/tmp
+ 1537  scp -i ~/.ssh/id_asusme ~/dev/deployimpesd.zip kunye@165.22.227.234:/tmp
+ 1538  scp -i ~/.ssh/id_asusme ~/dev/deployimpesd/docker-compose.yml kunye@165.22.227.234:/tmp
+ 1539  ssh kunye@165.22.227.234
+ 1540  cd ../
+ 1541  ls
+ 1542  cd frontend/
+ 1543  npm start
+ 1544  docker compose -f docker-compose.master.yml up -d
+ 1545  docker compose -f docker-compose.master.yml down --remove-orphans
+ 1546  docker compose -f docker-compose.master.yml up -d
+ 1547  docker ps
+ 1548  docker ps -a | grep impes_api
+ 1549  docker logs impes_api
+ 1550  docker restart impes_api
+ 1551  docker logs impes_api --tail 10
+ 1552  docker ps
+ 1553  docker compose -f docker-compose.master.yml restart impes_frontend
+ 1554  docker compose -f docker-compose.master.yml build impes_frontend
+ 1555  docker compose -f docker-compose.master.yml up -d impes_frontend
+ 1556  docker ps
+ 1557  docker logs impes_api --tail 20
+ 1558  docker logs impes_api --tail 50
+ 1559  docker logs master_nginx_proxy --tail 20
+ 1560  docker exec master_nginx_proxy nginx -s reload
+ 1561  curl -X POST http://localhost:8080/impes-api/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}' -v
+ 1562  docker logs impes_api --tail 10
+ 1563  docker exec impes_api curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin"}' -v
+ 1564  curl -X POST http://localhost:8080/impes-api/auth/test-reach -v
+ 1565  docker exec impes_mysql mysql -u impesUser -pAdmin2010impes -e "USE imbesdb; SELECT username, roleId FROM kemri_users LIMIT 5;"
+ 1566  docker exec impes_mysql mysql -u impesUser -pAdmin2010impes -e "USE imbesdb; SHOW TABLES;"
+ 1567  docker compose -f docker-compose.master.yml down
+ 1568  docker volume rm impes_impes_mysql_data
+ 1569  docker compose -f docker-compose.master.yml up -d
+ 1570  sleep 10 && docker exec impes_mysql mysql -u impesUser -pAdmin2010impes -e "USE imbesdb; SHOW TABLES;" | head -10
+ 1571  docker exec impes_mysql mysql -u impesUser -pAdmin2010impes -e "USE imbesdb; SELECT username, roleId FROM kemri_users LIMIT 5;"
+ 1572  curl -X POST http://localhost:8080/impes-api/auth/login -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"admin"}' -v
+ 1573  docker ps | grep impes_api
+ 1574  docker ps -a | grep impes
+ 1575  docker logs impes_api
+ 1576  docker compose -f docker-compose.master.yml restart impes_api
+ 1577  docker logs impes_api --tail 10
+ 1578  curl -X POST http://localhost:8080/impes-api/auth/login -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' -v
+ 1579  find . -name "*smartcounty*" -o -name "*cimes*" -o -name "*.sql" | grep -v node_modules | grep -v uploads
+ 1580  find ../devEx/cimes -name "*.sql" 2>/dev/null || echo "CIMES directory not found or no SQL files"
+ 1581  cp ../devEx/cimes/smartcountyData.sql ./smartcountyData.sql
+ 1582  cp /home/dev/dev/devEx/cimes/smartcountyData.sql ./smartcountyData.sql
+ 1583  ls -la smartcountyData.sql
+ 1584  docker compose -f docker-compose.master.yml stop cimes_mysql
+ 1585  docker volume rm impes_cimes_mysql_data
+ 1586  docker rm cimes_mysql
+ 1587  docker volume rm impes_cimes_mysql_data
+ 1588  docker compose -f docker-compose.master.yml up -d cimes_mysql
+ 1589  sleep 15 && docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SHOW TABLES;" | head -10
+ 1590  docker logs cimes_mysql --tail 20
+ 1591  docker logs cimes_mysql | grep -i "smartcounty\|init\|dump"
+ 1592  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SHOW TABLES;" | head -10
+ 1593  sed -i 's/utf8mb4_0900_ai_ci/utf8mb4_unicode_ci/g' smartcountyData.sql
+ 1594  docker compose -f docker-compose.master.yml stop cimes_mysql && docker rm cimes_mysql && docker volume rm impes_cimes_mysql_data
+ 1595  docker compose -f docker-compose.master.yml up -d cimes_mysql
+ 1596  sleep 20 && docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SHOW TABLES;" | head -10
+ 1597  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SELECT username, role FROM users LIMIT 5;"
+ 1598  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; DESCRIBE users;"
+ 1599  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SELECT UserName, RoleID FROM users LIMIT 5;"
+ 1600  docker compose -f docker-compose.master.yml up -d cimes_api
+ 1601  docker logs cimes_api --tail 20
+ 1602  curl -X GET http://localhost:8080/cimes-api/ -v
+ 1603  docker compose -f docker-compose.master.yml up -d cimes_frontend
+ 1604  curl -X GET http://localhost:8080/cimes/ -v
+ 1605  docker exec cimes_frontend find /usr/src/app -name "*.js" -exec grep -l "localhost.*impes\|impes.*localhost" {} \;
+ 1606  docker exec cimes_frontend ls -la /usr/src/app/
+ 1607  docker exec cimes_frontend cat /usr/src/app/settings.js | head -30
+ 1608  docker compose -f docker-compose.master.yml up -d --build cimes_frontend
+ 1609  curl -X GET http://localhost:8080/cimes/ -v
+ 1610  curl -X GET http://localhost:8080/cimes-api/smartcounty/ -v
+ 1611  curl -X GET http://localhost:8080/cimes-api/ -v
+ 1612  docker exec cimes_frontend cat /usr/src/app/settings.js | grep -A 10 -B 5 "apiServer\|apiServiceBaseUri"
+ 1613  docker compose -f docker-compose.master.yml up -d --build cimes_frontend
+ 1614  docker exec cimes_frontend cat /usr/src/app/settings.js | grep -A 5 -B 5 "serverMode"
+ 1615  curl -X GET http://localhost:8080/cimes/#/login -v
+ 1616  curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"username":"root","password":"test"}' -v
+ 1617  docker logs cimes_api --tail 30
+ 1618  curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"username":"root","password":"reset123"}' -v
+ 1619  docker logs cimes_api --tail 5
+ 1620  curl -X GET http://localhost:8080/cimes-api/smartcounty/users -v
+ 1621  docker logs cimes_api | grep -i "route\|start\|error" | tail -10
+ 1622  docker logs cimes_api | grep -A 5 -B 5 "Server running\|error\|Error" | tail -20
+ 1623  docker exec cimes_api curl -X POST http://localhost:3030/api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"username":"root","password":"test"}' -v
+ 1624  docker compose -f docker-compose.master.yml up -d --build cimes_api
+ 1625  sleep 10 && curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"username":"root","password":"test"}' -v
+ 1626  docker logs cimes_api --tail 20
+ 1627  curl -X GET http://localhost:8080/cimes-api/ -v
+ 1628  curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"username":"root","password":"test"}' -v
+ 1629  docker logs cimes_api | grep -i "authenticate\|systemUsers\|error" | tail -10
+ 1630  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SELECT UserName, RoleID FROM users LIMIT 3;"
+ 1631  curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"UserName":"root","Password":"test"}' -v
+ 1632  docker compose -f docker-compose.master.yml up -d --build cimes_api
+ 1633  sleep 15 && curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"UserName":"root","Password":"test"}' -v
+ 1634  docker logs cimes_api --tail 30
+ 1635  docker logs cimes_api | grep -A 5 -B 5 "authenticate" | tail -20
+ 1636  docker logs cimes_api | grep -i "database\|mysql\|error\|connection" | tail -10
+ 1637  curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"UserName":"root","Password":"reset123"}' -v
+ 1638  docker exec cimes_api ls -la /usr/src/api/routes/systemUsers.js
+ 1639  curl -X GET http://localhost:8080/cimes-api/smartcounty/system/users -H "Authorization: Basic cm9vdDp0ZXN0" -v
+ 1640  docker exec master_nginx_proxy nginx -s reload
+ 1641  curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"UserName":"root","Password":"reset123"}' -v
+ 1642  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; SHOW TABLES;" | grep -i user
+ 1643  docker exec cimes_mysql mysql -u cimes_user -pcimes_password -e "USE smartcounty; DESCRIBE users;" | head -10
+ 1644  docker compose -f docker-compose.master.yml up -d --build cimes_api
+ 1645  sleep 15 && curl -X POST http://localhost:8080/cimes-api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"UserName":"root","Password":"reset123"}' -v
+ 1646  docker compose -f docker-compose.master.yml up -d --build cimes_frontend
+ 1647  docker ps | grep 3050
+ 1648  lsof -i :3050
+ 1649  docker compose -f docker-compose.master.yml stop cimes_api cimes_frontend
+ 1650  docker compose -f docker-compose.master.yml up -d cimes_frontend
+ 1651  docker exec cimes_frontend cat /usr/src/app/settings.js | grep -A 5 -B 5 "landingPage"
+ 1652  docker compose -f docker-compose.master.yml down
+ 1653  docker compose down
+ 1654  cd /home/dev/dev/devEx/docker.countyerp
+ 1655  ls -la
+ 1656  cp /home/dev/dev/impes/smartcountyData.sql ./mysql/
+ 1657  cp /home/dev/dev/devEx/cimes/dump/smrbackup_ksm_sept7205m.sql ./mysql/
+ 1658  ls -la mysql/
+ 1659  mv mysql/smartcounty.sql mysql/smartcounty.sql.backup && mv mysql/smrbackup_ksm_sept7205m.sql mysql/smartcounty.sql
+ 1660  grep -n "utf8mb4_0900" mysql/smartcounty.sql | head -5
+ 1661  cd /home/dev/dev/impes && docker compose up -d
+ 1662  cd /home/dev/dev/devEx/docker.countyerp
+ 1663  docker compose -f docker-compose.impes-integration.yaml up -d --build
+ 1664  docker compose -f docker-compose.impes-integration.yaml up -d
+ 1665  netstat -tlnp | grep :808
+ 1666  docker compose -f docker-compose.impes-integration.yaml up -d
+ 1667  docker ps
+ 1668  docker logs cimes_nginx
+ 1669  cp nginx/default.impes-integration.conf nginx/default.conf
+ 1670  docker compose -f docker-compose.impes-integration.yaml up -d --build nginx
+ 1671  docker ps | grep cimes_nginx
+ 1672  docker logs cimes_nginx --tail 20
+ 1673  docker compose -f docker-compose.impes-integration.yaml up -d --build nginx
+ 1674  docker ps | grep cimes_nginx
+ 1675  docker logs cimes_nginx --tail 10
+ 1676  ip route show default | awk '/default/ {print $3}'
+ 1677  docker compose -f docker-compose.impes-integration.yaml up -d --build nginx
+ 1678  docker ps | grep cimes_nginx
+ 1679  docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+ 1680  curl -I http://localhost:8082
+ 1681  curl -I http://localhost:8080
+ 1682  curl -I http://localhost:8082/impes/
+ 1683  docker exec cimes_nginx ping -c 1 192.168.100.1
+ 1684  docker exec cimes_nginx wget -q --spider http://192.168.100.1:8080 && echo "IMPES accessible" || echo "IMPES not accessible"
+ 1685  docker inspect nginx_proxy | grep -A 10 "NetworkMode"
+ 1686  docker compose -f docker-compose.impes-integration.yaml up -d --build nginx
+ 1687  curl -I http://localhost:8082/impes/
+ 1688  curl -I http://localhost:8082/impes-api/
+ 1689  curl -I http://localhost:8082/impes-api/auth/login
+ 1690  curl -I http://localhost:8080/api/auth/login
+ 1691  docker compose -f docker-compose.impes-integration.yaml up -d --build nginx
+ 1692  curl -I http://localhost:8082/impes-api/auth/login
+ 1693  docker ps | grep node_api
+ 1694  docker ps | grep impes
+ 1695  cd /home/dev/dev/impes && docker compose up -d
+ 1696  cd /home/dev/dev/devEx/docker.countyerp
+ 1697  curl -I http://localhost:8082/impes-api/auth/login
+ 1698  docker exec cimes_nginx wget -q --spider http://nginx_proxy:80/api/auth/login && echo "IMPES API accessible" || echo "IMPES API not accessible"
+ 1699  docker logs nginx_proxy --tail 10
+ 1700  cd /home/dev/dev/impes && docker ps | grep node_api
+ 1701  docker logs node_api
+ 1702  docker exec db mysql -u root -proot_password -e "SELECT User, Host FROM mysql.user WHERE User='impesUser';"
+ 1703  docker exec db mysql -u root -pAdmin2010impes -e "SELECT User, Host FROM mysql.user WHERE User='impesUser';"
+ 1704  docker exec db mysql -u root -proot_password -e "SHOW DATABASES;"
+ 1705  docker compose down -v
+ 1706  docker compose up -d
+ 1707  docker logs node_api --tail 10
+ 1708  sleep 10 && docker logs node_api --tail 5
+ 1709  docker restart node_api
+ 1710  sleep 5 && docker logs node_api --tail 10
+ 1711  cd /home/dev/dev/devEx/docker.countyerp
+ 1712  curl -I http://localhost:8082/impes-api/auth/login
+ 1713  curl -I http://localhost:8082/impes/
+ 1714  curl -I http://localhost:8080
+ 1715  curl -I http://localhost:8082
+ 1716  curl -I http://localhost:8080/api/
+ 1717  curl -I http://localhost:8080/api/auth/login
+ 1718  curl -I http://localhost:8082/impes-api/auth/login
+ 1719  docker logs cimes_nginx --tail 10
+ 1720  docker exec cimes_nginx wget -q --spider http://nginx_proxy:80/api/auth/login && echo "IMPES API accessible" || echo "IMPES API not accessible"
+ 1721  docker inspect cimes_nginx | grep -A 10 "Networks"
+ 1722  docker compose -f docker-compose.impes-integration.yaml restart nginx
+ 1723  docker inspect cimes_nginx | grep -A 20 "Networks"
+ 1724  docker network ls | grep impes
+ 1725  docker network connect impes_default cimes_nginx
+ 1726  docker exec cimes_nginx wget -q --spider http://nginx_proxy:80/api/auth/login && echo "IMPES API accessible" || echo "IMPES API not accessible"
+ 1727  curl -I http://localhost:8082/impes-api/auth/login
+ 1728  curl -I http://localhost:8082/impes/
+ 1729  curl -s http://localhost:8082/impes/ | grep -i "api\|localhost\|192\.168" | head -10
+ 1730  curl -X POST http://localhost:8082/impes-api/auth/login -H "Content-Type: application/json" -d '{"username":"test","password":"test"}' -v
+ 1731  docker logs node_api --tail 20
+ 1732  curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"username":"root","password":"reset123"}' -v
+ 1733  docker logs node_api --tail 5
+ 1734  cd /home/dev/dev/impes && docker exec db mysql -u root -proot_password -e "USE imbesdb; SELECT username, roleId FROM kemri_users LIMIT 5;"
+ 1735  docker exec db mysql -u root -proot_password -e "USE imbesdb; SHOW TABLES;"
+ 1736  ls -la init.sql
+ 1737  ls -la imbesdbData.sql
+ 1738  docker compose down -v
+ 1739  docker compose up -d
+ 1740  sleep 15 && docker exec db mysql -u root -proot_password -e "USE imbesdb; SHOW TABLES;" | head -10
+ 1741  docker exec db mysql -u root -proot_password -e "USE imbesdb; SELECT username, roleId FROM kemri_users LIMIT 5;"
+ 1742  docker logs node_api --tail 5
+ 1743  docker restart node_api
+ 1744  sleep 5 && docker logs node_api --tail 5
+ 1745  curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"password123"}' -v
+ 1746  docker exec db mysql -u root -proot_password -e "USE imbesdb; SELECT username, passwordHash FROM kemri_users WHERE username='akwatuha';"
+ 1747  curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"admin"}' -v
+ 1748  curl -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' -v
+ 1749  curl -X POST http://localhost:8082/impes-api/auth/login -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' -v
+ 1750  docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}"
+ 1751  cd /home/dev/dev/devEx/docker.countyerp && find . -name "*.yaml" -o -name "*.yml" -o -name "*.conf" -o -name "*.sql" -o -name "*.cnf" | head -20
+ 1752  cd /home/dev/dev/impes && find . -name "*.yaml" -o -name "*.yml" -o -name "*.conf" -o -name "*.sql" | head -10
+ 1753  cd /home/dev/dev && mkdir -p deployment-package/{impes,cimes}
+ 1754  cp -r impes/* deployment-package/impes/ && cp -r devEx/docker.countyerp/* deployment-package/cimes/
+ 1755  rsync -av --exclude='mysql_data' --exclude='redis_data' --exclude='api_data' impes/ deployment-package/impes/
+ 1756  rsync -av --exclude='mysql_data' --exclude='redis_data' --exclude='api_data' devEx/docker.countyerp/ deployment-package/cimes/
+ 1757  cp DEPLOYMENT_CHECKLIST.md deployment-package/ && ls -la deployment-package/
+ 1758  zip -r deployment-package.zip deployment-package/ -x "*/node_modules/*" "*/frontend/node_modules/*" "*/api/node_modules/*" "*/mysql_data/*" "*/redis_data/*" "*/api_data/*" "*/\.git/*"
+ 1759  ls -lh deployment-package.zip && echo "Package created successfully!"
+ 1760  cd /home/dev/dev/devEx/docker.countyerp && docker-compose -f docker-compose.impes-integration.yaml ps
+ 1761  docker-compose -f docker-compose.impes-integration.yaml restart nginx
+ 1762  curl -I http://localhost:8082/
+ 1763  cd /home/dev/dev && rm -f deployment-package.zip && zip -r deployment-package-fixed.zip deployment-package/ -x "*/node_modules/*" "*/frontend/node_modules/*" "*/api/node_modules/*" "*/mysql_data/*" "*/redis_data/*" "*/api_data/*" "*/\.git/*"
+ 1764  cd /home/dev/dev && mkdir -p cimes-only-deployment
+ 1765  rsync -av --exclude='mysql_data' --exclude='redis_data' --exclude='api_data' devEx/docker.countyerp/ cimes-only-deployment/
+ 1766  cp CIMES_ONLY_DEPLOYMENT.md cimes-only-deployment/ && zip -r cimes-only-deployment.zip cimes-only-deployment/ -x "*/mysql_data/*" "*/redis_data/*" "*/api_data/*" "*/\.git/*"
+ 1767  ls -lh cimes-only-deployment.zip
+ 1768  cp cimes-standalone.yaml cimes-only-deployment/ && cp CIMES_STANDALONE_DEPLOYMENT.md cimes-only-deployment/
+ 1769  ls -la cimes-only-deployment/
+ 1770  rm -f cimes-only-deployment.zip && zip -r cimes-only-deployment-updated.zip cimes-only-deployment/ -x "*/mysql_data/*" "*/redis_data/*" "*/api_data/*" "*/\.git/*"
+ 1771  ls -lh cimes-only-deployment-updated.zip
+ 1772  cd /home/dev/dev/cimes-only-deployment && ls -la
+ 1773  cd /home/dev/dev/devEx/docker.countyerp && docker-compose -f docker-compose.impes-integration.yaml down
+ 1774  cd /home/dev/dev/cimes-only-deployment && cp cimes-standalone.yaml docker-compose.yaml
+ 1775  docker-compose up -d
+ 1776  netstat -tlnp | grep -E ':(3306|3307|6379|6380|8080|8081|8082)'
+ 1777  cp cimes-standalone.yaml docker-compose.yaml
+ 1778  docker-compose down
+ 1779  docker-compose up -d
+ 1780  netstat -tlnp | grep -E ':(330[0-9]|331[0-9])'
+ 1781  cp cimes-standalone.yaml docker-compose.yaml
+ 1782  docker-compose up -d
+ 1783  netstat -tlnp | grep -E ':(808[0-9]|809[0-9])'
+ 1784  cp cimes-standalone.yaml docker-compose.yaml
+ 1785  docker-compose up -d
+ 1786  docker ps
+ 1787  curl -I http://localhost:8082
+ 1788  docker logs cimes_nginx
+ 1789  docker-compose restart nginx
+ 1790  curl -I http://localhost:8082
+ 1791  docker logs cimes_nginx --tail 20
+ 1792  docker-compose down nginx && docker-compose up -d nginx
+ 1793  docker logs cimes_nginx --tail 10
+ 1794  grep -n "nginx_proxy" nginx/default.conf
+ 1795  sed -n '90,100p' nginx/default.conf
+ 1796  docker-compose build nginx
+ 1797  docker-compose up -d nginx
+ 1798  curl -I http://localhost:8082
+ 1799  curl -I http://localhost:8082/cloud/ws/api/smartcounty/authenticate
+ 1800  curl -I http://localhost:8083
+ 1801  cat /projects/cimes/nginx/default.conf | sed -n '90,100p'
+ 1802  ls -la /projects/cimes/nginx/
+ 1803  total 24
+ 1804  drwxrwxrwx  2 root root 4096 Sep  7 15:19 .
+ 1805  drwxrwxrwx 13 root root 4096 Sep  7 18:06 ..
+ 1806  -rwxrwxrwx  1 root root  218 Apr 27  2024 Dockerfile
+ 1807  -rwxrwxrwx  1 root root 3563 Sep  7 18:11 default.conf
+ 1808  -rwxrwxrwx  1 root root 3538 Sep  7 15:19 default.impes-integration.conf
+ 1809  -rwxrwxrwx  1 root root 1810 Apr 27  2024 nginx.conf
+ 1810  sed -n '96p' /projects/cimes/nginx/default.conf
+ 1811  find /projects -name "default.conf" -type f 2>/dev/null
+ 1812  cd /projects/cimes && cat docker-compose.yaml | grep -A 10 -B 5 nginx
+ 1813  cat nginx/Dockerfile
+ 1814  head -10 nginx/nginx.conf
+ 1815  sed -n '15p' nginx/default.conf
+ 1816  docker exec cimes_nginx tail -f /var/log/nginx/error.log &
+ 1817  cd /home/dev/dev/remote/cimes && docker ps
+ 1818  docker ps -a
+ 1819  docker-compose up -d
+ 1820  docker-compose down
+ 1821  docker-compose up -d
+ 1822  docker rm -f cimes_mysql cimes_redis cimes_portainer cimes_web cimes_webapi cimes_fileapi cimes_streamapi cimes_nginx cimes_phpmyadmin
+ 1823  docker-compose up -d
+ 1824  docker ps
+ 1825  curl -I http://165.22.227.234:8082/cloud/ws/api/smartcounty/authenticate
+ 1826  curl -I http://165.22.227.234:3030/api/smartcounty/authenticate
+ 1827  docker logs cimes_webapi
+ 1828  curl -I http://165.22.227.234:3030/api/smartcounty/authenticate
+ 1829  curl -I http://localhost:8082
+ 1830  curl -I http://localhost:8082/cloud/ws/api/smartcounty/authenticate
+ 1831  curl -I http://localhost:3030/api/smartcounty/authenticate
+ 1832  docker logs cimes_nginx
+ 1833  docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+ 1834  curl -I http://localhost:8083
+ 1835  docker exec cimes_nginx curl -I http://web:8080
+ 1836  docker exec cimes_nginx curl -I http://webapi:3030
+ 1837  docker exec cimes_nginx nslookup web
+ 1838  docker exec cimes_nginx nginx -t
+ 1839  docker exec cimes_nginx cat /etc/nginx/conf.d/default.conf
+ 1840  docker restart cimes_nginx
+ 1841  curl -v http://localhost:8082/ 2>&1 | head -20
+ 1842  docker logs cimes_web | tail -10
+ 1843  docker exec cimes_nginx ping -c 2 web
+ 1844  docker exec cimes_nginx curl -I http://web:8080
+ 1845  docker exec cimes_nginx curl -I http://webapi:3030/api/smartcounty/authenticate
+ 1846  docker logs cimes_nginx 2>&1 | grep -i error
+ 1847  docker exec cimes_nginx curl -v http://web:8080 2>&1 | head -10
+ 1848  curl -v http://localhost:8082/ 2>&1 | grep -A 5 -B 5 "502"
+ 1849  docker-compose down && docker-compose up -d
+ 1850  curl -I http://localhost:3030/api/smartcounty/authenticate
+ 1851  curl -I http://localhost:3030/
+ 1852  docker exec cimes_web find /usr/src -name "*.js" -o -name "*.json" -o -name "*.env*" | head -10
+ 1853  docker exec cimes_web cat /usr/src/app/settings.js
+ 1854  docker exec cimes_web cat /usr/src/app/app.json
+ 1855  docker exec cimes_web sed -i "s/serverMode: 'global'/serverMode: 'local'/g" /usr/src/app/settings.js
+ 1856  docker exec cimes_web grep "serverMode" /usr/src/app/settings.js
+ 1857  curl -I http://localhost:8083
+ 1858  curl -I http://localhost:3030/api/smartcounty/authenticate
+ 1859  curl -I http://localhost:3030/api/smartcounty/
+ 1860  curl -I http://localhost:3030/api/
+ 1861  docker logs cimes_webapi | grep -i authenticate
+ 1862  curl -X POST http://localhost:3030/api/smartcounty/authenticate -H "Content-Type: application/json" -d '{"username":"test","password":"test"}' -v
+ 1863  curl -s http://localhost:8083 | grep -i "localhost:3030" | head -5
+ 1864  docker exec cimes_web find /usr/src -name "*.js" -exec grep -l "8083\|apiServer\|apiServiceBaseUri" {} \;
+ 1865  docker exec cimes_web grep -n "8083\|localhost.*3030" /usr/src/app/angular/scripts/services/apiService.js
+ 1866  docker exec cimes_web grep -n "8083\|localhost.*3030" /usr/src/app/angular/scripts/services/sessionService.js
+ 1867  curl -I http://localhost:8082
+ 1868  cd dev
+ 1869  ls
+ 1870  cd impes/
+ 1871  ls
+ 1872  cd api/
+ 1873  npm start
+ 1874  nvm use 20
+ 1875  npm start
+ 1876  npm install
+ 1877  cd ../
+ 1878  git remote -v
+ 1879  cd ../
+ 1880  ls
+ 1881  cd imes/
+ 1882  git remote -v
+ 1883  ls
+ 1884  cd api/
+ 1885  npm install
+ 1886  npm start
+ 1887  npm install
+ 1888  npm start
+ 1889  mysql -uroot -p
+ 1890  npm start
+ 1891  cd ../
+ 1892  ls
+ 1893  cd remote/
+ 1894  ls
+ 1895  cd cimes/
+ 1896  docker-compose down
+ 1897  docker ps
+ 1898  docker stop 76c119758484 65aedba40c1a e6376b35fd64 1165162aae88 a86fc87dffca 5516cb60afdf 5b8e51c4c595 aa3560c76a20 4f8fd94051a5 0a76f40b0648 584d5c7d8f5f 6a16b79367ff a14ee2beaf49 91ed29015866
+ 1899  sudo docker stop 76c119758484 65aedba40c1a e6376b35fd64 1165162aae88 a86fc87dffca 5516cb60afdf 5b8e51c4c595 aa3560c76a20 4f8fd94051a5 0a76f40b0648 584d5c7d8f5f 6a16b79367ff a14ee2beaf49 91ed29015866
+ 1900  sudo systemctl stop docker
+ 1901  sudo systemctl restart docker
+ 1902  sudo docker kill 76c119758484 65aedba40c1a e6376b35fd64 1165162aae88 a86fc87dffca 5516cb60afdf 5b8e51c4c595 aa3560c76a20 4f8fd94051a5 0a76f40b0648 584d5c7d8f5f 6a16b79367ff a14ee2beaf49 91ed29015866
+ 1903  sudo chmod 660 /var/run/docker.sock
+ 1904  sudo chown root:docker /var/run/docker.sock
+ 1905  sudo systemctl restart docker
+ 1906  ps aux | grep dockerd
+ 1907  sudo systemctl stop docker
+ 1908  sudo snap stop docker
+ 1909  sudo snap disable docker
+ 1910  sudo snap remove docker
+ 1911  sudo systemctl stop docker
+ 1912  sudo systemctl start docker
+ 1913  docker ps
+ 1914  docker statatis
+ 1915  sudo snap remove docker
+ 1916  sudo snap remove docker --purge
+ 1917  docker ps
+ 1918  docker
+ 1919  sudo systemctl restart docker
+ 1920  docker ps
+ 1921  sudo usermod -aG docker $USER
+ 1922  cd ../
+ 1923  docker-compose down
+ 1924  docker ps
+ 1925  ls
+ 1926  docker ps
+ 1927  docker-compose up
+ 1928  docker-compose down
+ 1929  docker-compose up
+ 1930  docker stop db
+ 1931  sudo docker stop db
+ 1932  cd dev/remote/cimes/
+ 1933  docker ps
+ 1934  sudo usermod -aG docker $USER
+ 1935  sudo systemctl restart docker
+ 1936  docker ps
+ 1937  ifconfig
+ 1938  cd imes
+ 1939  cd dev/imes/
+ 1940  docker compose up
+ 1941  sudo service mysql stop
+ 1942  sudo service apache2 stop
+ 1943  docker compose up --build
+ 1944  docker logs -n 100 -f react_frontend | sed -u 's/.*/[frontend] &/'
+ 1945  ss -ltnp | grep :5173 | cat
+ 1946  docker ps --format 'table {{.Names}}\t{{.Ports}}\t{{.Status}}' | cat
+ 1947  docker compose ps | cat
+ 1948  docker compose up -d frontend
+ 1949  ss -ltnp | grep :5173 | cat
+ 1950  curl -sS -v http://localhost:5173/ 2>&1 | cat
+ 1951  docker logs --tail 200 react_frontend | cat
+ 1952  docker compose build --no-cache frontend && docker compose up -d frontend && sleep 2 && docker logs --tail 200 react_frontend | cat
+ 1953  node -v
+ 1954  cd api/
+ 1955  npm start
+ 1956  cd ../
+ 1957  docker compose up --build
+ 1958  cd ../
+ 1959  ./Cursor-1.5.9-x86_64.AppImage
+ 1960  docker ps
+ 1961  docker compose up --build
+ 1962  docker ps
+ 1963  docker compose up --build
+ 1964  cd ../
+ 1965  ls
+ 1966  ./Cursor-1.5.9-x86_64.AppImage
+ 1967  ss -ltnp | grep -E ":(5173|3000)\b" | cat
+ 1968  curl -sS -o /dev/null -w "%{http_code} %{redirect_url}\n" http://localhost:5173/ && curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:80/impes/
+ 1969  curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:5173/impes/ && curl -sS -o /dev/null -w "%{http_code}\n" http://localhost/impes/ && curl -sS -o /dev/null -w "%{http_code}\n" http://localhost/api/auth/profile
+ 1970  curl -sS -o /dev/null -w "code=%{http_code} time_total=%{time_total}\n" -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' http://localhost/api/auth/login --max-time 15
+ 1971  docker logs --tail 200 node_api | cat
+ 1972  docker compose up -d frontend && docker restart nginx_proxy && sleep 1 && curl -sS -o /dev/null -w "%{http_code}\n" -H "Content-Type: application/json" -d '{"username":"invalid","password":"invalid"}' http://localhost/api/auth/login --max-time 10
+ 1973  docker logs --tail 200 node_api | cat
+ 1974  curl -sS -o /dev/null -w "%{http_code}\n" http://localhost/api/auth/test-reach && curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/auth/test-reach
+ 1975  curl -sS -o /dev/null -w "%{http_code}\n" -H "Content-Type: application/json" -d '{"username":"invalid","password":"invalid"}' http://localhost:3000/api/auth/login
+ 1976  docker exec -i db mysql -uimpesUser -pAdmin2010impes -D imbesdb -e "SHOW TABLES;" | cat
+ 1977  docker compose down && docker volume rm imes_db_data || true && docker compose up -d db && sleep 10 && docker exec -i db mysql -uimpesUser -pAdmin2010impes -D imbesdb -e "SHOW TABLES;" | cat
+ 1978  docker compose up -d mysql_db && sleep 12 && docker exec -i db mysql -uimpesUser -pAdmin2010impes -D imbesdb -e "SHOW TABLES;" | cat
+ 1979  docker exec -i db mysql -uimpesUser -pAdmin2010impes -D imbesdb -e "SHOW TABLES LIKE 'kemri_users'; SELECT COUNT(*) FROM kemri_users;" | cat
+ 1980  sleep 8 && docker exec -i db mysql -h127.0.0.1 -P3306 -uimpesUser -pAdmin2010impes -D imbesdb -e "SHOW TABLES LIKE 'kemri_users'; SELECT COUNT(*) FROM kemri_users;" | cat
+ 1981  docker compose up -d api nginx_proxy frontend && sleep 2 && curl -sS -o /dev/null -w "%{http_code} time=%{time_total}\n" -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' http://localhost/api/auth/login --max-time 15
+ 1982  curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/auth/test-reach
+ 1983  docker exec nginx_proxy sh -lc "curl -sS -o /dev/null -w '%{http_code}\n' http://api:3000/api/auth/test-reach"
+ 1984  docker exec nginx_proxy sh -lc "curl -sS -o /dev/null -w '%{http_code}\n' http://frontend:5173/impes/"
+ 1985  docker restart nginx_proxy && sleep 1 && curl -sS -o /dev/null -w "%{http_code} time=%{time_total}\n" -H "Content-Type: application/json" -d '{"username":"invalid","password":"invalid"}' http://localhost/api/auth/login --max-time 15
+ 1986  curl -sS -o /dev/null -w "5173:%{http_code} time=%{time_total}\n" -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' http://localhost:5173/api/auth/login --max-time 15
+ 1987  curl -sS -o /dev/null -w "3000:%{http_code} time=%{time_total}\n" -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' http://localhost:3000/api/auth/login --max-time 15
+ 1988  docker exec -i db mysql -h127.0.0.1 -P3306 -uimpesUser -pAdmin2010impes -D imbesdb -e "SELECT userId,username,email,roleId,LEFT(passwordHash,20) as hash_prefix, passwordHash IS NULL AS hash_null FROM kemri_users WHERE username='akwatuha' LIMIT 1;" | cat
+ 1989  docker logs --tail 200 node_api | tail -n 50 | cat
+ 1990  docker compose restart frontend && sleep 2 && curl -sS -o /dev/null -w "5173:%{http_code}\n" -H "Content-Type: application/json" -d '{"username":"akwatuha","password":"reset123"}' http://localhost:5173/api/auth/login --max-time 15
+ 1991  sudo service mysql stop
+ 1992  sudo service apache2 stop
+ 1993  cd dev/imes/
+ 1994  docker compose up --build
+ 1995  cd ../
+ 1996  ./Cursor-1.5.9-x86_64.AppImage
+ 1997  git status
+ 1998  docker exec -it react_frontend bash
+ 1999  history >hist_me.txt

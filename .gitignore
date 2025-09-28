@@ -20,6 +20,7 @@ npm-debug.log*
 # Visual Studio Code settings
 .vscode/
 
+
 # Ignore all files in the config folder that are not templates
 # If you have a config.example.js, you would commit that, but not the filled-in version.
 # For example, ignore all .js and .json files in the config directory.

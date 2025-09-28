@@ -4,8 +4,9 @@ services:
   nginx_proxy:
     image: nginx:alpine
     container_name: nginx_proxy
+    # Changed host port from 80 to 8080
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
@@ -17,36 +18,38 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: react_frontend
+    # Keeping the default Vite port 5173
     ports:
-      - "5173:5173" # Use 5173 for both host and container to align with Vite dev server
+      - "5173:5173"
     volumes:
-      - ./frontend:/app # Mount the local frontend directory to /app in the container
-      - /app/node_modules # This is important to prevent the local node_modules from overwriting the container's version
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - api
-    command: npm run dev # This command assumes a dev script is configured to use a watcher (like Vite's dev server)
+    command: npm run dev
     environment:
-      # Use browser-resolvable path via Nginx (avoids DNS issues in the browser)
-      VITE_API_URL: /api
+      # VITE_API_URL should point to the new Nginx host port
+      VITE_API_URL: http://localhost:8080/api
 
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
     container_name: node_api
+    # Keeping the default Express port 3000
     ports:
       - "3000:3000"
     volumes:
-      - ./api:/app # Mount the local api directory to /app in the container
-      - /app/node_modules # Exclude the local node_modules
+      - ./api:/app
+      - /app/node_modules
     depends_on:
       - mysql_db
     environment:
-      DB_HOST: mysql_db # Use the service name to connect to the database
+      DB_HOST: mysql_db
       DB_USER: impesUser
       DB_PASSWORD: Admin2010impes
       DB_NAME: imbesdb
-    command: npm run dev # Assuming a script to start the server with a watcher (like nodemon)
+    command: npm run dev
 
   mysql_db:
     image: mysql:8.0
@@ -61,8 +64,9 @@ services:
     volumes:
       - ./api/init.sql:/docker-entrypoint-initdb.d/init.sql
       - db_data:/var/lib/mysql
+    # Changed host port from 3306 to 3307
     ports:
-      - "3306:3306"
+      - "3307:3306"
 
 volumes:
   db_data:
