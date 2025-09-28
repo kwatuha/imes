@@ -691,46 +691,113 @@ const ReportingView = () => {
                     onChange={handleTabChange}
                     variant="fullWidth"
                     sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        borderRadius: '12px 12px 0 0',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                         '& .MuiTab-root': {
                             textTransform: 'none',
-                            fontWeight: 'bold',
-                            fontSize: '1rem',
-                            minHeight: '48px'
+                            fontWeight: '600',
+                            fontSize: '0.95rem',
+                            minHeight: '56px',
+                            color: 'text.secondary',
+                            transition: 'all 0.3s ease',
+                            position: 'relative',
+                            '&:hover': {
+                                color: 'primary.main',
+                                backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                                transform: 'translateY(-1px)'
+                            }
                         },
                         '& .Mui-selected': {
                             color: 'primary.main',
-                            fontWeight: 'bold'
+                            fontWeight: '700',
+                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                            '&::after': {
+                                content: '""',
+                                position: 'absolute',
+                                bottom: 0,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                width: '60%',
+                                height: '3px',
+                                backgroundColor: 'primary.main',
+                                borderRadius: '2px 2px 0 0'
+                            }
+                        },
+                        '& .MuiTabs-indicator': {
+                            display: 'none'
                         }
                     }}
                 >
                     <Tab 
                         label="Overview" 
-                        icon={<Assessment />} 
+                        icon={<Assessment sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            px: 2,
+                            '& .MuiTab-iconWrapper': {
+                                marginRight: '8px !important'
+                            }
+                        }}
                     />
                     <Tab 
                         label="Financial" 
-                        icon={<AttachMoney />} 
+                        icon={<AttachMoney sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            px: 2,
+                            '& .MuiTab-iconWrapper': {
+                                marginRight: '8px !important'
+                            }
+                        }}
                     />
                     <Tab 
                         label="Analytics" 
-                        icon={<TrendingUp />} 
+                        icon={<TrendingUp sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            px: 2,
+                            '& .MuiTab-iconWrapper': {
+                                marginRight: '8px !important'
+                            }
+                        }}
                     />
                     <Tab 
                         label="Yearly Trends" 
-                        icon={<ShowChart />} 
+                        icon={<ShowChart sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            px: 2,
+                            '& .MuiTab-iconWrapper': {
+                                marginRight: '8px !important'
+                            }
+                        }}
                     />
                 </Tabs>
 
                 {/* Tab Content */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ 
+                    mt: 0,
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '0 0 12px 12px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                    border: '1px solid rgba(0,0,0,0.05)',
+                    borderTop: 'none',
+                    overflow: 'hidden',
+                    p: 3
+                }}>
                     <>
                     {activeTab === 0 && (
                         <Grid container spacing={2}>
