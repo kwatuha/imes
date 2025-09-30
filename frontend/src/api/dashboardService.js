@@ -1,147 +1,139 @@
-// src/api/dashboardService.js
 import axiosInstance from './axiosInstance';
 
-/**
- * @file API service for Dashboard Data Endpoints.
- * @description Contains methods for fetching various analytical and reporting data
- * for dashboard visualizations, including filter options, summary statistics,
- * demographic data, disease prevalence, heatmap data, and export functionalities.
- * Note: These endpoints are typically custom analytical queries on your backend,
- * not direct CRUD operations.
- */
-
 const dashboardService = {
-  getFilterOptions: async () => {
+  // Get dashboard data for a specific user
+  getDashboardData: async (userId) => {
     try {
-      const response = await axiosInstance.get('/dashboard/filters/options');
+      const response = await axiosInstance.get(`/api/dashboard/${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching filter options:', error);
+      console.error('Error fetching dashboard data:', error);
       throw error;
     }
   },
 
-  getSummaryStatistics: async (filters) => {
+  // Get notifications for a user
+  getNotifications: async (userId) => {
     try {
-      const response = await axiosInstance.post('/dashboard/summary', { filters });
+      const response = await axiosInstance.get(`/api/notifications/${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching summary statistics:', error);
+      console.error('Error fetching notifications:', error);
       throw error;
     }
   },
 
-  getDemographicData: async (filters) => {
+  // Get user profile data
+  getUserProfile: async (userId) => {
     try {
-      const response = await axiosInstance.post('/dashboard/demographics', { filters });
+      const response = await axiosInstance.get(`/api/users/${userId}/profile`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching demographic data:', error);
+      console.error('Error fetching user profile:', error);
       throw error;
     }
   },
 
-  getDiseasePrevalenceData: async (filters) => {
+  // Get metrics and KPIs
+  getMetrics: async (userId, role) => {
     try {
-      const response = await axiosInstance.post('/dashboard/disease-prevalence', { filters });
+      const response = await axiosInstance.get(`/api/metrics/${userId}?role=${role}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching disease prevalence data:', error);
+      console.error('Error fetching metrics:', error);
       throw error;
     }
   },
 
-  getHeatmapData: async (filters) => {
+  // Get recent activity
+  getRecentActivity: async (userId) => {
     try {
-      const response = await axiosInstance.post('/dashboard/heatmap-data', { filters });
+      const response = await axiosInstance.get(`/api/activity/${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching heatmap data:', error);
+      console.error('Error fetching recent activity:', error);
       throw error;
     }
   },
 
-  // This getParticipants is likely for a dashboard table/report, distinct from participantService's CRUD
-  getParticipants: async (filters, page, pageSize, sortBy, sortOrder) => {
+  // Mark notification as read
+  markNotificationAsRead: async (notificationId) => {
     try {
-      const response = await axiosInstance.post('/dashboard/participants', {
-        filters,
-        page,
-        pageSize,
-        sortBy,
-        sortOrder,
+      const response = await axiosInstance.put(`/api/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  },
+
+  // Update user profile
+  updateUserProfile: async (userId, profileData) => {
+    try {
+      const response = await axiosInstance.put(`/api/users/${userId}/profile`, profileData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
+  },
+
+  // Get role-specific dashboard data
+  getRoleBasedData: async (userId, role) => {
+    try {
+      const response = await axiosInstance.get(`/api/dashboard/role-based/${userId}?role=${role}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching role-based data:', error);
+      throw error;
+    }
+  },
+
+  // Get project statistics
+  getProjectStats: async (userId) => {
+    try {
+      const response = await axiosInstance.get(`/api/projects/stats/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching project stats:', error);
+      throw error;
+    }
+  },
+
+  // Get budget utilization
+  getBudgetUtilization: async (userId) => {
+    try {
+      const response = await axiosInstance.get(`/api/budget/utilization/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching budget utilization:', error);
+      throw error;
+    }
+  },
+
+  // Get team performance metrics
+  getTeamMetrics: async (userId) => {
+    try {
+      const response = await axiosInstance.get(`/api/team/metrics/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching team metrics:', error);
+      throw error;
+    }
+  },
+
+  // Export dashboard data
+  exportDashboardData: async (userId, format = 'pdf') => {
+    try {
+      const response = await axiosInstance.get(`/api/dashboard/export/${userId}?format=${format}`, {
+        responseType: 'blob'
       });
       return response.data;
     } catch (error) {
-      console.error('Error fetching participants data for dashboard:', error);
+      console.error('Error exporting dashboard data:', error);
       throw error;
     }
-  },
-
-  exportToExcel: async (filters, excelHeadersMapping) => {
-    try {
-      const response = await axiosInstance.post('/dashboard/export/excel', { filters, excelHeadersMapping }, {
-        responseType: 'blob', // Important for file downloads
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-      throw error;
-    }
-  },
-
-  exportToPdf: async (filters, tableHtml) => {
-    try {
-      const response = await axiosInstance.post('/dashboard/export/pdf', { filters, tableHtml }, {
-        responseType: 'blob', // Important for file downloads
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      throw error;
-    }
-  },
-
-  // NEW FUNCTIONS FOR ADDITIONAL CHARTS
-  getHouseholdSizeData: async (filters) => {
-    try {
-      const response = await axiosInstance.post('/dashboard/household-size-distribution', { filters });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching household size data:', error);
-      throw error;
-    }
-  },
-
-  getHealthcareAccessData: async (filters) => {
-    try {
-      const response = await axiosInstance.post('/dashboard/healthcare-access-distribution', { filters });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching healthcare access data:', error);
-      throw error;
-    }
-  },
-
-  getWaterStorageData: async (filters) => {
-    try {
-      const response = await axiosInstance.post('/dashboard/water-storage-distribution', { filters });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching water storage data:', error);
-      throw error;
-    }
-  },
-
-  getClimatePerceptionData: async (filters) => {
-    try {
-      const response = await axiosInstance.post('/dashboard/climate-perception-distribution', { filters });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching climate perception data:', error);
-      throw error;
-    }
-  },
+  }
 };
 
 export default dashboardService;

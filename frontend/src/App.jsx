@@ -8,6 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 // Import Layout and Page Components
 import MainLayout from './layouts/MainLayout';
 import DashboardPage from './pages/DashboardPage';
+import DashboardLandingPage from './pages/DashboardLandingPage';
 import RawDataPage from './pages/RawDataPage';
 import ProjectManagementPage from './pages/ProjectManagementPage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
@@ -62,6 +63,10 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <DashboardLandingPage />,
+      },
+      {
+        path: 'dashboard',
         element: <DashboardPage />,
       },
       {
