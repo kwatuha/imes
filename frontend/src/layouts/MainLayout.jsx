@@ -27,9 +27,11 @@ function MainLayout() {
   const colorMode = useContext(ColorModeContext);
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -51,88 +53,86 @@ function MainLayout() {
   };
   
   return (
-     <ColorModeContext.Provider value={colorMode}>
-    <Box sx={{ display: 'flex' }}>
+    <>
       <CssBaseline />
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: `calc(100% - ${collapsedDrawerWidth}px)` },
-          ml: { sm: `${collapsedDrawerWidth}px` },
-          transition: 'width 0.3s ease-in-out, margin 0.3s ease-in-out',
+          width: '100%',
+          left: 0,
+          right: 0,
+          zIndex: 1000,
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <img src={logo} alt="IPMES Logo" style={{ height: '40px', marginRight: '10px' }} />
-            <Typography variant="h6" noWrap component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
-              IPMES
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+              <img src={logo} alt="IPMES Logo" style={{ height: '40px', marginRight: '10px' }} />
+              <Typography variant="h6" noWrap component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+                IPMES
+              </Typography>
+            </Box>
+            
+            <Topbar />
+            
+            {user && (
+              <Typography variant="subtitle1" sx={{ ml: 2, color: 'white' }}>
+                Welcome, {user.username}!
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleLogout}
+              sx={{
+                ml: 2, 
+                backgroundColor: '#dc2626',
+                '&:hover': { backgroundColor: '#b91c1c' },
+                color: 'white', 
+                fontWeight: 'semibold', 
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                transition: 'background-color 0.2s ease-in-out',
+              }}
+            >
+              Logout
+            </Button>
           </Box>
-          
-          {user && (
-            <Typography variant="subtitle1" sx={{ ml: 2, color: 'white' }}>
-              Welcome, {user.username}!
-            </Typography>
-          )}
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={handleLogout}
-            sx={{
-              ml: 2, backgroundColor: '#dc2626',
-              '&:hover': { backgroundColor: '#b91c1c' },
-              color: 'white', fontWeight: 'semibold', borderRadius: '8px',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              transition: 'background-color 0.2s ease-in-out',
-            }}
-          >
-            Logout
-          </Button>
-           {/* <Box display="flex">
-        <IconButton onClick={colorMode.toggleColorMode}>
-          {theme.palette.mode === "dark" ? (
-            <DarkModeOutlinedIcon />
-          ) : (
-            <LightModeOutlinedIcon />
-          )}
-        </IconButton>
-        <IconButton>
-          <NotificationsOutlinedIcon />
-        </IconButton>
-        <IconButton>
-          <SettingsOutlinedIcon />
-        </IconButton>
-        <IconButton>
-          <PersonOutlinedIcon />
-        </IconButton>
-      </Box> */}
-      <Topbar/>
         </Toolbar>
       </AppBar>
-      <Sidebar />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1, p: 3, mt: '64px',
-          width: { sm: `calc(100% - ${collapsedDrawerWidth}px)` },
-          transition: 'margin 0.3s ease-in-out, width 0.3s ease-in-out',
-        }}
-      >
-        <Outlet />
+      <Box sx={{ display: 'flex' }}>
+        <Sidebar 
+          collapsed={sidebarCollapsed} 
+          onCollapseChange={setSidebarCollapsed}
+          mobileOpen={mobileOpen}
+          onMobileClose={handleDrawerToggle}
+        />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1, 
+            p: 3, 
+            mt: '64px',
+            width: { sm: `calc(100% - ${sidebarCollapsed ? collapsedDrawerWidth : drawerWidth}px)` },
+            ml: { sm: `${sidebarCollapsed ? collapsedDrawerWidth : drawerWidth}px` },
+            transition: 'margin 0.3s ease-in-out, width 0.3s ease-in-out',
+            minHeight: 'calc(100vh - 64px)',
+          }}
+        >
+          <Outlet />
+        </Box>
       </Box>
-    </Box>
-    </ColorModeContext.Provider>
+    </>
   );
 }
 
