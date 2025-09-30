@@ -49,6 +49,7 @@ import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage';
 import ReportingPage from './pages/ReportingPage';
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
+import RegionalDashboard from './components/RegionalDashboard';
 
 import ProjectDashboardPage from './pages/ProjectsDashboardPage';
 import { ColorModeContext, useMode} from "./pages/dashboard/theme";
@@ -102,6 +103,10 @@ const router = createBrowserRouter([
       {
         path: 'view-reports',
         element: <ReportingView />,
+      },
+      {
+        path: 'regional-dashboard',
+        element: <RegionalDashboard />,
       },
       {
         path: 'regional-reports',

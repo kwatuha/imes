@@ -70,6 +70,7 @@ const Sidebar = () => {
     { title: "Reports", to: ROUTES.REPORTS, icon: <AssessmentIcon /> },
     { title: "Comprehensive Reporting", to: ROUTES.REPORTING, icon: <AssessmentIcon /> },
     { title: "Project Dashboards", to: ROUTES.REPORTING_OVERVIEW, icon: <AssessmentIcon /> },
+    { title: "Regional Rpts", to: ROUTES.REGIONAL_DASHBOARD, icon: <AssessmentIcon /> },
     { title: "Regional Dashboards", to: ROUTES.REGIONAL_REPORTING, icon: <AssessmentIcon /> },
     { title: "GIS Mapping", to: ROUTES.GIS_MAPPING, icon: <MapIcon /> },
     { title: "Import Map Data", to: ROUTES.MAP_DATA_IMPORT, icon: <CloudUploadIcon /> },

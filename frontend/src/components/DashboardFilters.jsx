@@ -16,6 +16,8 @@ import {
 } from '@mui/material';
 import { ClearAll as ClearAllIcon, KeyboardArrowUp, KeyboardArrowDown } from '@mui/icons-material';
 import reportsService from '../api/reportsService';
+import regionalService from '../api/regionalService';
+import { DEFAULT_COUNTY, DEFAULT_SUBCOUNTY } from '../configs/appConfig';
 
 const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
     const [open, setOpen] = useState(true); // State for collapse functionality
@@ -29,6 +31,8 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
         wards: []
     });
     const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+    const [availableSubCounties, setAvailableSubCounties] = useState([]);
+    const [availableWards, setAvailableWards] = useState([]);
 
     const handleToggleCollapse = () => {
         setOpen(!open);
@@ -43,6 +47,13 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                 const options = await reportsService.getFilterOptions();
                 console.log('Filter options received:', options);
                 setFilterOptions(options);
+                
+                // Load sub-counties for the default county
+                await loadSubCountiesForCounty(DEFAULT_COUNTY.countyId);
+                
+                // Load wards for the default sub-county using the same logic as sub-county changes
+                console.log('Loading initial wards for default sub-county:', DEFAULT_SUBCOUNTY.name);
+                await loadWardsForSubCountyByName(DEFAULT_SUBCOUNTY.name);
             } catch (error) {
                 console.error('Error fetching filter options:', error);
                 // Keep empty arrays as fallback
@@ -54,9 +65,121 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
         fetchFilterOptions();
     }, []);
 
+    // Load sub-counties for a specific county
+    const loadSubCountiesForCounty = async (countyId) => {
+        try {
+            const response = await regionalService.getSubCountiesData({ countyId });
+            setAvailableSubCounties(response.subCounties || []);
+        } catch (error) {
+            console.error('Error fetching sub-counties:', error);
+            setAvailableSubCounties([]);
+        }
+    };
+
+    // Load wards for a specific sub-county by name
+    const loadWardsForSubCountyByName = async (subCountyName) => {
+        try {
+            console.log('=== WARD LOADING DEBUG ===');
+            console.log('Loading wards for sub-county name:', subCountyName);
+            console.log('API Query: regionalService.getWardsData({ subCounty: "' + subCountyName + '" })');
+            
+            const response = await regionalService.getWardsData({ subCounty: subCountyName });
+            console.log('Wards response with name:', response);
+            const wards = response.wards || [];
+            console.log('Wards count from API:', wards.length);
+            
+            // Show sample ward data to verify structure
+            if (wards.length > 0) {
+                console.log('Sample ward data:', wards[0]);
+                console.log('All ward sub-county names:', wards.map(w => w.subcountyName));
+            }
+            
+            // Filter wards by sub-county name as a fallback if API doesn't filter
+            const filteredWards = wards.filter(ward => 
+                ward.subcountyName === subCountyName
+            );
+            console.log('Filtered wards count:', filteredWards.length);
+            console.log('Filtered ward names:', filteredWards.map(w => w.wardName));
+            console.log('=== END WARD LOADING DEBUG ===');
+            
+            setAvailableWards(filteredWards);
+        } catch (error) {
+            console.error('Error fetching wards with subCounty name:', error);
+            setAvailableWards([]);
+        }
+    };
+
+    // Load wards for a specific sub-county by ID
+    const loadWardsForSubCounty = async (subCountyId) => {
+        try {
+            console.log('Loading wards for sub-county ID:', subCountyId);
+            // Try with subCountyId first, then fallback to subCounty name
+            const response = await regionalService.getWardsData({ subCountyId });
+            console.log('Wards response:', response);
+            const wards = response.wards || [];
+            console.log('Wards count from API:', wards.length);
+            
+            // Filter wards by sub-county name as a fallback if API doesn't filter
+            const subCountyName = availableSubCounties.find(sc => sc.subcountyId === subCountyId)?.subcountyName;
+            if (subCountyName) {
+                const filteredWards = wards.filter(ward => 
+                    ward.subcountyName === subCountyName
+                );
+                console.log('Filtered wards count:', filteredWards.length);
+                setAvailableWards(filteredWards);
+            } else {
+                setAvailableWards(wards);
+            }
+        } catch (error) {
+            console.error('Error fetching wards with subCountyId:', error);
+            // Try with subCounty name as fallback
+            try {
+                const subCountyName = availableSubCounties.find(sc => sc.subcountyId === subCountyId)?.subcountyName;
+                if (subCountyName) {
+                    console.log('Trying with sub-county name:', subCountyName);
+                    const response = await regionalService.getWardsData({ subCounty: subCountyName });
+                    console.log('Wards response with name:', response);
+                    const wards = response.wards || [];
+                    // Filter wards by sub-county name as a fallback if API doesn't filter
+                    const filteredWards = wards.filter(ward => 
+                        ward.subcountyName === subCountyName
+                    );
+                    console.log('Filtered wards count with name:', filteredWards.length);
+                    setAvailableWards(filteredWards);
+                } else {
+                    setAvailableWards([]);
+                }
+            } catch (nameError) {
+                console.error('Error fetching wards with subCounty name:', nameError);
+                setAvailableWards([]);
+            }
+        }
+    };
+
+    // Handle sub-county change
+    const handleSubCountyChange = (subCountyName) => {
+        console.log('Sub-county changed to:', subCountyName);
+        onFilterChange('subCounty', subCountyName);
+        onFilterChange('ward', ''); // Clear ward selection
+        
+        if (!subCountyName) {
+            console.log('No sub-county selected, clearing wards');
+            setAvailableWards([]);
+            return;
+        }
+        
+        // Load wards for the selected sub-county
+        loadWardsForSubCountyByName(subCountyName);
+    };
+
     // Debug logging
     console.log('DashboardFilters render - filterOptions:', filterOptions);
     console.log('DashboardFilters render - isLoadingOptions:', isLoadingOptions);
+    console.log('DashboardFilters render - filters:', filters);
+    console.log('DashboardFilters render - availableSubCounties:', availableSubCounties);
+    console.log('DashboardFilters render - availableWards:', availableWards);
+    console.log('DashboardFilters render - availableWards length:', availableWards.length);
+    console.log('DashboardFilters render - current subCounty filter:', filters.subCounty);
 
     return (
         <Paper elevation={2} sx={{ mb: 4, p: 2 }}>
@@ -79,6 +202,22 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
 
             <Collapse in={open}>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                    {/* County Display */}
+                    <FormControl sx={{ minWidth: 200 }}>
+                        <InputLabel id="county-label">County</InputLabel>
+                        <Select
+                            labelId="county-label"
+                            id="county-select"
+                            value={DEFAULT_COUNTY.name}
+                            label="County"
+                            disabled={true}
+                        >
+                            <MenuItem value={DEFAULT_COUNTY.name}>
+                                {DEFAULT_COUNTY.name}
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+
                     {/* Row 1 */}
                     <FormControl sx={{ minWidth: 200 }}>
                         <InputLabel id="cidp-period-label">Filter by CIDP Period</InputLabel>
@@ -222,13 +361,13 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             id="sub-county-select"
                             value={filters.subCounty}
                             label="Filter By Sub-County"
-                            onChange={(e) => onFilterChange('subCounty', e.target.value)}
+                            onChange={(e) => handleSubCountyChange(e.target.value)}
                             disabled={isLoadingOptions}
                         >
                             <MenuItem value=""><em>All</em></MenuItem>
-                            {filterOptions.subCounties.map((subCounty) => (
-                                <MenuItem key={subCounty.name} value={subCounty.name}>
-                                    {subCounty.name}
+                            {availableSubCounties.map((subCounty) => (
+                                <MenuItem key={subCounty.subcountyId} value={subCounty.subcountyName}>
+                                    {subCounty.subcountyName}
                                 </MenuItem>
                             ))}
                         </Select>
@@ -242,12 +381,12 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             value={filters.ward}
                             label="Filter By Ward"
                             onChange={(e) => onFilterChange('ward', e.target.value)}
-                            disabled={isLoadingOptions}
+                            disabled={isLoadingOptions || availableWards.length === 0}
                         >
                             <MenuItem value=""><em>All</em></MenuItem>
-                            {filterOptions.wards.map((ward) => (
-                                <MenuItem key={ward.name} value={ward.name}>
-                                    {ward.name}
+                            {availableWards.map((ward) => (
+                                <MenuItem key={ward.wardId} value={ward.wardName}>
+                                    {ward.wardName}
                                 </MenuItem>
                             ))}
                         </Select>

@@ -71,12 +71,19 @@ const regionalService = {
     // Get projects by sub-county
     getProjectsBySubCounty: async (subCountyName) => {
         try {
+            console.log('regionalService.getProjectsBySubCounty called with:', subCountyName);
+            console.log('API_BASE_URL:', API_BASE_URL);
+            console.log('Full URL:', `${API_BASE_URL}/reports/projects-by-sub-county`);
+            console.log('Params:', { subCounty: subCountyName });
+            
             const response = await axios.get(`${API_BASE_URL}/reports/projects-by-sub-county`, {
                 params: { subCounty: subCountyName }
             });
+            console.log('API response received:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error fetching projects by sub-county:', error);
+            console.error('Error response:', error.response?.data);
             throw error;
         }
     },
@@ -84,12 +91,19 @@ const regionalService = {
     // Get projects by ward
     getProjectsByWard: async (wardName) => {
         try {
+            console.log('regionalService.getProjectsByWard called with:', wardName);
+            console.log('API_BASE_URL:', API_BASE_URL);
+            console.log('Full URL:', `${API_BASE_URL}/reports/projects-by-ward`);
+            console.log('Params:', { ward: wardName });
+            
             const response = await axios.get(`${API_BASE_URL}/reports/projects-by-ward`, {
                 params: { ward: wardName }
             });
+            console.log('API response received:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error fetching projects by ward:', error);
+            console.error('Error response:', error.response?.data);
             throw error;
         }
     },

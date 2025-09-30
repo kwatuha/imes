@@ -7,6 +7,20 @@
 // Default map center coordinates for initial load (e.g., Nairobi, Kenya)
 export const INITIAL_MAP_POSITION = [-1.286389, 36.817223];
 
+// Default county configuration for hierarchical filtering
+export const DEFAULT_COUNTY = {
+    countyId: 1, // Kitui County ID
+    name: 'Kitui County',
+    code: 'KIT'
+};
+
+// Default sub-county configuration for initial chart loading
+export const DEFAULT_SUBCOUNTY = {
+    subcountyId: 1, // Default sub-county ID (e.g., Kitui Central)
+    name: 'Kitui Central',
+    code: 'KIT_CENTRAL'
+};
+
 // Define the available resource types for the dropdowns
 export const RESOURCE_TYPES = [
     { value: 'projects', label: 'Projects' },
@@ -47,6 +61,7 @@ export const ROUTES = {
     GIS_MAPPING: '/maps',
     REPORTING_OVERVIEW: '/view-reports',
     REGIONAL_REPORTING: '/regional-reports',
+    REGIONAL_DASHBOARD: '/regional-dashboard',
     USER_MANAGEMENT: '/user-management',
     STRATEGIC_PLANNING: '/strategic-planning',
     METADATA_MANAGEMENT: '/metadata-management',

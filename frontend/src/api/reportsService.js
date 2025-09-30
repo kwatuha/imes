@@ -82,10 +82,22 @@ const reportsService = {
   // --- Project List & Location Reports ---
   getDetailedProjectList: async (filters = {}) => {
     try {
+      console.log('reportsService.getDetailedProjectList called with filters:', filters);
+      console.log('Full URL will be:', `${axiosInstance.defaults.baseURL}/reports/project-list-detailed`);
+      console.log('Query params:', filters);
+      
       const response = await axiosInstance.get('/reports/project-list-detailed', { params: filters });
+      console.log('API response received:', response.data);
+      console.log('Response length:', response.data?.length);
       return response.data;
     } catch (error) {
       console.error("Failed to fetch detailed project list:", error);
+      console.error("Error details:", {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
       throw error;
     }
   },

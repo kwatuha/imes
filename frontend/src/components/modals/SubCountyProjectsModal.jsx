@@ -17,7 +17,23 @@ import {
 } from '@mui/material';
 import { Close, LocationOn, AttachMoney, Assessment, CheckCircle } from '@mui/icons-material';
 import ProjectDetailTable from '../tables/ProjectDetailTable';
-import regionalService from '../../api/regionalService';
+import reportsService from '../../api/reportsService';
+
+// Global test function for API endpoint
+window.testSubCountyAPI = async (subCountyName) => {
+    try {
+        console.log('Testing API endpoint for subcounty:', subCountyName);
+        const response = await fetch(`http://localhost:8080/api/reports/project-list-detailed?subCounty=${encodeURIComponent(subCountyName)}`);
+        const data = await response.json();
+        console.log('API Response:', data);
+        console.log('Response length:', data.length);
+        console.log('Sample project:', data[0]);
+        return data;
+    } catch (error) {
+        console.error('API Test Error:', error);
+        return null;
+    }
+};
 
 const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
     const [projects, setProjects] = useState([]);
@@ -36,17 +52,114 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
         setError(null);
         
         try {
-            const response = await regionalService.getProjectsBySubCounty(subCounty.subCounty);
+            console.log('Making API call to get projects by sub-county:', subCounty.subcounty);
+            console.log('Full subCounty object:', subCounty);
+            
+            // Test the API endpoint directly
+            console.log('=== API ENDPOINT TEST ===');
+            console.log('Testing URL: http://localhost:8080/api/reports/project-list-detailed?subCounty=' + encodeURIComponent(subCounty.subcounty));
+            console.log('=== END API TEST ===');
+            
+            // Use the detailed project list API with subcounty filter
+            const filters = {
+                subCounty: subCounty.subcounty
+            };
+            console.log('Using filters:', filters);
+            console.log('SubCounty data being filtered:', subCounty.subcounty);
+            console.log('Available subCounty fields:', Object.keys(subCounty));
+            
+            let response = await reportsService.getDetailedProjectList(filters);
+            
+            // If no results, try alternative filter names
+            if (!response || response.length === 0) {
+                console.log('No results with subCounty filter, trying alternative filters...');
+                const alternativeFilters = {
+                    subcounty: subCounty.subcounty,
+                    sub_county: subCounty.subcounty,
+                    location: subCounty.subcounty
+                };
+                
+                for (const [key, value] of Object.entries(alternativeFilters)) {
+                    try {
+                        console.log(`Trying filter: ${key} = ${value}`);
+                        response = await reportsService.getDetailedProjectList({ [key]: value });
+                        if (response && response.length > 0) {
+                            console.log(`Found results with filter: ${key}`);
+                            break;
+                        }
+                    } catch (err) {
+                        console.log(`Filter ${key} failed:`, err.message);
+                    }
+                }
+            }
+            console.log('API response:', response);
+            console.log('Response length:', response?.length);
+            
             if (response && response.length > 0) {
-                setProjects(response);
+                console.log('Using real data from API:', response.length, 'projects');
+                console.log('Sample project data:', response[0]);
+                console.log('All project subcounties:', response.map(p => p.subcounty || p.subCounty || p.subcountyName));
+                
+                // Debug: Show all project data to understand the structure
+                console.log('=== PROJECT DATA STRUCTURE DEBUG ===');
+                console.log('First project full object:', response[0]);
+                console.log('All project field names:', Object.keys(response[0]));
+                console.log('Looking for subcounty in project:', {
+                    subcounty: response[0].subcounty,
+                    subCounty: response[0].subCounty,
+                    subcountyName: response[0].subcountyName,
+                    location: response[0].location,
+                    subcounty_id: response[0].subcounty_id,
+                    subcountyId: response[0].subcountyId
+                });
+                console.log('Target subcounty to match:', subCounty.subcounty);
+                console.log('=== END DEBUG ===');
+                
+                // Apply client-side filtering since backend doesn't filter by subcounty
+                const filteredProjects = response.filter(project => {
+                    // Use the correct field name from the API response
+                    const projectSubcounty = project.subCountyName;
+                    
+                    const matches = projectSubcounty === subCounty.subcounty;
+                    console.log(`Project: ${project.projectName}, Subcounty: ${projectSubcounty}, Target: ${subCounty.subcounty}, Matches: ${matches}`);
+                    return matches;
+                });
+                
+                console.log(`Client-side filtering: ${response.length} -> ${filteredProjects.length} projects`);
+                
+                // Show filtered projects (empty array if no matches)
+                setProjects(filteredProjects);
+                
+                if (filteredProjects.length === 0) {
+                    console.log('No projects found for this subcounty.');
+                    console.log('Available subcounties in data:', [...new Set(response.map(p => p.subCountyName))]);
+                }
+                
                 setIsUsingMockData(false);
             } else {
+                console.log('API returned empty data, using mock data');
                 // Generate mock data if no real data
                 setProjects(generateMockProjects());
                 setIsUsingMockData(true);
             }
         } catch (error) {
             console.error('Error fetching sub-county projects:', error);
+            console.error('Error details:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                config: error.config
+            });
+            
+            let errorMessage = `Failed to load projects for ${subCounty.subcounty}`;
+            if (error.response?.status === 500) {
+                errorMessage += ': Server error (500) - The backend may not have this endpoint implemented yet';
+            } else {
+                errorMessage += `: ${error.message}`;
+            }
+            
+            setError(errorMessage);
             setProjects(generateMockProjects());
             setIsUsingMockData(true);
         } finally {
@@ -100,8 +213,8 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
         if (!projects.length) return { totalProjects: 0, totalBudget: 0, totalPaid: 0, avgCompletion: 0 };
         
         const totalProjects = projects.length;
-        const totalBudget = projects.reduce((sum, project) => sum + (parseFloat(project.allocatedBudget) || 0), 0);
-        const totalPaid = projects.reduce((sum, project) => sum + (parseFloat(project.amountPaid) || 0), 0);
+        const totalBudget = projects.reduce((sum, project) => sum + (parseFloat(project.costOfProject) || 0), 0);
+        const totalPaid = projects.reduce((sum, project) => sum + (parseFloat(project.paidOut) || 0), 0);
         const avgCompletion = projects.reduce((sum, project) => sum + (project.percentCompleted || 0), 0) / totalProjects;
         
         return { totalProjects, totalBudget, totalPaid, avgCompletion };
@@ -143,7 +256,7 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <LocationOn sx={{ fontSize: '1.5rem' }} />
                     <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                        {subCounty?.subCounty || 'Sub-County'} Projects
+                        {subCounty?.subcounty || 'Sub-County'} Projects
                     </Typography>
                 </Box>
                 <Button
@@ -265,38 +378,47 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                         <CircularProgress />
                     </Box>
+                ) : projects.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Typography variant="h6" color="text.secondary" gutterBottom>
+                            No Projects Found
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            No projects are currently assigned to {subCounty?.subcounty || 'this subcounty'}.
+                        </Typography>
+                    </Box>
                 ) : (
                     <ProjectDetailTable
                         data={projects.map((project, index) => ({
                             id: project.id,
                             rowNumber: index + 1,
                             projectName: project.projectName,
-                            county: project.county,
-                            subCounty: project.subCounty,
-                            ward: project.ward,
-                            village: project.village,
+                            county: project.countyName || 'N/A',
+                            subCounty: project.subCountyName,
+                            ward: project.wardName,
+                            village: project.village || 'N/A',
                             status: project.status,
-                            percentCompleted: project.percentCompleted,
-                            healthScore: project.healthScore,
+                            percentCompleted: project.percentCompleted || 0,
+                            healthScore: project.healthScore || 0,
                             startDate: formatDate(project.startDate),
                             endDate: formatDate(project.endDate),
-                            allocatedBudget: parseFloat(project.allocatedBudget) || 0,
-                            contractSum: parseFloat(project.contractSum) || 0,
-                            amountPaid: parseFloat(project.amountPaid) || 0,
-                            absorptionRate: parseFloat(project.absorptionRate) || 0,
-                            objective: project.objective,
-                            expectedOutput: project.expectedOutput,
-                            expectedOutcome: project.expectedOutcome,
-                            principalInvestigator: project.principalInvestigator,
-                            statusReason: project.statusReason
+                            allocatedBudget: parseFloat(project.costOfProject) || 0,
+                            contractSum: parseFloat(project.costOfProject) || 0,
+                            amountPaid: parseFloat(project.paidOut) || 0,
+                            absorptionRate: project.costOfProject > 0 ? parseFloat((((parseFloat(project.paidOut) || 0) / parseFloat(project.costOfProject)) * 100).toFixed(2)) : 0,
+                            objective: project.objective || 'N/A',
+                            expectedOutput: project.expectedOutput || 'N/A',
+                            expectedOutcome: project.expectedOutcome || 'N/A',
+                            principalInvestigator: project.principalInvestigator || 'N/A',
+                            statusReason: project.statusReason || 'N/A'
                         }))}
                         columns={[
                             { id: 'rowNumber', label: '#', minWidth: 60, type: 'number' },
                             { id: 'projectName', label: 'Project Name', minWidth: 200, type: 'text' },
-                            { id: 'county', label: 'County', minWidth: 120, type: 'text' },
+                            { id: 'subCounty', label: 'Subcounty', minWidth: 120, type: 'text' },
                             { id: 'ward', label: 'Ward', minWidth: 100, type: 'text' },
                             { id: 'village', label: 'Village', minWidth: 100, type: 'text' },
-                            { id: 'status', label: 'Status', minWidth: 100, type: 'text' },
+                            { id: 'status', label: 'Status', minWidth: 100, type: 'status' },
                             { id: 'percentCompleted', label: 'Progress', minWidth: 100, type: 'percentage' },
                             { id: 'allocatedBudget', label: 'Budget', minWidth: 120, type: 'currency' },
                             { id: 'amountPaid', label: 'Paid', minWidth: 120, type: 'currency' },

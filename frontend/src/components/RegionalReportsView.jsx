@@ -672,8 +672,8 @@ const RegionalReportsView = () => {
                                     </Grid>
                                 </Grid>
 
-                            {/* Chart Section - Left Side (md={9}) */}
-                            <Grid item xs={12} md={9}>
+                            {/* Chart Section - Full Width Row */}
+                            <Grid item xs={12}>
                                 <Card sx={{ 
                                     height: '500px',
                                     borderRadius: '12px',
@@ -755,147 +755,147 @@ const RegionalReportsView = () => {
                                 </Card>
                             </Grid>
 
-                            {/* Performance Highlights - Right Side (md={3}) */}
-                            <Grid item xs={12} md={3}>
-                                <Box sx={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
-                                    gap: 1.5, 
-                                    height: '500px',
-                                    justifyContent: 'space-between'
-                                }}>
-                                    <Card sx={{ 
-                                        p: 2, 
-                                        height: '120px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
-                                            transform: 'translateY(-2px)',
-                                            border: '1px solid rgba(25, 118, 210, 0.3)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <TrendingUp sx={{ color: '#1976d2', fontSize: '1.2rem', mr: 1 }} />
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                Top Performer
+                            {/* Performance Highlights - Separate Row */}
+                            <Grid item xs={12}>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6} md={4}>
+                                        <Card sx={{ 
+                                            p: 2, 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
+                                                transform: 'translateY(-2px)',
+                                                border: '1px solid rgba(25, 118, 210, 0.3)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <TrendingUp sx={{ color: '#1976d2', fontSize: '1.2rem', mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                    Top Performer
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+                                                {dashboardData.subCounties?.reduce((max, sub) => 
+                                                    parseFloat(sub.absorptionRate) > parseFloat(max.absorptionRate) ? sub : max, 
+                                                    { absorptionRate: 0, subcountyName: 'N/A' }
+                                                ).subcountyName}
                                             </Typography>
-                                        </Box>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-                                            {dashboardData.subCounties?.reduce((max, sub) => 
-                                                parseFloat(sub.absorptionRate) > parseFloat(max.absorptionRate) ? sub : max, 
-                                                { absorptionRate: 0, subcountyName: 'N/A' }
-                                            ).subcountyName}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Highest absorption rate
-                                        </Typography>
-                                    </Card>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Highest absorption rate
+                                            </Typography>
+                                        </Card>
+                                    </Grid>
                                     
-                                    <Card sx={{ 
-                                        p: 2, 
-                                        height: '120px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(76, 175, 80, 0.15)',
-                                            transform: 'translateY(-2px)',
-                                            border: '1px solid rgba(76, 175, 80, 0.3)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <Assessment sx={{ color: '#2e7d32', fontSize: '1.2rem', mr: 1 }} />
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                Most Projects
+                                    <Grid item xs={12} sm={6} md={4}>
+                                        <Card sx={{ 
+                                            p: 2, 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 12px 40px rgba(76, 175, 80, 0.15)',
+                                                transform: 'translateY(-2px)',
+                                                border: '1px solid rgba(76, 175, 80, 0.3)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <Assessment sx={{ color: '#2e7d32', fontSize: '1.2rem', mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                    Most Projects
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                                                {dashboardData.subCounties?.reduce((max, sub) => 
+                                                    parseInt(sub.totalProjects) > parseInt(max.totalProjects) ? sub : max, 
+                                                    { totalProjects: 0, subcountyName: 'N/A' }
+                                                ).subcountyName}
                                             </Typography>
-                                        </Box>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
-                                            {dashboardData.subCounties?.reduce((max, sub) => 
-                                                parseInt(sub.totalProjects) > parseInt(max.totalProjects) ? sub : max, 
-                                                { totalProjects: 0, subcountyName: 'N/A' }
-                                            ).subcountyName}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Most active sub-county
-                                        </Typography>
-                                    </Card>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Most active sub-county
+                                            </Typography>
+                                        </Card>
+                                    </Grid>
                                     
-                                    <Card sx={{ 
-                                        p: 2, 
-                                        height: '120px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(255, 152, 0, 0.15)',
-                                            transform: 'translateY(-2px)',
-                                            border: '1px solid rgba(255, 152, 0, 0.3)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <AttachMoney sx={{ color: '#f57c00', fontSize: '1.2rem', mr: 1 }} />
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                Largest Budget
+                                    <Grid item xs={12} sm={6} md={4}>
+                                        <Card sx={{ 
+                                            p: 2, 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 12px 40px rgba(255, 152, 0, 0.15)',
+                                                transform: 'translateY(-2px)',
+                                                border: '1px solid rgba(255, 152, 0, 0.3)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <AttachMoney sx={{ color: '#f57c00', fontSize: '1.2rem', mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                    Largest Budget
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#f57c00' }}>
+                                                {dashboardData.subCounties?.reduce((max, sub) => 
+                                                    parseFloat(sub.totalBudget) > parseFloat(max.totalBudget) ? sub : max, 
+                                                    { totalBudget: 0, subcountyName: 'N/A' }
+                                                ).subcountyName}
                                             </Typography>
-                                        </Box>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#f57c00' }}>
-                                            {dashboardData.subCounties?.reduce((max, sub) => 
-                                                parseFloat(sub.totalBudget) > parseFloat(max.totalBudget) ? sub : max, 
-                                                { totalBudget: 0, subcountyName: 'N/A' }
-                                            ).subcountyName}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Highest allocation
-                                        </Typography>
-                                    </Card>
-                                </Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Highest allocation
+                                            </Typography>
+                                        </Card>
+                                    </Grid>
+                                </Grid>
                             </Grid>
 
                             {/* Sub-County Details Table - Below Chart and KPIs */}
@@ -980,8 +980,8 @@ const RegionalReportsView = () => {
                                     </Grid>
                                 </Grid>
 
-                            {/* Ward Chart Section - Left Side (md={9}) */}
-                            <Grid item xs={12} md={9}>
+                            {/* Ward Chart Section - Full Width Row */}
+                            <Grid item xs={12}>
                                 <Card sx={{ 
                                     height: '500px',
                                     borderRadius: '12px',
@@ -1063,147 +1063,147 @@ const RegionalReportsView = () => {
                                 </Card>
                             </Grid>
 
-                            {/* Ward Performance Highlights - Right Side (md={3}) */}
-                            <Grid item xs={12} md={3}>
-                                <Box sx={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
-                                    gap: 1.5, 
-                                    height: '500px',
-                                    justifyContent: 'space-between'
-                                }}>
-                                    <Card sx={{ 
-                                        p: 2, 
-                                        height: '120px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
-                                            transform: 'translateY(-2px)',
-                                            border: '1px solid rgba(25, 118, 210, 0.3)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <TrendingUp sx={{ color: '#1976d2', fontSize: '1.2rem', mr: 1 }} />
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                Top Ward
+                            {/* Ward Performance Highlights - Separate Row */}
+                            <Grid item xs={12}>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6} md={4}>
+                                        <Card sx={{ 
+                                            p: 2, 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
+                                                transform: 'translateY(-2px)',
+                                                border: '1px solid rgba(25, 118, 210, 0.3)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <TrendingUp sx={{ color: '#1976d2', fontSize: '1.2rem', mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                    Top Ward
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+                                                {dashboardData.wards?.reduce((max, ward) => 
+                                                    parseFloat(ward.absorptionRate) > parseFloat(max.absorptionRate) ? ward : max, 
+                                                    { absorptionRate: 0, wardName: 'N/A' }
+                                                ).wardName}
                                             </Typography>
-                                        </Box>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-                                            {dashboardData.wards?.reduce((max, ward) => 
-                                                parseFloat(ward.absorptionRate) > parseFloat(max.absorptionRate) ? ward : max, 
-                                                { absorptionRate: 0, wardName: 'N/A' }
-                                            ).wardName}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Highest absorption rate
-                                        </Typography>
-                                    </Card>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Highest absorption rate
+                                            </Typography>
+                                        </Card>
+                                    </Grid>
                                     
-                                    <Card sx={{ 
-                                        p: 2, 
-                                        height: '120px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(76, 175, 80, 0.15)',
-                                            transform: 'translateY(-2px)',
-                                            border: '1px solid rgba(76, 175, 80, 0.3)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <Assessment sx={{ color: '#2e7d32', fontSize: '1.2rem', mr: 1 }} />
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                Most Active
+                                    <Grid item xs={12} sm={6} md={4}>
+                                        <Card sx={{ 
+                                            p: 2, 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 12px 40px rgba(76, 175, 80, 0.15)',
+                                                transform: 'translateY(-2px)',
+                                                border: '1px solid rgba(76, 175, 80, 0.3)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <Assessment sx={{ color: '#2e7d32', fontSize: '1.2rem', mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                    Most Active
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                                                {dashboardData.wards?.reduce((max, ward) => 
+                                                    parseInt(ward.totalProjects) > parseInt(max.totalProjects) ? ward : max, 
+                                                    { totalProjects: 0, wardName: 'N/A' }
+                                                ).wardName}
                                             </Typography>
-                                        </Box>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
-                                            {dashboardData.wards?.reduce((max, ward) => 
-                                                parseInt(ward.totalProjects) > parseInt(max.totalProjects) ? ward : max, 
-                                                { totalProjects: 0, wardName: 'N/A' }
-                                            ).wardName}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Most projects
-                                        </Typography>
-                                    </Card>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Most projects
+                                            </Typography>
+                                        </Card>
+                                    </Grid>
                                     
-                                    <Card sx={{ 
-                                        p: 2, 
-                                        height: '120px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(255, 152, 0, 0.15)',
-                                            transform: 'translateY(-2px)',
-                                            border: '1px solid rgba(255, 152, 0, 0.3)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                            <AttachMoney sx={{ color: '#f57c00', fontSize: '1.2rem', mr: 1 }} />
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                Highest Budget
+                                    <Grid item xs={12} sm={6} md={4}>
+                                        <Card sx={{ 
+                                            p: 2, 
+                                            height: '120px',
+                                            borderRadius: '12px',
+                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            '&:hover': {
+                                                boxShadow: '0 12px 40px rgba(255, 152, 0, 0.15)',
+                                                transform: 'translateY(-2px)',
+                                                border: '1px solid rgba(255, 152, 0, 0.3)'
+                                            },
+                                            '&::before': {
+                                                content: '""',
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                height: '3px',
+                                                background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
+                                                borderRadius: '12px 12px 0 0'
+                                            }
+                                        }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                                <AttachMoney sx={{ color: '#f57c00', fontSize: '1.2rem', mr: 1 }} />
+                                                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                    Highest Budget
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#f57c00' }}>
+                                                {dashboardData.wards?.reduce((max, ward) => 
+                                                    parseFloat(ward.totalBudget) > parseFloat(max.totalBudget) ? ward : max, 
+                                                    { totalBudget: 0, wardName: 'N/A' }
+                                                ).wardName}
                                             </Typography>
-                                        </Box>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#f57c00' }}>
-                                            {dashboardData.wards?.reduce((max, ward) => 
-                                                parseFloat(ward.totalBudget) > parseFloat(max.totalBudget) ? ward : max, 
-                                                { totalBudget: 0, wardName: 'N/A' }
-                                            ).wardName}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Largest allocation
-                                        </Typography>
-                                    </Card>
-                                </Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Largest allocation
+                                            </Typography>
+                                        </Card>
+                                    </Grid>
+                                </Grid>
                             </Grid>
 
                             {/* Ward Details Table - Below Chart and KPIs */}
