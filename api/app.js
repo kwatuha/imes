@@ -24,6 +24,8 @@ const projectDocumentsRoutes = require('./routes/projectDocumentsRoutes');
 const workflowRoutes = require('./routes/projectWorkflowRoutes');
 const approvalLevelsRoutes = require('./routes/approvalLevelsRoutes');
 const paymentStatusRoutes = require('./routes/paymentStatusRoutes');
+const dashboardConfigRoutes = require('./routes/dashboardConfigRoutes');
+const dataAccessRoutes = require('./routes/dataAccessRoutes');
 
 // NEW: Consolidated reporting routes under a single router
 const reportsRouter = require('./routes/reportsRouter')
@@ -57,6 +59,12 @@ app.use('/api/auth', authRoutes);
 // IMPORTANT: Mount the new dedicated routers
 // The reports router is mounted first to prevent conflicts with project routes.
 app.use('/api/reports', reportsRouter);
+
+// Dashboard configuration routes (public for testing)
+app.use('/api/dashboard', dashboardConfigRoutes);
+
+// Data access control routes (public for testing)
+app.use('/api/data-access', dataAccessRoutes);
 
 app.use('/api', authenticate);
 app.use('/api/projects', projectRouter);

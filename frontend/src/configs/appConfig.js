@@ -52,6 +52,9 @@ export const ROUTES = {
     
     // NEW: Administrative route for managing contractors
     CONTRACTOR_MANAGEMENT: '/contractor-management',
+    
+    // NEW: Admin dashboard route
+    ADMIN: '/admin',
 
     // Main layout routes
     RAW_DATA: '/raw-data',

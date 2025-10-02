@@ -204,6 +204,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
   ];
 
   const adminItems = [
+    { title: "Admin Dashboard", to: ROUTES.ADMIN, icon: <SettingsIcon /> },
     { title: "User Management", to: ROUTES.USER_MANAGEMENT, icon: <GroupIcon /> },
     { title: "Workflow Management", to: ROUTES.WORKFLOW_MANAGEMENT, icon: <AccountTreeIcon />, privilege: () => hasPrivilege('project_workflow.read') },
     { title: "Approval Levels", to: ROUTES.APPROVAL_LEVELS_MANAGEMENT, icon: <SettingsIcon />, privilege: () => hasPrivilege('approval_levels.read') },
@@ -292,14 +293,12 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
         "& .pro-sidebar-inner": {
           position: "relative",
           zIndex: 999,
-        },
-        // Force light theme sidebar colors
-        ...(theme.palette.mode !== 'dark' && {
-          "& .pro-sidebar-inner": {
+          // Force light theme sidebar colors
+          ...(theme.palette.mode !== 'dark' && {
             background: `${colors.primary[50]} !important`,
             backgroundColor: `${colors.primary[50]} !important`,
-          },
-        }),
+          }),
+        },
       }}
     >
       <ProSidebar collapsed={isCollapsed}>

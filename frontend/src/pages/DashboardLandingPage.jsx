@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import ProfileModal from '../components/ProfileModal';
-import TabbedDashboard from '../components/TabbedDashboard';
+import DatabaseDrivenTabbedDashboard from '../components/DatabaseDrivenTabbedDashboard';
 import ActiveUsersCard from '../components/ActiveUsersCard';
 import {
   Box,
@@ -529,7 +529,7 @@ const DashboardLandingPage = () => {
           {/* Tabbed Dashboard */}
           <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} mb={{ xs: 3, sm: 4 }}>
             <Grid item xs={12}>
-              <TabbedDashboard user={user} dashboardData={data} />
+              <DatabaseDrivenTabbedDashboard user={user} dashboardData={data} />
             </Grid>
           </Grid>
         </Grid>

@@ -6,7 +6,7 @@ import {
   OutlinedInput, Chip, ListSubheader, Checkbox, ListItemText,
 } from '@mui/material';
 import { DataGrid } from "@mui/x-data-grid";
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon, Dashboard as DashboardIcon } from '@mui/icons-material';
 import apiService from '../api/userService';
 import { useAuth } from '../context/AuthContext.jsx';
 import { tokens } from "./dashboard/theme";
@@ -799,6 +799,16 @@ function UserManagementPage() {
               sx={{ borderColor: colors.blueAccent[500], color: colors.blueAccent[500], '&:hover': { backgroundColor: colors.blueAccent[700], color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
             >
               Manage Privileges
+            </Button>
+          )}
+          {hasPrivilege('user.read_all') && (
+            <Button
+              variant="outlined"
+              startIcon={<DashboardIcon />}
+              onClick={() => window.open('/impes/dashboard-config', '_blank')}
+              sx={{ borderColor: colors.greenAccent[500], color: colors.greenAccent[500], '&:hover': { backgroundColor: colors.greenAccent[700], color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
+            >
+              Configure Dashboard
             </Button>
           )}
         </Stack>

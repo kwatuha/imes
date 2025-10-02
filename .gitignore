@@ -6,6 +6,8 @@ frontend/package-lock.json
 api/.env
 frontend/.env
 /*.sql
+frontend/dist/
+frontend/src/configs/*.sql
 # Sensitive data and user uploads
  
 api/dump/

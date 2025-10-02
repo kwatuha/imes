@@ -46,6 +46,8 @@ import HrModulePage from './pages/HrModulePage';
 import WorkflowManagementPage from './pages/WorkflowManagementPage';
 // ✨ NEW: Import the ApprovalLevelsManagementPage component
 import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage';
+// ✨ NEW: Import the AdminPage component
+import AdminPage from './pages/AdminPage';
  
 import ReportingPage from './pages/ReportingPage';
 import ReportingView from './components/ReportingView';
@@ -53,6 +55,7 @@ import RegionalReportsView from './components/RegionalReportsView';
 import RegionalDashboard from './components/RegionalDashboard';
 
 import ProjectDashboardPage from './pages/ProjectsDashboardPage';
+import DashboardConfigManager from './components/DashboardConfigManager';
 import { ColorModeContext, useMode} from "./pages/dashboard/theme";
 
 // Define your routes with basename for /impes path
@@ -68,6 +71,14 @@ const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: 'dashboard-config',
+        element: <DashboardConfigManager />,
+      },
+      {
+        path: 'admin',
+        element: <AdminPage />,
       },
       {
         path: 'contractor-dashboard',
