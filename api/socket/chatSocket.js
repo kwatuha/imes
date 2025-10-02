@@ -32,7 +32,7 @@ module.exports = (io) => {
       
       // Get user details from database
       const [users] = await db.execute(
-        'SELECT userId, firstName, lastName, email, roleName FROM kemri_users WHERE userId = ?',
+        'SELECT userId, firstName, lastName, email FROM kemri_users WHERE userId = ?',
         [userId]
       );
       
@@ -118,6 +118,9 @@ module.exports = (io) => {
     // Handle sending messages
     socket.on('send_message', async (data) => {
       try {
+        console.log('Socket - send_message received:', data);
+        console.log('Socket - user:', socket.user);
+        
         const { roomId, message_text, message_type = 'text', reply_to_message_id } = data;
         
         // Verify user has access to this room
@@ -126,16 +129,20 @@ module.exports = (io) => {
           [roomId, socket.user.userId]
         );
         
+        console.log('Socket - Access check for user', socket.user.userId, 'in room', roomId, ':', access.length > 0 ? 'Granted' : 'Denied');
+        
         if (access.length === 0) {
           socket.emit('error', { message: 'Access denied to this chat room' });
           return;
         }
         
         // Insert message into database
+        console.log('Socket - Inserting message into database');
         const [result] = await db.execute(
           'INSERT INTO chat_messages (room_id, sender_id, message_text, message_type, reply_to_message_id) VALUES (?, ?, ?, ?, ?)',
           [roomId, socket.user.userId, message_text, message_type, reply_to_message_id || null]
         );
+        console.log('Socket - Message inserted with ID:', result.insertId);
         
         // Get complete message data
         const [messageData] = await db.execute(`

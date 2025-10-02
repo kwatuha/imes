@@ -12,7 +12,8 @@ import {
   Reply as ReplyIcon,
   MoreVert as MoreVertIcon,
   InsertDriveFile as FileIcon,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { tokens } from '../../pages/dashboard/theme';
 
@@ -46,8 +47,30 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
     }
   };
 
+  const handleDownload = (message) => {
+    if (!message.file_url || !message.file_name) return;
+    
+    // Use the correct environment variable name and construct the proper URL
+    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const baseUrl = apiBaseUrl.replace('/api', ''); // Remove /api suffix for static files
+    const fileUrl = `${baseUrl}${message.file_url}`;
+    
+    console.log('Download URL:', fileUrl);
+    
+    // Create a temporary link element and trigger download
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = message.file_name;
+    link.target = '_blank';
+    
+    // Add to DOM, click, then remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const renderMessage = (message, index) => {
-    const isCurrentUser = message.sender_id === currentUser?.userId;
+    const isCurrentUser = message.sender_id === (currentUser?.id || currentUser?.actualUserId);
     const showAvatar = !isCurrentUser && (
       index === 0 || 
       messages[index - 1]?.sender_id !== message.sender_id ||
@@ -178,7 +201,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
               {message.message_type === 'file' && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <FileIcon />
-                  <Box>
+                  <Box sx={{ flex: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       {message.file_name}
                     </Typography>
@@ -186,20 +209,53 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                       {message.file_size && `${(message.file_size / 1024 / 1024).toFixed(2)} MB`}
                     </Typography>
                   </Box>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleDownload(message)}
+                    sx={{ 
+                      color: colors.grey[300],
+                      '&:hover': {
+                        backgroundColor: colors.primary[200],
+                        color: colors.greenAccent[500]
+                      }
+                    }}
+                    title="Download file"
+                  >
+                    <DownloadIcon fontSize="small" />
+                  </IconButton>
                 </Box>
               )}
 
               {message.message_type === 'image' && (
                 <Box>
-                  <img
-                    src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}${message.file_url}`}
-                    alt={message.file_name}
-                    style={{
-                      maxWidth: '200px',
-                      maxHeight: '200px',
-                      borderRadius: '8px'
-                    }}
-                  />
+                  <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                    <img
+                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}${message.file_url}`}
+                      alt={message.file_name}
+                      style={{
+                        maxWidth: '200px',
+                        maxHeight: '200px',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleDownload(message)}
+                      sx={{ 
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                        }
+                      }}
+                      title="Download image"
+                    >
+                      <DownloadIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                   {message.file_name && (
                     <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
                       {message.file_name}

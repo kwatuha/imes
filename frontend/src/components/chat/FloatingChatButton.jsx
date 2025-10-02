@@ -28,7 +28,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const FloatingChatButton = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
-  const { getTotalUnreadCount, isConnected, fetchRooms } = useChat();
+  const { getTotalUnreadCount, isConnected, fetchRooms, joinRoom } = useChat();
   
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -41,7 +41,13 @@ const FloatingChatButton = () => {
   };
 
   const handleRoomSelect = (room) => {
+    console.log('FloatingChatButton - Room selected:', room);
     setSelectedRoom(room);
+    // Join the room to fetch messages
+    if (room && room.room_id) {
+      console.log('FloatingChatButton - Joining room:', room.room_id);
+      joinRoom(room.room_id);
+    }
   };
 
   const handleCreateRoom = () => {
@@ -102,7 +108,7 @@ const FloatingChatButton = () => {
         sx={{
           '& .MuiDialog-paper': {
             height: '80vh',
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.primary[500],
             position: 'fixed',
             bottom: 100,
             right: 24,
@@ -112,8 +118,10 @@ const FloatingChatButton = () => {
             maxWidth: '800px',
             width: '800px',
             borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-            border: '1px solid #e9ecef'
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0, 0, 0, 0.5)' 
+              : '0 8px 32px rgba(0, 0, 0, 0.12)',
+            border: `1px solid ${colors.primary[400]}`
           }
         }}
       >
@@ -123,23 +131,23 @@ const FloatingChatButton = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             p: 2,
-            backgroundColor: '#f8f9fa',
-            borderBottom: '1px solid #e9ecef',
-            color: '#2c3e50',
+            backgroundColor: colors.primary[400],
+            borderBottom: `1px solid ${colors.primary[300]}`,
+            color: colors.grey[100],
             fontWeight: 600
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ChatIcon sx={{ color: '#007bff' }} />
+            <ChatIcon sx={{ color: colors.greenAccent[500] }} />
             <span>Team Chat</span>
           </Box>
           <IconButton 
             onClick={() => setChatOpen(false)} 
             size="small"
             sx={{ 
-              color: '#6c757d',
+              color: colors.grey[300],
               '&:hover': {
-                backgroundColor: '#e9ecef'
+                backgroundColor: colors.primary[300]
               }
             }}
           >

@@ -107,27 +107,27 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#f8f9fa'
+        backgroundColor: colors.primary[500]
       }}
     >
       {/* Header */}
       <Box
         sx={{
           p: 2,
-          borderBottom: '1px solid #e9ecef',
-          backgroundColor: '#ffffff'
+          borderBottom: `1px solid ${colors.primary[400]}`,
+          backgroundColor: colors.primary[400]
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: colors.grey[100] }}>
             Chat Rooms
           </Typography>
           <IconButton 
             onClick={onCreateRoom} 
             sx={{ 
-              color: '#007bff',
+              color: colors.greenAccent[500],
               '&:hover': {
-                backgroundColor: '#e7f3ff'
+                backgroundColor: colors.primary[300]
               }
             }}
           >
@@ -145,22 +145,22 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#6c757d' }} />
+                <SearchIcon sx={{ color: colors.grey[400] }} />
               </InputAdornment>
             ),
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: '#ffffff',
+              backgroundColor: colors.primary[500],
               '&:hover': {
-                backgroundColor: '#f8f9fa'
+                backgroundColor: colors.primary[400]
               },
               '&.Mui-focused': {
-                backgroundColor: '#ffffff'
+                backgroundColor: colors.primary[500]
               }
             },
             '& .MuiOutlinedInput-input': {
-              color: '#212529'
+              color: colors.grey[100]
             }
           }}
         />
@@ -180,11 +180,11 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
               onClick={() => setFilter(filterOption.key)}
               variant={filter === filterOption.key ? 'filled' : 'outlined'}
               sx={{
-                backgroundColor: filter === filterOption.key ? '#007bff' : 'transparent',
-                color: filter === filterOption.key ? '#ffffff' : '#6c757d',
-                borderColor: filter === filterOption.key ? '#007bff' : '#dee2e6',
+                backgroundColor: filter === filterOption.key ? colors.greenAccent[500] : 'transparent',
+                color: filter === filterOption.key ? colors.grey[100] : colors.grey[400],
+                borderColor: filter === filterOption.key ? colors.greenAccent[500] : colors.primary[300],
                 '&:hover': {
-                  backgroundColor: filter === filterOption.key ? '#0056b3' : '#e9ecef'
+                  backgroundColor: filter === filterOption.key ? colors.greenAccent[600] : colors.primary[300]
                 }
               }}
             />
@@ -234,29 +234,29 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                     <ListItemButton
                       onClick={() => onRoomSelect(room)}
                       selected={isSelected}
-                      sx={{
-                        py: 1.5,
-                        px: 2,
-                        backgroundColor: isSelected ? '#e7f3ff' : 'transparent',
-                        '&:hover': {
-                          backgroundColor: '#f8f9fa'
-                        },
-                        '&.Mui-selected': {
-                          backgroundColor: '#e7f3ff',
-                          '&:hover': {
-                            backgroundColor: '#cce7ff'
-                          }
-                        }
-                      }}
+                          sx={{
+                            py: 1.5,
+                            px: 2,
+                            backgroundColor: isSelected ? colors.primary[300] : 'transparent',
+                            '&:hover': {
+                              backgroundColor: colors.primary[400]
+                            },
+                            '&.Mui-selected': {
+                              backgroundColor: colors.primary[300],
+                              '&:hover': {
+                                backgroundColor: colors.primary[200]
+                              }
+                            }
+                          }}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>
                         <Avatar
                           sx={{
                             width: 32,
                             height: 32,
-                            bgcolor: '#007bff',
+                            bgcolor: colors.greenAccent[500],
                             fontSize: '0.875rem',
-                            color: '#ffffff'
+                            color: colors.grey[100]
                           }}
                         >
                           {getRoomIcon(room.room_type)}
@@ -270,12 +270,12 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                               variant="body1"
                               sx={{
                                 fontWeight: unreadCount > 0 ? 'bold' : 'normal',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                flex: 1,
-                                color: '#212529'
-                              }}
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  flex: 1,
+                                  color: colors.grey[100]
+                                }}
                             >
                               {room.room_name}
                             </Typography>
@@ -283,7 +283,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                               {room.last_message_time && (
                                 <Typography
                                   variant="caption"
-                                  sx={{ color: '#6c757d' }}
+                                  sx={{ color: colors.grey[400] }}
                                 >
                                   {formatLastMessageTime(room.last_message_time)}
                                 </Typography>
@@ -293,8 +293,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   badgeContent={unreadCount}
                                   sx={{
                                     '& .MuiBadge-badge': {
-                                      backgroundColor: '#007bff',
-                                      color: '#ffffff',
+                                      backgroundColor: colors.greenAccent[500],
+                                      color: colors.grey[100],
                                       fontSize: '0.75rem',
                                       minWidth: '18px',
                                       height: '18px'
@@ -308,35 +308,41 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                         secondary={
                           <Box>
                             {room.room_type === 'project' && room.project_name && (
-                              <Typography
-                                variant="caption"
-                                sx={{ color: '#6c757d' }}
-                              >
+                                  <Box
+                                    component="span"
+                                    sx={{ 
+                                      color: colors.grey[400],
+                                      fontSize: '0.75rem',
+                                      display: 'block'
+                                    }}
+                                  >
                                 Project: {room.project_name}
-                              </Typography>
+                              </Box>
                             )}
                             {room.last_message && (
-                              <Typography
-                                variant="body2"
+                              <Box
+                                component="span"
                                 sx={{
-                                  color: '#6c757d',
+                                  color: colors.grey[400],
+                                  fontSize: '0.875rem',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
-                                  mt: 0.5
+                                  mt: 0.5,
+                                  display: 'block'
                                 }}
                               >
                                 {room.last_message}
-                              </Typography>
+                              </Box>
                             )}
                           </Box>
                         }
                       />
                     </ListItemButton>
                   </ListItem>
-                  {index < sortedRooms.length - 1 && (
-                    <Divider sx={{ borderColor: '#e9ecef' }} />
-                  )}
+                      {index < sortedRooms.length - 1 && (
+                        <Divider sx={{ borderColor: colors.primary[400] }} />
+                      )}
                 </React.Fragment>
               );
             })}

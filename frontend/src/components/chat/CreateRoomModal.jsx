@@ -195,18 +195,20 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#ffffff',
-          color: '#1a1a1a',
+          backgroundColor: colors.primary[500],
+          color: colors.grey[100],
           borderRadius: 2,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)'
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 8px 32px rgba(0, 0, 0, 0.5)' 
+            : '0 8px 32px rgba(0, 0, 0, 0.12)'
         }
       }}
     >
       <DialogTitle
         sx={{
-          backgroundColor: '#f8f9fa',
-          borderBottom: '1px solid #e9ecef',
-          color: '#2c3e50',
+          backgroundColor: colors.primary[400],
+          borderBottom: `1px solid ${colors.primary[300]}`,
+          color: colors.grey[100],
           fontWeight: 600,
           fontSize: '1.25rem'
         }}
@@ -231,38 +233,38 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             required
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: '#f8f9fa',
+                backgroundColor: colors.primary[400],
                 '&:hover': {
-                  backgroundColor: '#e9ecef'
+                  backgroundColor: colors.primary[300]
                 },
                 '&.Mui-focused': {
-                  backgroundColor: '#ffffff'
+                  backgroundColor: colors.primary[500]
                 }
               },
               '& .MuiInputLabel-root': {
-                color: '#6c757d'
+                color: colors.grey[400]
               },
               '& .MuiOutlinedInput-input': {
-                color: '#212529'
+                color: colors.grey[100]
               }
             }}
           />
 
           {/* Room Type */}
           <FormControl fullWidth>
-            <InputLabel sx={{ color: '#6c757d' }}>Room Type</InputLabel>
+            <InputLabel sx={{ color: colors.grey[400] }}>Room Type</InputLabel>
             <Select
               value={formData.room_type}
               onChange={(e) => handleInputChange('room_type', e.target.value)}
               label="Room Type"
               sx={{
-                backgroundColor: '#f8f9fa',
-                color: '#212529',
+                backgroundColor: colors.primary[400],
+                color: colors.grey[100],
                 '&:hover': {
-                  backgroundColor: '#e9ecef'
+                  backgroundColor: colors.primary[300]
                 },
                 '&.Mui-focused': {
-                  backgroundColor: '#ffffff'
+                  backgroundColor: colors.primary[500]
                 }
               }}
             >
@@ -279,7 +281,7 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
           {/* Project Selection (for project rooms) */}
           {formData.room_type === 'project' && (
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#6c757d' }}>Project</InputLabel>
+              <InputLabel sx={{ color: colors.grey[400] }}>Project</InputLabel>
               <Select
                 value={formData.project_id || ''}
                 onChange={(e) => handleInputChange('project_id', e.target.value)}
@@ -376,32 +378,32 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             rows={3}
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: '#f8f9fa',
+                backgroundColor: colors.primary[400],
                 '&:hover': {
-                  backgroundColor: '#e9ecef'
+                  backgroundColor: colors.primary[300]
                 },
                 '&.Mui-focused': {
-                  backgroundColor: '#ffffff'
+                  backgroundColor: colors.primary[500]
                 }
               },
               '& .MuiInputLabel-root': {
-                color: '#6c757d'
+                color: colors.grey[400]
               },
               '& .MuiOutlinedInput-input': {
-                color: '#212529'
+                color: colors.grey[100]
               }
             }}
           />
         </Box>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 2, backgroundColor: '#f8f9fa', borderTop: '1px solid #e9ecef' }}>
+      <DialogActions sx={{ p: 3, pt: 2, backgroundColor: colors.primary[400], borderTop: `1px solid ${colors.primary[300]}` }}>
         <Button 
           onClick={handleClose} 
           sx={{ 
-            color: '#6c757d',
+            color: colors.grey[400],
             '&:hover': {
-              backgroundColor: '#e9ecef'
+              backgroundColor: colors.primary[300]
             }
           }}
         >
@@ -412,14 +414,14 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
           variant="contained"
           disabled={loading}
           sx={{
-            backgroundColor: '#007bff',
-            color: '#ffffff',
+            backgroundColor: colors.greenAccent[500],
+            color: colors.grey[100],
             '&:hover': {
-              backgroundColor: '#0056b3'
+              backgroundColor: colors.greenAccent[600]
             },
             '&:disabled': {
-              backgroundColor: '#6c757d',
-              color: '#ffffff'
+              backgroundColor: colors.grey[500],
+              color: colors.grey[100]
             }
           }}
         >

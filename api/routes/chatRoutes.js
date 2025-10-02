@@ -1,10 +1,13 @@
 const express = require('express');
-const router = express.Router();
 const db = require('../config/db');
 const authenticate = require('../middleware/authenticate');
 const privilegeMiddleware = require('../middleware/privilegeMiddleware');
 const multer = require('multer');
 const path = require('path');
+
+// Export a function that accepts the io instance
+module.exports = (io) => {
+  const router = express.Router();
 
 // Configure multer for chat file uploads
 const storage = multer.diskStorage({
@@ -113,19 +116,25 @@ router.get('/rooms/:roomId/messages', authenticate, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { page = 1, limit = 50 } = req.query;
-    const userId = req.user.userId;
-    const offset = (page - 1) * limit;
+    const userId = req.user.id || req.user.actualUserId;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 50;
+    const offset = Math.max(0, (pageNum - 1) * limitNum);
+    const roomIdNum = parseInt(roomId);
+    
+    console.log('Parsed parameters:', { pageNum, limitNum, offset, roomIdNum });
     
     // Check if user has access to this room
     const [access] = await db.execute(
       'SELECT 1 FROM chat_room_participants WHERE room_id = ? AND user_id = ?',
-      [roomId, userId]
+      [roomIdNum, userId]
     );
     
     if (access.length === 0) {
       return res.status(403).json({ success: false, message: 'Access denied to this chat room' });
     }
     
+    // Simplified query without LIMIT/OFFSET to test
     const query = `
       SELECT 
         m.message_id,
@@ -137,27 +146,29 @@ router.get('/rooms/:roomId/messages', authenticate, async (req, res) => {
         m.reply_to_message_id,
         m.created_at,
         m.edited_at,
+        m.sender_id,
         u.firstName,
         u.lastName,
-        u.email,
-        rm.message_text as reply_message_text,
-        ru.firstName as reply_user_firstName,
-        ru.lastName as reply_user_lastName
+        u.email
       FROM chat_messages m
       LEFT JOIN kemri_users u ON m.sender_id = u.userId
-      LEFT JOIN chat_messages rm ON m.reply_to_message_id = rm.message_id
-      LEFT JOIN kemri_users ru ON rm.sender_id = ru.userId
       WHERE m.room_id = ? AND m.is_deleted = 0
       ORDER BY m.created_at DESC
-      LIMIT ? OFFSET ?
     `;
     
-    const [messages] = await db.execute(query, [roomId, parseInt(limit), offset]);
+    console.log('Executing simplified query with parameters:', { roomId: roomIdNum });
+    console.log('Parameter types:', { roomIdType: typeof roomIdNum });
+    const [allMessages] = await db.execute(query, [roomIdNum]);
+    
+    // Apply pagination manually
+    const startIndex = offset;
+    const endIndex = startIndex + limitNum;
+    const messages = allMessages.slice(startIndex, endIndex);
     
     // Update last read timestamp
     await db.execute(
       'UPDATE chat_room_participants SET last_read_at = NOW() WHERE room_id = ? AND user_id = ?',
-      [roomId, userId]
+      [roomIdNum, userId]
     );
     
     res.json({ success: true, messages: messages.reverse() });
@@ -172,7 +183,7 @@ router.post('/rooms/:roomId/messages', authenticate, privilegeMiddleware(['chat.
   try {
     const { roomId } = req.params;
     const { message_text, message_type = 'text', reply_to_message_id } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id || req.user.actualUserId;
     
     // Check if user has access to this room
     const [access] = await db.execute(
@@ -221,11 +232,17 @@ router.post('/rooms/:roomId/messages', authenticate, privilegeMiddleware(['chat.
 // Upload file to chat
 router.post('/rooms/:roomId/upload', authenticate, privilegeMiddleware(['chat.upload_file']), upload.single('file'), async (req, res) => {
   try {
+    console.log('File upload request received');
+    console.log('Room ID:', req.params.roomId);
+    console.log('User ID:', req.user.id || req.user.actualUserId);
+    console.log('File:', req.file);
+    
     const { roomId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id || req.user.actualUserId;
     const file = req.file;
     
     if (!file) {
+      console.log('No file uploaded');
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
     
@@ -236,17 +253,48 @@ router.post('/rooms/:roomId/upload', authenticate, privilegeMiddleware(['chat.up
     );
     
     if (access.length === 0) {
+      console.log('Access denied for user', userId, 'to room', roomId);
       return res.status(403).json({ success: false, message: 'Access denied to this chat room' });
     }
     
+    console.log('Access granted, processing file upload');
     const fileUrl = `/uploads/chat-files/${file.filename}`;
     const messageType = file.mimetype.startsWith('image/') ? 'image' : 'file';
+    
+    console.log('File URL:', fileUrl);
+    console.log('Message type:', messageType);
     
     // Insert file message
     const [result] = await db.execute(
       'INSERT INTO chat_messages (room_id, sender_id, message_type, file_url, file_name, file_size) VALUES (?, ?, ?, ?, ?, ?)',
       [roomId, userId, messageType, fileUrl, file.originalname, file.size]
     );
+    
+    console.log('File message inserted with ID:', result.insertId);
+    
+    // Get complete message data for broadcasting
+    const [messageData] = await db.execute(`
+      SELECT 
+        m.message_id,
+        m.message_text,
+        m.message_type,
+        m.created_at,
+        m.file_url,
+        m.file_name,
+        m.file_size,
+        u.firstName,
+        u.lastName,
+        m.sender_id
+      FROM chat_messages m
+      LEFT JOIN kemri_users u ON m.sender_id = u.userId
+      WHERE m.message_id = ?
+    `, [result.insertId]);
+    
+    if (messageData.length > 0) {
+      console.log('Broadcasting file message to room:', roomId);
+      // Broadcast to all users in the room
+      io.to(`room_${roomId}`).emit('new_message', messageData[0]);
+    }
     
     res.json({ 
       success: true, 
@@ -265,7 +313,7 @@ router.post('/rooms/:roomId/upload', authenticate, privilegeMiddleware(['chat.up
 router.post('/rooms/:roomId/join', authenticate, privilegeMiddleware(['chat.join_room']), async (req, res) => {
   try {
     const { roomId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id || req.user.actualUserId;
     
     // Check if room exists and is active
     const [room] = await db.execute(
@@ -304,7 +352,7 @@ router.post('/rooms/:roomId/join', authenticate, privilegeMiddleware(['chat.join
 router.delete('/rooms/:roomId/leave', authenticate, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id || req.user.actualUserId;
     
     // Remove user from room
     const [result] = await db.execute(
@@ -369,5 +417,6 @@ router.get('/rooms/:roomId/participants', authenticate, async (req, res) => {
   }
 });
 
-module.exports = router;
+  return router;
+};
 

@@ -180,8 +180,15 @@ export const ChatProvider = ({ children }) => {
   // Fetch messages for a room
   const fetchMessages = useCallback(async (roomId, page = 1) => {
     try {
+      console.log('ChatContext - fetchMessages called for room:', roomId, 'page:', page);
+      console.log('ChatContext - axiosInstance baseURL:', axiosInstance.defaults.baseURL);
+      
       const response = await axiosInstance.get(`/chat/rooms/${roomId}/messages?page=${page}&limit=50`);
+      console.log('ChatContext - fetchMessages response status:', response.status);
+      console.log('ChatContext - fetchMessages response:', response.data);
+      
       if (response.data.success) {
+        console.log('ChatContext - Setting messages for room', roomId, ':', response.data.messages.length, 'messages');
         setMessages(prev => ({
           ...prev,
           [roomId]: response.data.messages
@@ -192,9 +199,13 @@ export const ChatProvider = ({ children }) => {
           ...prev,
           [roomId]: 0
         }));
+      } else {
+        console.error('ChatContext - fetchMessages failed:', response.data);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('ChatContext - Error fetching messages:', error);
+      console.error('ChatContext - Error status:', error.response?.status);
+      console.error('ChatContext - Error details:', error.response?.data);
     }
   }, []);
 
@@ -286,24 +297,37 @@ export const ChatProvider = ({ children }) => {
   // Upload file
   const uploadFile = useCallback(async (roomId, file) => {
     try {
+      console.log('ChatContext - uploadFile called');
+      console.log('ChatContext - roomId:', roomId);
+      console.log('ChatContext - file:', file.name, file.size, file.type);
+      
       const formData = new FormData();
       formData.append('file', file);
       
+      console.log('ChatContext - Sending file upload request to:', `/chat/rooms/${roomId}/upload`);
       const response = await axiosInstance.post(`/chat/rooms/${roomId}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
       
+      console.log('ChatContext - Upload response:', response.data);
+      
       if (response.data.success) {
         // File upload creates a message automatically
+        // Refresh messages for the room to show the uploaded file
+        console.log('ChatContext - File uploaded successfully, refreshing messages');
+        fetchMessages(roomId);
         return response.data;
+      } else {
+        throw new Error(response.data.message || 'File upload failed');
       }
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('ChatContext - Error uploading file:', error);
+      console.error('ChatContext - Error details:', error.response?.data);
       throw error;
     }
-  }, []);
+  }, [fetchMessages]);
 
   // Start typing indicator
   const startTyping = useCallback((roomId) => {

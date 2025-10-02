@@ -138,14 +138,22 @@ const ChatWindow = ({ room, onClose }) => {
   };
 
   const handleFileUpload = async () => {
+    console.log('ChatWindow - handleFileUpload called');
+    console.log('ChatWindow - selectedFile:', selectedFile);
+    console.log('ChatWindow - room:', room);
+    
     if (selectedFile && room) {
       try {
-        await uploadFile(room.room_id, selectedFile);
+        console.log('ChatWindow - Starting file upload for room:', room.room_id);
+        const result = await uploadFile(room.room_id, selectedFile);
+        console.log('ChatWindow - File upload result:', result);
         setSelectedFile(null);
         setFileUploadDialog(false);
       } catch (error) {
-        console.error('Error uploading file:', error);
+        console.error('ChatWindow - Error uploading file:', error);
       }
+    } else {
+      console.log('ChatWindow - File upload not started. selectedFile:', !!selectedFile, 'room:', !!room);
     }
   };
 
@@ -404,12 +412,12 @@ const ChatWindow = ({ room, onClose }) => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: '#ffffff',
-            color: '#1a1a1a'
+            backgroundColor: colors.primary[500],
+            color: colors.grey[100]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
+        <DialogTitle sx={{ backgroundColor: colors.primary[400], borderBottom: `1px solid ${colors.primary[300]}` }}>
           Room Participants
         </DialogTitle>
         <DialogContent sx={{ p: 2 }}>
@@ -433,7 +441,7 @@ const ChatWindow = ({ room, onClose }) => {
               ) : (
                 participants.map((participant) => (
                   <ListItem key={participant.userId}>
-                    <Avatar sx={{ bgcolor: '#007bff', mr: 2 }}>
+                    <Avatar sx={{ bgcolor: colors.greenAccent[500], mr: 2 }}>
                       {participant.firstName?.charAt(0) || participant.lastName?.charAt(0) || 'U'}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
@@ -446,8 +454,8 @@ const ChatWindow = ({ room, onClose }) => {
                             size="small"
                             sx={{
                               ml: 1,
-                              backgroundColor: '#28a745',
-                              color: '#ffffff',
+                                  backgroundColor: colors.greenAccent[500],
+                                  color: colors.grey[100],
                               fontSize: '0.7rem',
                               height: '20px'
                             }}
@@ -467,7 +475,7 @@ const ChatWindow = ({ room, onClose }) => {
             </List>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: '#f8f9fa' }}>
+        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[400] }}>
           <Button onClick={() => {
             setParticipantsDialog(false);
             setParticipants([]);
@@ -483,12 +491,12 @@ const ChatWindow = ({ room, onClose }) => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: '#ffffff',
-            color: '#1a1a1a'
+            backgroundColor: colors.primary[500],
+            color: colors.grey[100]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
+        <DialogTitle sx={{ backgroundColor: colors.primary[400], borderBottom: `1px solid ${colors.primary[300]}` }}>
           Room Settings
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -502,9 +510,9 @@ const ChatWindow = ({ room, onClose }) => {
             <Chip 
               label={room?.room_type || 'group'} 
               size="small" 
-              sx={{ 
-                backgroundColor: '#e7f3ff',
-                color: '#007bff',
+                  sx={{
+                    backgroundColor: colors.primary[300],
+                    color: colors.greenAccent[500],
                 textTransform: 'capitalize'
               }}
             />
@@ -514,7 +522,7 @@ const ChatWindow = ({ room, onClose }) => {
             Room settings and management features will be available here.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: '#f8f9fa' }}>
+        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[400] }}>
           <Button onClick={() => setSettingsDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
@@ -526,12 +534,12 @@ const ChatWindow = ({ room, onClose }) => {
         maxWidth="xs"
         PaperProps={{
           sx: {
-            backgroundColor: '#ffffff',
-            color: '#1a1a1a'
+            backgroundColor: colors.primary[500],
+            color: colors.grey[100]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
+        <DialogTitle sx={{ backgroundColor: colors.primary[400], borderBottom: `1px solid ${colors.primary[300]}` }}>
           Leave Room
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -542,7 +550,7 @@ const ChatWindow = ({ room, onClose }) => {
             You won't receive any new messages from this room.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: '#f8f9fa' }}>
+        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[400] }}>
           <Button onClick={() => setLeaveRoomDialog(false)}>Cancel</Button>
           <Button 
             onClick={() => {
