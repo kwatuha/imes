@@ -139,7 +139,7 @@ router.post('/login', async (req, res) => {
             FROM kemri_users u
             LEFT JOIN kemri_roles r ON u.roleId = r.roleId
             LEFT JOIN kemri_contractor_users cu ON u.userId = cu.userId
-             WHERE (u.username = ? OR u.email = ?) AND u.voided = 0
+             WHERE (u.username = ? OR u.email = ?) AND u.voided = 0 AND u.isActive = 1
         `;
         const [users] = await pool.execute(query, [username, username]);
 

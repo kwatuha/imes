@@ -16,6 +16,8 @@ router.get('/users', async (req, res) => {
                 u.userId, u.username, u.email, u.firstName, u.lastName, u.createdAt, u.updatedAt, u.isActive, u.roleId, r.roleName AS role
             FROM kemri_users u
             LEFT JOIN kemri_roles r ON u.roleId = r.roleId
+            WHERE u.voided = 0
+            ORDER BY u.createdAt DESC
         `);
         res.status(200).json(rows);
     } catch (error) {
@@ -143,16 +145,20 @@ router.put('/users/:id', async (req, res) => {
 
 /**
  * @route DELETE /api/users/users/:id
- * @description Delete a user from the kemri_users table.
+ * @description Soft delete a user by setting voided = 1.
  */
 router.delete('/users/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const [result] = await pool.query('DELETE FROM kemri_users WHERE userId = ?', [id]);
+        // Soft delete by setting voided = 1
+        const [result] = await pool.query(
+            'UPDATE kemri_users SET voided = 1, updatedAt = CURRENT_TIMESTAMP WHERE userId = ? AND voided = 0', 
+            [id]
+        );
         if (result.affectedRows > 0) {
-            res.status(204).send();
+            res.status(200).json({ message: 'User deleted successfully' });
         } else {
-            res.status(404).json({ message: 'User not found' });
+            res.status(404).json({ message: 'User not found or already deleted' });
         }
     } catch (error) {
         console.error('Error deleting user:', error);

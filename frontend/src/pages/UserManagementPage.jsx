@@ -3,10 +3,11 @@ import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Paper, CircularProgress, IconButton,
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme,
-  OutlinedInput, Chip, ListSubheader, Checkbox, ListItemText,
+  OutlinedInput, Chip, ListSubheader, Checkbox, ListItemText, Avatar,
+  DialogContentText,
 } from '@mui/material';
 import { DataGrid } from "@mui/x-data-grid";
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon, Dashboard as DashboardIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon, Dashboard as DashboardIcon, LockReset as LockResetIcon, Block as BlockIcon, CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 import apiService from '../api/userService';
 import { useAuth } from '../context/AuthContext.jsx';
 import { tokens } from "./dashboard/theme";
@@ -48,6 +49,7 @@ function UserManagementPage() {
     username: '',
     email: '',
     password: '',
+    confirmPassword: '',
     firstName: '',
     lastName: '',
     role: '',
@@ -58,6 +60,17 @@ function UserManagementPage() {
   const [openDeleteConfirmDialog, setOpenDeleteConfirmDialog] = useState(false);
   const [userToDeleteId, setUserToDeleteId] = useState(null);
   const [userToDeleteName, setUserToDeleteName] = useState('');
+
+  // Reset Password Confirmation Dialog States
+  const [openResetPasswordDialog, setOpenResetPasswordDialog] = useState(false);
+  const [userToResetId, setUserToResetId] = useState(null);
+  const [userToResetName, setUserToResetName] = useState('');
+
+  // Toggle User Status Confirmation Dialog States
+  const [openToggleStatusDialog, setOpenToggleStatusDialog] = useState(false);
+  const [userToToggleId, setUserToToggleId] = useState(null);
+  const [userToToggleName, setUserToToggleName] = useState('');
+  const [userToToggleCurrentStatus, setUserToToggleCurrentStatus] = useState(true);
 
   // Role Management States
   const [openRoleManagementDialog, setOpenRoleManagementDialog] = useState(false);
@@ -177,7 +190,7 @@ function UserManagementPage() {
     }
     setCurrentUserToEdit(null);
     setUserFormData({
-      username: '', email: '', password: '', firstName: '', lastName: '',
+      username: '', email: '', password: '', confirmPassword: '', firstName: '', lastName: '',
       role: roles.length > 0 ? roles[0].roleName : '',
     });
     setUserFormErrors({});
@@ -194,6 +207,7 @@ function UserManagementPage() {
       username: userItem.username || '',
       email: userItem.email || '',
       password: '',
+      confirmPassword: '',
       firstName: userItem.firstName || '',
       lastName: userItem.lastName || '',
       role: userItem.role || '',
@@ -220,11 +234,22 @@ function UserManagementPage() {
     if (!/\S+@\S+\.\S+/.test(userFormData.email)) errors.email = 'Email is invalid.';
 
     if (!currentUserToEdit) {
+        // For new users, password is required
         if (!userFormData.password.trim()) errors.password = 'Password is required for new users.';
         else if (userFormData.password.trim().length < 6) errors.password = 'Password must be at least 6 characters.';
 
+        if (!userFormData.confirmPassword.trim()) errors.confirmPassword = 'Please confirm your password.';
+        else if (userFormData.password !== userFormData.confirmPassword) errors.confirmPassword = 'Passwords do not match.';
+
         if (!userFormData.firstName.trim()) errors.firstName = 'First Name is required.';
         if (!userFormData.lastName.trim()) errors.lastName = 'Last Name is required.';
+    } else {
+        // For existing users, only validate password if it's being changed
+        if (userFormData.password.trim()) {
+            if (userFormData.password.trim().length < 6) errors.password = 'Password must be at least 6 characters.';
+            if (!userFormData.confirmPassword.trim()) errors.confirmPassword = 'Please confirm your password.';
+            else if (userFormData.password !== userFormData.confirmPassword) errors.confirmPassword = 'Passwords do not match.';
+        }
     }
 
     setUserFormErrors(errors);
@@ -239,13 +264,24 @@ function UserManagementPage() {
 
     setLoading(true);
     try {
+      // Convert role name to roleId for backend
+      const selectedRole = roles.find(role => role.roleName === userFormData.role);
+      const dataToSend = {
+        ...userFormData,
+        roleId: selectedRole ? selectedRole.roleId : null
+      };
+      
+      // Remove fields that backend doesn't expect
+      delete dataToSend.role;
+      delete dataToSend.confirmPassword;
+
       if (currentUserToEdit) {
         if (!hasPrivilege('user.update')) {
             setSnackbar({ open: true, message: 'Permission denied to update user.', severity: 'error' });
             setLoading(false);
             return;
         }
-        await apiService.updateUser(currentUserToEdit.userId, userFormData);
+        await apiService.updateUser(currentUserToEdit.userId, dataToSend);
         setSnackbar({ open: true, message: 'User updated successfully!', severity: 'success' });
       } else {
         if (!hasPrivilege('user.create')) {
@@ -253,7 +289,8 @@ function UserManagementPage() {
             setLoading(false);
             return;
         }
-        await apiService.createUser(userFormData);
+        console.log('Creating user with data:', dataToSend); // Debug log
+        await apiService.createUser(dataToSend);
         setSnackbar({ open: true, message: 'User created successfully!', severity: 'success' });
       }
       handleCloseUserDialog();
@@ -309,6 +346,91 @@ function UserManagementPage() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Reset Password Handler
+  const handleOpenResetPasswordDialog = (userId, username) => {
+    if (!hasPrivilege('user.update')) {
+      setSnackbar({ open: true, message: 'Permission denied to reset passwords.', severity: 'error' });
+      return;
+    }
+    setUserToResetId(userId);
+    setUserToResetName(username);
+    setOpenResetPasswordDialog(true);
+  };
+
+  const handleCloseResetPasswordDialog = () => {
+    setOpenResetPasswordDialog(false);
+    setUserToResetId(null);
+    setUserToResetName('');
+  };
+
+  const handleConfirmResetPassword = async () => {
+    setLoading(true);
+    try {
+      // Update user with new password
+      await apiService.updateUser(userToResetId, { password: 'reset123' });
+      setSnackbar({ 
+        open: true, 
+        message: `Password reset successfully for ${userToResetName}. New password: reset123`, 
+        severity: 'success' 
+      });
+      handleCloseResetPasswordDialog();
+    } catch (err) {
+      console.error("Reset password error:", err);
+      setSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || err.message || 'Failed to reset password.', 
+        severity: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Disable/Enable User Handler
+  const handleToggleUserStatus = (userId, username, currentStatus) => {
+    if (!hasPrivilege('user.update')) {
+      setSnackbar({ open: true, message: 'Permission denied to change user status.', severity: 'error' });
+      return;
+    }
+
+    setUserToToggleId(userId);
+    setUserToToggleName(username);
+    setUserToToggleCurrentStatus(currentStatus);
+    setOpenToggleStatusDialog(true);
+  };
+
+  const handleCloseToggleStatusDialog = () => {
+    setOpenToggleStatusDialog(false);
+    setUserToToggleId(null);
+    setUserToToggleName('');
+    setUserToToggleCurrentStatus(true);
+  };
+
+  const handleConfirmToggleUserStatus = async () => {
+    const action = userToToggleCurrentStatus ? 'disable' : 'enable';
+    const newStatus = !userToToggleCurrentStatus;
+
+    setLoading(true);
+    try {
+      await apiService.updateUser(userToToggleId, { isActive: newStatus });
+      setSnackbar({ 
+        open: true, 
+        message: `User ${userToToggleName} ${action}d successfully!`, 
+        severity: 'success' 
+      });
+      fetchUsers(); // Refresh the user list
+      handleCloseToggleStatusDialog();
+    } catch (err) {
+      console.error(`${action} user error:`, err);
+      setSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || err.message || `Failed to ${action} user.`, 
+        severity: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Role Management Handlers ---
   const handleOpenRoleManagementDialog = () => {
@@ -661,6 +783,58 @@ function UserManagementPage() {
       },
     },
     {
+      field: "isActive",
+      headerName: "Status",
+      flex: 1,
+      renderCell: ({ row }) => {
+        const { isActive, userId, username } = row;
+        return (
+          <Box
+            width="70%"
+            m="0 auto"
+            p="5px"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            backgroundColor={
+              isActive
+                ? colors.greenAccent[600]
+                : colors.redAccent[600]
+            }
+            borderRadius="4px"
+            sx={{
+              cursor: hasPrivilege('user.update') && userId !== user.id ? 'pointer' : 'default',
+              transition: 'all 0.2s ease',
+              '&:hover': hasPrivilege('user.update') && userId !== user.id ? {
+                transform: 'scale(1.05)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                backgroundColor: isActive ? colors.redAccent[500] : colors.greenAccent[500]
+              } : {}
+            }}
+            onClick={() => {
+              if (hasPrivilege('user.update') && userId !== user.id) {
+                handleToggleUserStatus(userId, username, isActive);
+              }
+            }}
+            title={
+              hasPrivilege('user.update') && userId !== user.id 
+                ? `Click to ${isActive ? 'disable' : 'enable'} user`
+                : isActive ? 'Active' : 'Disabled'
+            }
+          >
+            {isActive ? (
+              <CheckCircleIcon sx={{ color: colors.grey[100], mr: 1, fontSize: '16px' }} />
+            ) : (
+              <BlockIcon sx={{ color: colors.grey[100], mr: 1, fontSize: '16px' }} />
+            )}
+            <Typography color={colors.grey[100]} sx={{ fontSize: '0.875rem' }}>
+              {isActive ? 'Active' : 'Disabled'}
+            </Typography>
+          </Box>
+        );
+      },
+    },
+    {
       field: "actions",
       headerName: "Actions",
       sortable: false,
@@ -670,6 +844,15 @@ function UserManagementPage() {
           {hasPrivilege('user.update') && (
             <IconButton sx={{ color: colors.grey[100] }} onClick={() => handleOpenEditUserDialog(params.row)}>
               <EditIcon />
+            </IconButton>
+          )}
+          {hasPrivilege('user.update') && params.row.userId !== user.id && (
+            <IconButton 
+              sx={{ color: colors.blueAccent[500] }} 
+              onClick={() => handleOpenResetPasswordDialog(params.row.userId, params.row.username)}
+              title="Reset Password to reset123"
+            >
+              <LockResetIcon />
             </IconButton>
           )}
           {hasPrivilege('user.delete') && params.row.userId !== user.id && (
@@ -864,8 +1047,18 @@ function UserManagementPage() {
           <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" value={userFormData.email} onChange={handleUserFormChange} error={!!userFormErrors.email} helperText={userFormErrors.email} disabled={!!currentUserToEdit} sx={{ mb: 2 }} />
           <TextField margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" value={userFormData.firstName} onChange={handleUserFormChange} error={!!userFormErrors.firstName} helperText={userFormErrors.firstName} disabled={!!currentUserToEdit} sx={{ mb: 2 }} />
           <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" value={userFormData.lastName} onChange={handleUserFormChange} error={!!userFormErrors.lastName} helperText={userFormErrors.lastName} disabled={!!currentUserToEdit} sx={{ mb: 2 }} />
-          {!currentUserToEdit && (
-            <TextField margin="dense" name="password" label="Password" type="password" fullWidth variant="outlined" value={userFormData.password} onChange={handleUserFormChange} error={!!userFormErrors.password} helperText={userFormErrors.password} sx={{ mb: 2 }} />
+          {!currentUserToEdit ? (
+            <>
+              <TextField margin="dense" name="password" label="Password" type="password" fullWidth variant="outlined" value={userFormData.password} onChange={handleUserFormChange} error={!!userFormErrors.password} helperText={userFormErrors.password} sx={{ mb: 2 }} />
+              <TextField margin="dense" name="confirmPassword" label="Confirm Password" type="password" fullWidth variant="outlined" value={userFormData.confirmPassword} onChange={handleUserFormChange} error={!!userFormErrors.confirmPassword} helperText={userFormErrors.confirmPassword} sx={{ mb: 2 }} />
+            </>
+          ) : (
+            <>
+              <TextField margin="dense" name="password" label="New Password (leave blank to keep current)" type="password" fullWidth variant="outlined" value={userFormData.password} onChange={handleUserFormChange} error={!!userFormErrors.password} helperText={userFormErrors.password} sx={{ mb: 2 }} />
+              {userFormData.password && (
+                <TextField margin="dense" name="confirmPassword" label="Confirm New Password" type="password" fullWidth variant="outlined" value={userFormData.confirmPassword} onChange={handleUserFormChange} error={!!userFormErrors.confirmPassword} helperText={userFormErrors.confirmPassword} sx={{ mb: 2 }} />
+              )}
+            </>
           )}
           <FormControl fullWidth margin="dense" variant="outlined" sx={{ mb: 2, minWidth: 120 }}>
             <InputLabel>Role</InputLabel>
@@ -888,12 +1081,344 @@ function UserManagementPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={openDeleteConfirmDialog} onClose={handleCloseDeleteConfirmDialog} aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-description">
-        <DialogTitle id="delete-dialog-title">Confirm Deletion</DialogTitle>
-        <DialogContent><Typography id="delete-dialog-description">Are you sure you want to delete user "{userToDeleteName}"? This action cannot be undone.</Typography></DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteConfirmDialog} color="primary" variant="outlined">Cancel</Button>
-          <Button onClick={handleConfirmDeleteUser} color="error" variant="contained">Delete</Button>
+      <Dialog 
+        open={openDeleteConfirmDialog} 
+        onClose={handleCloseDeleteConfirmDialog} 
+        aria-labelledby="delete-dialog-title" 
+        aria-describedby="delete-dialog-description"
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0,0,0,0.4)' 
+              : '0 8px 32px rgba(0,0,0,0.12)',
+          }
+        }}
+      >
+        <DialogTitle 
+          id="delete-dialog-title"
+          sx={{ 
+            backgroundColor: colors.redAccent[600],
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            py: 3
+          }}
+        >
+          <Avatar sx={{ bgcolor: colors.redAccent[700] }}>
+            <DeleteIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              Confirm User Deletion
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              This action cannot be undone
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ py: 3, px: 3 }}>
+          <DialogContentText 
+            id="delete-dialog-description"
+            sx={{ 
+              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+              fontSize: '1.1rem',
+              lineHeight: 1.6
+            }}
+          >
+            Are you sure you want to permanently delete the user{' '}
+            <Box component="span" sx={{ fontWeight: 'bold', color: colors.redAccent[500] }}>
+              "{userToDeleteName}"
+            </Box>
+            ?
+          </DialogContentText>
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              mt: 2,
+              bgcolor: theme.palette.mode === 'dark' ? colors.redAccent[900] : colors.redAccent[50],
+              color: theme.palette.mode === 'dark' ? colors.redAccent[100] : colors.redAccent[800],
+              '& .MuiAlert-icon': {
+                color: colors.redAccent[500]
+              }
+            }}
+          >
+            This will permanently remove all user data and cannot be reversed.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCloseDeleteConfirmDialog} 
+            variant="outlined"
+            sx={{ 
+              borderColor: colors.grey[500],
+              color: colors.grey[100],
+              '&:hover': {
+                borderColor: colors.grey[400],
+                backgroundColor: colors.grey[700]
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDeleteUser} 
+            variant="contained"
+            sx={{
+              backgroundColor: colors.redAccent[600],
+              '&:hover': {
+                backgroundColor: colors.redAccent[700]
+              },
+              fontWeight: 'bold'
+            }}
+            startIcon={<DeleteIcon />}
+          >
+            Delete User
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Password Confirmation Dialog */}
+      <Dialog 
+        open={openResetPasswordDialog} 
+        onClose={handleCloseResetPasswordDialog} 
+        aria-labelledby="reset-dialog-title" 
+        aria-describedby="reset-dialog-description"
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0,0,0,0.4)' 
+              : '0 8px 32px rgba(0,0,0,0.12)',
+          }
+        }}
+      >
+        <DialogTitle 
+          id="reset-dialog-title"
+          sx={{ 
+            backgroundColor: colors.blueAccent[600],
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            py: 3
+          }}
+        >
+          <Avatar sx={{ bgcolor: colors.blueAccent[700] }}>
+            <LockResetIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              Reset User Password
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              Security action required
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ py: 3, px: 3 }}>
+          <DialogContentText 
+            id="reset-dialog-description"
+            sx={{ 
+              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+              fontSize: '1.1rem',
+              lineHeight: 1.6
+            }}
+          >
+            Are you sure you want to reset the password for user{' '}
+            <Box component="span" sx={{ fontWeight: 'bold', color: colors.blueAccent[500] }}>
+              "{userToResetName}"
+            </Box>
+            ?
+          </DialogContentText>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              mt: 2,
+              bgcolor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
+              color: theme.palette.mode === 'dark' ? colors.blueAccent[100] : colors.blueAccent[800],
+              '& .MuiAlert-icon': {
+                color: colors.blueAccent[500]
+              }
+            }}
+          >
+            <Typography variant="body2" fontWeight="bold">
+              New Password: reset123
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              The user will need to change this password on their next login.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCloseResetPasswordDialog} 
+            variant="outlined"
+            sx={{ 
+              borderColor: colors.grey[500],
+              color: colors.grey[100],
+              '&:hover': {
+                borderColor: colors.grey[400],
+                backgroundColor: colors.grey[700]
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmResetPassword} 
+            variant="contained"
+            sx={{
+              backgroundColor: colors.blueAccent[600],
+              '&:hover': {
+                backgroundColor: colors.blueAccent[700]
+              },
+              fontWeight: 'bold'
+            }}
+            startIcon={<LockResetIcon />}
+          >
+            Reset Password
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Toggle User Status Confirmation Dialog */}
+      <Dialog 
+        open={openToggleStatusDialog} 
+        onClose={handleCloseToggleStatusDialog} 
+        aria-labelledby="toggle-status-dialog-title" 
+        aria-describedby="toggle-status-dialog-description"
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0,0,0,0.4)' 
+              : '0 8px 32px rgba(0,0,0,0.12)',
+          }
+        }}
+      >
+        <DialogTitle 
+          id="toggle-status-dialog-title"
+          sx={{ 
+            backgroundColor: userToToggleCurrentStatus ? colors.redAccent[600] : colors.greenAccent[600],
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            py: 3
+          }}
+        >
+          <Avatar sx={{ bgcolor: userToToggleCurrentStatus ? colors.redAccent[700] : colors.greenAccent[700] }}>
+            {userToToggleCurrentStatus ? <BlockIcon /> : <CheckCircleIcon />}
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              {userToToggleCurrentStatus ? 'Disable User Account' : 'Enable User Account'}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              {userToToggleCurrentStatus ? 'Restrict user access' : 'Restore user access'}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ py: 3, px: 3 }}>
+          <DialogContentText 
+            id="toggle-status-dialog-description"
+            sx={{ 
+              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+              fontSize: '1.1rem',
+              lineHeight: 1.6
+            }}
+          >
+            Are you sure you want to {userToToggleCurrentStatus ? 'disable' : 'enable'} the user{' '}
+            <Box component="span" sx={{ fontWeight: 'bold', color: userToToggleCurrentStatus ? colors.redAccent[500] : colors.greenAccent[500] }}>
+              "{userToToggleName}"
+            </Box>
+            ?
+          </DialogContentText>
+          
+          {userToToggleCurrentStatus ? (
+            <Alert 
+              severity="warning" 
+              sx={{ 
+                mt: 2,
+                bgcolor: theme.palette.mode === 'dark' ? colors.redAccent[900] : colors.redAccent[50],
+                color: theme.palette.mode === 'dark' ? colors.redAccent[100] : colors.redAccent[800],
+                '& .MuiAlert-icon': {
+                  color: colors.redAccent[500]
+                }
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                This will prevent the user from logging in
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                • User will be immediately logged out from all sessions<br/>
+                • User cannot access the system until re-enabled<br/>
+                • User data and permissions are preserved
+              </Typography>
+            </Alert>
+          ) : (
+            <Alert 
+              severity="success" 
+              sx={{ 
+                mt: 2,
+                bgcolor: theme.palette.mode === 'dark' ? colors.greenAccent[900] : colors.greenAccent[50],
+                color: theme.palette.mode === 'dark' ? colors.greenAccent[100] : colors.greenAccent[800],
+                '& .MuiAlert-icon': {
+                  color: colors.greenAccent[500]
+                }
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                This will restore user access to the system
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                • User can log in immediately<br/>
+                • All previous permissions and data are restored<br/>
+                • User will have full access to assigned features
+              </Typography>
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCloseToggleStatusDialog} 
+            variant="outlined"
+            sx={{ 
+              borderColor: colors.grey[500],
+              color: colors.grey[100],
+              '&:hover': {
+                borderColor: colors.grey[400],
+                backgroundColor: colors.grey[700]
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmToggleUserStatus} 
+            variant="contained"
+            sx={{
+              backgroundColor: userToToggleCurrentStatus ? colors.redAccent[600] : colors.greenAccent[600],
+              '&:hover': {
+                backgroundColor: userToToggleCurrentStatus ? colors.redAccent[700] : colors.greenAccent[700]
+              },
+              fontWeight: 'bold'
+            }}
+            startIcon={userToToggleCurrentStatus ? <BlockIcon /> : <CheckCircleIcon />}
+          >
+            {userToToggleCurrentStatus ? 'Disable User' : 'Enable User'}
+          </Button>
         </DialogActions>
       </Dialog>
 
