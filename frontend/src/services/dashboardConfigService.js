@@ -53,18 +53,15 @@ class DashboardConfigService {
     }
   }
 
-  // Get all roles
+  // Get all roles from kemri_roles table
   async getRoles() {
     try {
-      // Mock data for now - in real implementation, this would come from your user management system
-      return [
-        { roleName: 'admin', description: 'System Administrator' },
-        { roleName: 'contractor', description: 'External Contractor' },
-        { roleName: 'project_manager', description: 'Project Manager' }
-      ];
+      const response = await axiosInstance.get('/users/roles');
+      return response.data;
     } catch (error) {
-      console.error('Error fetching roles:', error);
-      throw error;
+      console.error('Error fetching roles from database:', error);
+      // Return empty array if API fails
+      return [];
     }
   }
 

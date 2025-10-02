@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
 const authenticate = require('./middleware/authenticate');
 
 // Import all your route groups
@@ -26,6 +28,7 @@ const approvalLevelsRoutes = require('./routes/approvalLevelsRoutes');
 const paymentStatusRoutes = require('./routes/paymentStatusRoutes');
 const dashboardConfigRoutes = require('./routes/dashboardConfigRoutes');
 const dataAccessRoutes = require('./routes/dataAccessRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 // NEW: Consolidated reporting routes under a single router
 const reportsRouter = require('./routes/reportsRouter')
@@ -33,6 +36,7 @@ const projectRouter = require('./routes/projectRouter')
 
 const port = 3000;
 const app = express();
+const server = http.createServer(app);
 
 const corsOptions = {
   origin: '*',
@@ -42,6 +46,11 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
+
+// Initialize Socket.IO with CORS
+const io = new Server(server, {
+  cors: corsOptions
+});
 
 // Handle preflight requests
 app.options('*', cors(corsOptions));
@@ -99,9 +108,13 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(port, () => {
+// Socket.IO connection handling
+require('./socket/chatSocket')(io);
+
+server.listen(port, () => {
     console.log(`IMPES API listening at http://localhost:${port}`);
+    console.log(`Socket.IO server initialized`);
     console.log(`CORS enabled for all origins during development.`);
 });
 
-module.exports = app;
+module.exports = { app, server, io };

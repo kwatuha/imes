@@ -27,6 +27,7 @@ import { useDatabaseDashboardConfig } from '../hooks/useDatabaseDashboardConfig'
 
 // Import all dashboard components
 import ActiveUsersCard from './ActiveUsersCard';
+import KpiCard from './KpiCard';
 import ProjectTasksCard from './ProjectTasksCard';
 import ProjectActivityFeed from './ProjectActivityFeed';
 import ProjectAlertsCard from './ProjectAlertsCard';
@@ -34,6 +35,11 @@ import TeamDirectoryCard from './TeamDirectoryCard';
 import TeamAnnouncementsCard from './TeamAnnouncementsCard';
 import RecentConversationsCard from './RecentConversationsCard';
 import ChartsDashboard from './dashboard/ChartsDashboard';
+
+// Import dashboard card components
+import UserStatsCard from './dashboard/cards/UserStatsCard';
+import ProjectMetricsCard from './dashboard/cards/ProjectMetricsCard';
+import BudgetOverviewCard from './dashboard/cards/BudgetOverviewCard';
 
 // Contractor-specific components
 import ContractorMetricsCard from './contractor/ContractorMetricsCard';
@@ -69,6 +75,74 @@ const DatabaseDrivenTabbedDashboard = ({ user, dashboardData }) => {
 
   // Component mapping - maps component keys to actual React components
   const componentMap = {
+    // Card Components
+    active_users_card: () => <ActiveUsersCard user={user} />,
+    kpi_card: () => <KpiCard label="System KPIs" value={dashboardData?.metrics?.totalProjects || 24} />,
+    contractor_metrics_card: () => <ContractorMetricsCard user={user} />,
+    financial_summary_card: () => <FinancialSummaryCard user={user} />,
+    user_stats_card: () => <UserStatsCard user={user} dashboardData={dashboardData} />,
+    project_metrics_card: () => <ProjectMetricsCard user={user} dashboardData={dashboardData} />,
+    budget_overview_card: () => <BudgetOverviewCard user={user} dashboardData={dashboardData} />,
+    
+    // Chart Components
+    charts_dashboard: () => <ChartsDashboard user={user} dashboardData={dashboardData} />,
+    
+    // List Components
+    project_tasks_card: () => <ProjectTasksCard user={user} />,
+    project_activity_feed: () => <ProjectActivityFeed user={user} />,
+    project_alerts_card: () => <ProjectAlertsCard user={user} />,
+    team_directory_card: () => <TeamDirectoryCard user={user} />,
+    team_announcements_card: () => <TeamAnnouncementsCard user={user} />,
+    recent_conversations_card: () => <RecentConversationsCard user={user} />,
+    
+    // Contractor Components
+    assigned_tasks_card: () => <AssignedTasksCard user={user} />,
+    project_comments_card: () => <ProjectCommentsCard user={user} />,
+    payment_requests_card: () => <PaymentRequestsCard user={user} />,
+    payment_history_card: () => <PaymentHistoryCard user={user} />,
+    
+    // Enhanced Components
+    regional_projects_card: () => <RegionalProjectsCard user={user} />,
+    budget_filtered_metrics_card: () => <BudgetFilteredMetricsCard user={user} />,
+    
+    // Table Components (placeholder - these need proper table components)
+    users_table: () => (
+      <Card sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Users Management</Typography>
+        <Typography variant="body2" color="textSecondary">
+          Users table component - integrate with UserManagementPage
+        </Typography>
+      </Card>
+    ),
+    projects_table: () => (
+      <Card sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Projects Management</Typography>
+        <Typography variant="body2" color="textSecondary">
+          Projects table component - integrate with ProjectManagementPage
+        </Typography>
+      </Card>
+    ),
+    
+    // Widget Components
+    quick_actions_widget: () => (
+      <Card sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Quick Actions</Typography>
+        <Typography variant="body2" color="textSecondary">
+          Quick actions widget - add common admin actions
+        </Typography>
+      </Card>
+    ),
+    
+    // Legacy components
+    reports_overview: () => (
+      <Card sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Reports Overview</Typography>
+        <Typography variant="body2" color="textSecondary">
+          Reports overview component
+        </Typography>
+      </Card>
+    ),
+    
     // Overview components
     metrics: () => {
       return (

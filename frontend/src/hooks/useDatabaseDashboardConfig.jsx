@@ -37,11 +37,92 @@ export const useDatabaseDashboardConfig = (user) => {
       });
     } catch (error) {
       console.error('Error fetching dashboard config:', error);
-      setDashboardConfig(prev => ({
-        ...prev,
-        loading: false,
-        error: error.message || 'Failed to load dashboard configuration'
-      }));
+      
+      // Fallback configuration for admin users when database config is not available
+      if (user?.roleName === 'admin') {
+        console.log('Applying fallback admin dashboard configuration');
+        const fallbackConfig = {
+          loading: false,
+          error: null,
+          tabs: [
+            {
+              tab_key: 'overview',
+              tab_name: 'Overview',
+              tab_icon: 'Dashboard',
+              tab_order: 1,
+              components: [
+                { component_key: 'kpi_card', component_name: 'KPI Metrics', component_type: 'card', component_order: 1 },
+                { component_key: 'user_stats_card', component_name: 'User Statistics', component_type: 'card', component_order: 2 },
+                { component_key: 'project_metrics_card', component_name: 'Project Metrics', component_type: 'card', component_order: 3 },
+                { component_key: 'budget_overview_card', component_name: 'Budget Overview', component_type: 'card', component_order: 4 },
+                { component_key: 'financial_summary_card', component_name: 'Financial Summary', component_type: 'card', component_order: 5 },
+                { component_key: 'quick_actions_widget', component_name: 'Quick Actions', component_type: 'widget', component_order: 6 }
+              ]
+            },
+            {
+              tab_key: 'projects',
+              tab_name: 'Projects',
+              tab_icon: 'Assignment',
+              tab_order: 2,
+              components: [
+                { component_key: 'projects_table', component_name: 'Projects Table', component_type: 'table', component_order: 1 },
+                { component_key: 'project_tasks_card', component_name: 'Project Tasks', component_type: 'list', component_order: 2 },
+                { component_key: 'project_activity_feed', component_name: 'Project Activity', component_type: 'list', component_order: 3 },
+                { component_key: 'project_alerts_card', component_name: 'Project Alerts', component_type: 'list', component_order: 4 }
+              ]
+            },
+            {
+              tab_key: 'collaboration',
+              tab_name: 'Collaboration',
+              tab_icon: 'People',
+              tab_order: 3,
+              components: [
+                { component_key: 'team_directory_card', component_name: 'Team Directory', component_type: 'list', component_order: 1 },
+                { component_key: 'team_announcements_card', component_name: 'Team Announcements', component_type: 'list', component_order: 2 },
+                { component_key: 'recent_conversations_card', component_name: 'Recent Conversations', component_type: 'list', component_order: 3 },
+                { component_key: 'project_activity_feed', component_name: 'Project Activity', component_type: 'list', component_order: 4 },
+                { component_key: 'active_users_card', component_name: 'Active Users', component_type: 'card', component_order: 5 }
+              ]
+            },
+            {
+              tab_key: 'reports',
+              tab_name: 'Reports',
+              tab_icon: 'Analytics',
+              tab_order: 4,
+              components: [
+                { component_key: 'charts_dashboard', component_name: 'Analytics Dashboard', component_type: 'chart', component_order: 1 },
+                { component_key: 'reports_overview', component_name: 'Reports Overview', component_type: 'card', component_order: 2 }
+              ]
+            },
+            {
+              tab_key: 'settings',
+              tab_name: 'Settings',
+              tab_icon: 'Settings',
+              tab_order: 5,
+              components: [
+                { component_key: 'users_table', component_name: 'Users Table', component_type: 'table', component_order: 1 },
+                { component_key: 'team_directory_card', component_name: 'Team Directory', component_type: 'list', component_order: 2 },
+                { component_key: 'team_announcements_card', component_name: 'Team Announcements', component_type: 'list', component_order: 3 }
+              ]
+            }
+          ],
+          components: {},
+          permissions: {
+            view_all: true,
+            edit_all: true,
+            delete_all: true,
+            create_all: true
+          },
+          layout: { fallback: true }
+        };
+        setDashboardConfig(fallbackConfig);
+      } else {
+        setDashboardConfig(prev => ({
+          ...prev,
+          loading: false,
+          error: error.message || 'Failed to load dashboard configuration'
+        }));
+      }
     }
   }, [user?.id]);
 

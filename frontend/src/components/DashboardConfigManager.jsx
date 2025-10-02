@@ -35,6 +35,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  ListSubheader,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -54,6 +55,7 @@ import {
 } from '@mui/icons-material';
 import { tokens } from '../pages/dashboard/theme';
 import dashboardConfigService from '../services/dashboardConfigService';
+import { getAllComponents, getComponentsByCategory, COMPONENT_CATEGORIES } from './dashboard/componentRegistry';
 
 const DashboardConfigManager = () => {
   const theme = useTheme();
@@ -69,6 +71,10 @@ const DashboardConfigManager = () => {
   const [components, setComponents] = useState([]);
   const [tabs, setTabs] = useState([]);
   const [permissions, setPermissions] = useState([]);
+  
+  // Available dashboard components from registry
+  const [availableComponents, setAvailableComponents] = useState([]);
+  const [selectedComponentCategory, setSelectedComponentCategory] = useState('');
   
   // Role configurations
   const [roleConfigs, setRoleConfigs] = useState({});
@@ -95,6 +101,10 @@ const DashboardConfigManager = () => {
     description: '',
     is_active: true
   });
+
+  // Form validation states
+  const [componentFormErrors, setComponentFormErrors] = useState({});
+  const [isValidatingComponent, setIsValidatingComponent] = useState(false);
   
   const [tabFormData, setTabFormData] = useState({
     tab_key: '',
@@ -113,6 +123,10 @@ const DashboardConfigManager = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Load available components from registry
+      const registryComponents = getAllComponents();
+      setAvailableComponents(registryComponents);
       
       // Load roles, components, tabs, and permissions
       const [rolesData, componentsData, tabsData, permissionsData] = await Promise.all([
@@ -163,27 +177,34 @@ const DashboardConfigManager = () => {
     try {
       setLoading(true);
       
-      // Prepare the configuration data from the current state
+      // Get the components that are enabled for this role
+      const enabledComponents = roleConfigs[selectedRole]?.components || {};
+      
+      // For now, we'll create a default "Overview" tab and put all components there
+      // This maintains compatibility with the current backend structure
       const configData = {
-        tabs: roleConfigs[selectedRole]?.tabs || [],
-        components: roleConfigs[selectedRole]?.tabs?.reduce((acc, tab) => {
-          if (tab.components) {
-            tab.components.forEach(comp => {
-              acc[comp.component_key] = comp;
-            });
-          }
-          return acc;
-        }, {}) || {}
+        tabs: [{
+          tab_key: 'overview',
+          tab_name: 'Overview',
+          tab_icon: 'Dashboard',
+          tab_order: 1,
+          components: Object.keys(enabledComponents).map((componentKey, index) => ({
+            component_key: componentKey,
+            component_order: index + 1,
+            is_required: enabledComponents[componentKey].is_required || true,
+            permissions: enabledComponents[componentKey].settings || {}
+          }))
+        }]
       };
       
       console.log('Saving role configuration:', selectedRole, configData);
+      console.log('Enabled components:', enabledComponents);
       
       // Call the backend API to save the configuration
       await dashboardConfigService.updateRoleDashboardConfig(selectedRole, configData);
       
       setSuccessMessage(`Configuration saved for ${selectedRole} role! Changes have been applied to the dashboard.`);
       
-      setOpenRoleDialog(false);
       // Reload data to show current state
       await loadDashboardData();
       
@@ -247,11 +268,126 @@ const DashboardConfigManager = () => {
     alert(`Add component to ${tabKey} tab - This feature can be implemented to show available components`);
   };
 
+  // Component form validation
+  const validateComponentForm = () => {
+    const errors = {};
+    
+    // Component Key validation
+    if (!componentFormData.component_key.trim()) {
+      errors.component_key = 'Component key is required';
+    } else if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(componentFormData.component_key)) {
+      errors.component_key = 'Component key must start with a letter and contain only letters, numbers, and underscores';
+    } else if (components.some(comp => comp.component_key === componentFormData.component_key)) {
+      errors.component_key = 'Component key already exists';
+    }
+    
+    // Component Name validation
+    if (!componentFormData.component_name.trim()) {
+      errors.component_name = 'Component name is required';
+    } else if (componentFormData.component_name.length < 3) {
+      errors.component_name = 'Component name must be at least 3 characters';
+    } else if (components.some(comp => comp.component_name === componentFormData.component_name)) {
+      errors.component_name = 'Component name already exists';
+    }
+    
+    // Component Type validation
+    if (!componentFormData.component_type) {
+      errors.component_type = 'Component type is required';
+    }
+    
+    // Component File validation
+    if (!componentFormData.component_file.trim()) {
+      errors.component_file = 'Please select a component template';
+    }
+    
+    // Description validation
+    if (!componentFormData.description.trim()) {
+      errors.description = 'Description is required';
+    } else if (componentFormData.description.length < 10) {
+      errors.description = 'Description must be at least 10 characters';
+    }
+    
+    setComponentFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Generate component key from name
+  const generateComponentKey = (name) => {
+    if (!name || !name.trim()) return '';
+    
+    let key = name
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '_')
+      .trim();
+    
+    // Ensure it starts with a letter
+    if (!/^[a-zA-Z]/.test(key)) {
+      key = 'comp_' + key;
+    }
+    
+    // Make it unique if it already exists
+    let uniqueKey = key;
+    let counter = 1;
+    while (components.some(comp => comp.component_key === uniqueKey)) {
+      uniqueKey = `${key}_${counter}`;
+      counter++;
+    }
+    
+    return uniqueKey;
+  };
+
+  // Handle component name change with auto-generation of key
+  const handleComponentNameChange = (name) => {
+    const newFormData = { ...componentFormData, component_name: name };
+    
+    // Auto-generate component key if it's empty or was auto-generated
+    if (!componentFormData.component_key || 
+        componentFormData.component_key === generateComponentKey(componentFormData.component_name)) {
+      newFormData.component_key = generateComponentKey(name);
+    }
+    
+    setComponentFormData(newFormData);
+    
+    // Clear related errors
+    const newErrors = { ...componentFormErrors };
+    delete newErrors.component_name;
+    if (newFormData.component_key !== componentFormData.component_key) {
+      delete newErrors.component_key;
+    }
+    setComponentFormErrors(newErrors);
+  };
+
+  // Handle component key change with validation
+  const handleComponentKeyChange = (key) => {
+    setComponentFormData({ ...componentFormData, component_key: key });
+    
+    // Clear component key error
+    const newErrors = { ...componentFormErrors };
+    delete newErrors.component_key;
+    setComponentFormErrors(newErrors);
+  };
+
   const handleCreateComponent = async () => {
+    const isValid = validateComponentForm();
+    if (!isValid) {
+      const errorMessages = Object.values(componentFormErrors).join(', ');
+      setError(`Please fix the form errors before creating the component: ${errorMessages}`);
+      console.log('Component form validation errors:', componentFormErrors);
+      console.log('Current form data:', componentFormData);
+      return;
+    }
+
     try {
       setLoading(true);
+      setIsValidatingComponent(true);
+      
       await dashboardConfigService.createComponent(componentFormData);
+      
+      setSuccessMessage(`Component "${componentFormData.component_name}" created successfully!`);
       setOpenComponentDialog(false);
+      
+      // Reset form
       setComponentFormData({
         component_key: '',
         component_name: '',
@@ -260,12 +396,15 @@ const DashboardConfigManager = () => {
         description: '',
         is_active: true
       });
+      setComponentFormErrors({});
+      
       await loadDashboardData();
     } catch (err) {
       console.error('Error creating component:', err);
-      setError('Failed to create component');
+      setError(err.response?.data?.message || 'Failed to create component');
     } finally {
       setLoading(false);
+      setIsValidatingComponent(false);
     }
   };
 
@@ -497,7 +636,7 @@ const DashboardConfigManager = () => {
                   }
                 }}
               >
-                Add Component
+                Configure Components
               </Button>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -540,85 +679,171 @@ const DashboardConfigManager = () => {
         </CardContent>
       </Card>
 
-      {/* Create Component Dialog */}
+      {/* Add Components to Role Dialog */}
       <Dialog open={openComponentDialog} onClose={() => setOpenComponentDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ backgroundColor: colors.blueAccent[700], color: 'white' }}>
-          Create New Component
+          <Box display="flex" alignItems="center" gap={2}>
+            <AddIcon />
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                Add Components to {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Role
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Select which dashboard components this role can access
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
         <DialogContent dividers sx={{ backgroundColor: colors.primary[400] }}>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Component Key"
-                value={componentFormData.component_key}
-                onChange={(e) => setComponentFormData({...componentFormData, component_key: e.target.value})}
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Component Name"
-                value={componentFormData.component_name}
-                onChange={(e) => setComponentFormData({...componentFormData, component_name: e.target.value})}
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Component Type</InputLabel>
-                <Select
-                  value={componentFormData.component_type}
-                  onChange={(e) => setComponentFormData({...componentFormData, component_type: e.target.value})}
-                  label="Component Type"
-                >
-                  <MenuItem value="card">Card</MenuItem>
-                  <MenuItem value="list">List</MenuItem>
-                  <MenuItem value="chart">Chart</MenuItem>
-                  <MenuItem value="table">Table</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Component File"
-                value={componentFormData.component_file}
-                onChange={(e) => setComponentFormData({...componentFormData, component_file: e.target.value})}
-                variant="outlined"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                value={componentFormData.description}
-                onChange={(e) => setComponentFormData({...componentFormData, description: e.target.value})}
-                variant="outlined"
-                multiline
-                rows={3}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={componentFormData.is_active}
-                    onChange={(e) => setComponentFormData({...componentFormData, is_active: e.target.checked})}
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight="bold">
+              Component Association:
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Select which dashboard components the <strong>{selectedRole}</strong> role can access. 
+              Each component can be customized with role-specific settings.
+            </Typography>
+          </Alert>
+
+          {/* Component Selection by Category */}
+          {Object.keys(COMPONENT_CATEGORIES).map(category => (
+            <Accordion key={category} sx={{ mb: 2 }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Typography variant="h6" fontWeight="bold">
+                    {COMPONENT_CATEGORIES[category].name}
+                  </Typography>
+                  <Chip 
+                    label={`${getComponentsByCategory(category).length} components`}
+                    size="small"
+                    color="primary"
                   />
-                }
-                label="Active"
-              />
-            </Grid>
-          </Grid>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                  {COMPONENT_CATEGORIES[category].description}
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  {getComponentsByCategory(category).map(component => {
+                    const isEnabled = roleConfigs[selectedRole]?.components?.[component.key]?.is_required || false;
+                    
+                    return (
+                      <Grid item xs={12} key={component.key}>
+                        <Card 
+                          sx={{ 
+                            p: 2, 
+                            bgcolor: isEnabled ? colors.greenAccent[800] : colors.primary[500],
+                            border: isEnabled ? `2px solid ${colors.greenAccent[500]}` : `1px solid ${colors.grey[600]}`
+                          }}
+                        >
+                          <Box display="flex" alignItems="center" justifyContent="space-between">
+                            <Box flex={1}>
+                              <Box display="flex" alignItems="center" gap={2} mb={1}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={isEnabled}
+                                      onChange={(e) => {
+                                        const newRoleConfigs = { ...roleConfigs };
+                                        if (!newRoleConfigs[selectedRole]) {
+                                          newRoleConfigs[selectedRole] = { components: {} };
+                                        }
+                                        if (!newRoleConfigs[selectedRole].components) {
+                                          newRoleConfigs[selectedRole].components = {};
+                                        }
+                                        
+                                        if (e.target.checked) {
+                                          newRoleConfigs[selectedRole].components[component.key] = {
+                                            is_required: true,
+                                            component_order: Object.keys(newRoleConfigs[selectedRole].components).length + 1
+                                          };
+                                        } else {
+                                          delete newRoleConfigs[selectedRole].components[component.key];
+                                        }
+                                        
+                                        setRoleConfigs(newRoleConfigs);
+                                      }}
+                                      color="success"
+                                    />
+                                  }
+                                  label={
+                                    <Typography variant="h6" fontWeight="bold">
+                                      {component.name}
+                                    </Typography>
+                                  }
+                                />
+                                <Chip 
+                                  label={component.category} 
+                                  size="small" 
+                                  color="primary" 
+                                />
+                              </Box>
+                              <Typography variant="body2" color="textSecondary" sx={{ ml: 4 }}>
+                                {component.description}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary" sx={{ ml: 4, fontStyle: 'italic' }}>
+                                Preview: {component.preview}
+                              </Typography>
+                            </Box>
+                            
+                            {isEnabled && (
+                              <Box sx={{ ml: 2 }}>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => {
+                                    // TODO: Open component configuration dialog
+                                    console.log('Configure component:', component.key);
+                                  }}
+                                  sx={{ color: colors.blueAccent[400] }}
+                                >
+                                  <SettingsIcon />
+                                </IconButton>
+                              </Box>
+                            )}
+                          </Box>
+                        </Card>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+          ))}
         </DialogContent>
-        <DialogActions sx={{ backgroundColor: colors.primary[400] }}>
-          <Button onClick={() => setOpenComponentDialog(false)} color="primary" variant="outlined">
+        <DialogActions sx={{ backgroundColor: colors.primary[400], p: 3 }}>
+          <Button 
+            onClick={() => setOpenComponentDialog(false)} 
+            color="primary" 
+            variant="outlined"
+            sx={{ mr: 1 }}
+          >
             Cancel
           </Button>
-          <Button onClick={handleCreateComponent} color="primary" variant="contained" startIcon={<SaveIcon />}>
-            Create Component
+          <Button 
+            onClick={async () => {
+              try {
+                setLoading(true);
+                await handleSaveRoleConfig();
+                setOpenComponentDialog(false);
+                setSuccessMessage(`Component configuration updated for ${selectedRole} role!`);
+              } catch (err) {
+                setError('Failed to save component configuration');
+              } finally {
+                setLoading(false);
+              }
+            }} 
+            color="primary" 
+            variant="contained" 
+            startIcon={loading ? <CircularProgress size={16} /> : <SaveIcon />}
+            disabled={loading}
+            sx={{
+              bgcolor: colors.greenAccent[600],
+              '&:hover': { bgcolor: colors.greenAccent[700] }
+            }}
+          >
+            {loading ? 'Saving...' : 'Save Configuration'}
           </Button>
         </DialogActions>
       </Dialog>
