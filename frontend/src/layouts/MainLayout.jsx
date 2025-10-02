@@ -17,6 +17,7 @@ import { useTheme } from "@mui/material";
 import { ColorModeContext, tokens } from "../pages/dashboard/theme";
 import Topbar from "./Topbar.jsx";
 import Sidebar from "./Sidebar.jsx";
+import FloatingChatButton from "../components/chat/FloatingChatButton.jsx";
 
 const drawerWidth = 240;
 const collapsedDrawerWidth = 60;
@@ -132,6 +133,9 @@ function MainLayout() {
           <Outlet />
         </Box>
       </Box>
+      
+      {/* Floating Chat Button */}
+      <FloatingChatButton />
     </>
   );
 }

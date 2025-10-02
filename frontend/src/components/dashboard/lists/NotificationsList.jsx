@@ -40,3 +40,4 @@ const NotificationsList = ({ user, showUnreadOnly = false }) => {
 
 export default NotificationsList;
 
+

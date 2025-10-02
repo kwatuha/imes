@@ -2,8 +2,9 @@ import React from 'react';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-// Import AuthProvider
+// Import AuthProvider and ChatProvider
 import { AuthProvider } from './context/AuthContext';
+import { ChatProvider } from './context/ChatContext';
 
 // Import Layout and Page Components
 import MainLayout from './layouts/MainLayout';
@@ -197,7 +198,9 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <RouterProvider router={router} />
+        <ChatProvider>
+          <RouterProvider router={router} />
+        </ChatProvider>
       </AuthProvider>
     </ThemeProvider>
       </ColorModeContext.Provider>

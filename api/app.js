@@ -97,6 +97,7 @@ app.use('/api/projects/documents', projectDocumentsRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/approval-levels', approvalLevelsRoutes);
 app.use('/api/payment-status', paymentStatusRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.use((err, req, res, next) => {
     console.error(err.stack);

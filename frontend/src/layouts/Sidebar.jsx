@@ -236,11 +236,9 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
           background: theme.palette.mode === 'dark' 
             ? `${colors.primary[400]} !important` 
             : `${colors.primary[50]} !important`,
-          // Force light theme colors
-          ...(theme.palette.mode !== 'dark' && {
-            background: `${colors.primary[50]} !important`,
-            backgroundColor: `${colors.primary[50]} !important`,
-          }),
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? `${colors.primary[400]} !important` 
+            : `${colors.primary[50]} !important`,
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
@@ -289,15 +287,6 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
           top: "64px", // Start below the AppBar
           left: 0,
           height: "calc(100vh - 64px)", // Adjust height to account for AppBar
-        },
-        "& .pro-sidebar-inner": {
-          position: "relative",
-          zIndex: 999,
-          // Force light theme sidebar colors
-          ...(theme.palette.mode !== 'dark' && {
-            background: `${colors.primary[50]} !important`,
-            backgroundColor: `${colors.primary[50]} !important`,
-          }),
         },
       }}
     >

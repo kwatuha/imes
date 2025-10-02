@@ -76,3 +76,4 @@ const UserStatsCard = ({ user, showGrowth = true, timeRange = '30d' }) => {
 
 export default UserStatsCard;
 
+

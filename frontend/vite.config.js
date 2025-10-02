@@ -5,12 +5,18 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   // Removed ArcGIS-specific alias and optimizeDeps as we are using the CDN approach.
-  base: '/impes/',  // Add this line
+  // base: '/impes/',  // Removed - nginx handles the /impes/ routing
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    hmr: {
+      port: 5173,
+    },
     proxy: {
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://nginx_proxy:80',
+        target: process.env.VITE_PROXY_TARGET || 'http://localhost:3000',
         changeOrigin: true,
+        secure: false,
       },
     },
   },
@@ -22,7 +28,25 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      // No longer explicitly including ArcGIS modules here as they are loaded via CDN
+      'react',
+      'react-dom',
+      '@mui/material',
+      '@mui/icons-material',
+      'react-router-dom',
+      'socket.io-client'
     ],
+    force: true
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          mui: ['@mui/material', '@mui/icons-material'],
+          router: ['react-router-dom'],
+          socket: ['socket.io-client']
+        }
+      }
+    }
+  }
 });

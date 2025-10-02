@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -12,6 +12,12 @@ import {
   Avatar,
   Button,
   useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Badge,
+  Grid
 } from '@mui/material';
 import {
   Chat as ChatIcon,
@@ -21,289 +27,333 @@ import {
   Person as PersonIcon,
   Circle as CircleIcon,
   Search as SearchIcon,
+  Close as CloseIcon,
+  Launch as LaunchIcon,
+  Work as ProjectIcon,
+  Business as DepartmentIcon
 } from '@mui/icons-material';
 import { tokens } from '../../../../pages/dashboard/theme';
+import { useChat } from '../../../../context/ChatContext';
+import RoomList from '../../../chat/RoomList';
+import ChatWindow from '../../../chat/ChatWindow';
 
-const RecentConversationsCard = ({ currentUser }) => {
+const RecentConversationsCard = ({ user }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const { rooms, fetchRooms, unreadCounts, getTotalUnreadCount, isConnected } = useChat();
+  
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
 
-  // Mock data for recent conversations
-  const [conversations] = useState([
-    {
-      id: 1,
-      type: 'direct',
-      name: 'Dr. Aisha Mwangi',
-      lastMessage: 'Thanks for the project update. The budget looks good.',
-      timestamp: '2 minutes ago',
-      unreadCount: 2,
-      isOnline: true,
-      avatar: null,
-    },
-    {
-      id: 2,
-      type: 'group',
-      name: 'Healthcare Project Team',
-      lastMessage: 'John: The data analysis is complete. Ready for review.',
-      timestamp: '15 minutes ago',
-      unreadCount: 0,
-      isOnline: false,
-      avatar: null,
-      participants: 5,
-    },
-    {
-      id: 3,
-      type: 'direct',
-      name: 'Grace Akinyi',
-      lastMessage: 'Field inspection scheduled for tomorrow at 9 AM.',
-      timestamp: '1 hour ago',
-      unreadCount: 1,
-      isOnline: true,
-      avatar: null,
-    },
-    {
-      id: 4,
-      type: 'group',
-      name: 'Infrastructure Updates',
-      lastMessage: 'Peter: New safety protocols have been uploaded.',
-      timestamp: '2 hours ago',
-      unreadCount: 0,
-      isOnline: false,
-      avatar: null,
-      participants: 8,
-    },
-    {
-      id: 5,
-      type: 'direct',
-      name: 'Mary Wanjiku',
-      lastMessage: 'Research findings are ready for presentation.',
-      timestamp: '3 hours ago',
-      unreadCount: 0,
-      isOnline: false,
-      avatar: null,
-    },
-    {
-      id: 6,
-      type: 'group',
-      name: 'Budget Planning',
-      lastMessage: 'Aisha: Q2 budget allocation needs review.',
-      timestamp: '5 hours ago',
-      unreadCount: 1,
-      isOnline: false,
-      avatar: null,
-      participants: 4,
-    },
-  ]);
+  // Fetch rooms when component mounts
+  useEffect(() => {
+    if (isConnected) {
+      fetchRooms();
+    }
+  }, [isConnected, fetchRooms]);
 
-  const getConversationIcon = (type) => {
-    switch (type) {
+  // Get recent conversations (limit to 5 for dashboard display)
+  const recentConversations = rooms
+    .filter(room => room.last_message_time) // Only rooms with messages
+    .sort((a, b) => new Date(b.last_message_time) - new Date(a.last_message_time))
+    .slice(0, 5);
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return '';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  const handleRoomClick = (room) => {
+    setSelectedRoom(room);
+    setChatDialogOpen(true);
+  };
+
+  const handleOpenFullChat = () => {
+    setChatDialogOpen(true);
+    setSelectedRoom(null);
+  };
+
+  const getConversationIcon = (roomType) => {
+    switch (roomType) {
       case 'direct':
-        return <ChatIcon />;
+        return <PersonIcon />;
       case 'group':
         return <GroupIcon />;
+      case 'project':
+        return <ProjectIcon />;
+      case 'department':
+        return <DepartmentIcon />;
       default:
         return <ChatIcon />;
     }
   };
 
-  const getConversationColor = (type) => {
-    switch (type) {
+  const getConversationColor = (roomType) => {
+    switch (roomType) {
       case 'direct':
-        return colors.blueAccent?.[500] || '#6870fa';
+        return colors.blueAccent?.[500] || '#2196f3';
       case 'group':
         return colors.greenAccent?.[500] || '#4caf50';
+      case 'project':
+        return colors.redAccent?.[500] || '#f44336';
+      case 'department':
+        return colors.grey?.[500] || '#9e9e9e';
       default:
-        return colors.grey[400];
+        return colors.primary?.[500] || '#1976d2';
     }
   };
 
-  const handleConversationClick = (conversationId) => {
-    console.log('Opening conversation:', conversationId);
-    // TODO: Implement conversation opening
-  };
-
-  const handleSearchConversations = () => {
-    console.log('Searching conversations');
-    // TODO: Implement conversation search
-  };
+  const totalUnreadCount = getTotalUnreadCount();
 
   return (
-    <Card sx={{ 
-      height: '100%',
-      borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-    }}>
-      <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
-            Recent Conversations
-          </Typography>
-          <Box display="flex" alignItems="center" gap={1}>
-            <Chip 
-              label={`${conversations.filter(c => c.unreadCount > 0).length} unread`}
-              size="small"
-              sx={{ 
-                bgcolor: colors.redAccent?.[500] || '#f44336',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '0.7rem'
-              }}
-            />
+    <>
+      <Card sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+        border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.grey[200]}`,
+      }}>
+        <CardContent sx={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          p: 2,
+          '&:last-child': { pb: 2 }
+        }}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ChatIcon sx={{ color: colors.greenAccent?.[500] || '#4caf50' }} />
+              <Typography variant="h6" fontWeight="bold">
+                Recent Conversations
+              </Typography>
+              {totalUnreadCount > 0 && (
+                <Badge
+                  badgeContent={totalUnreadCount}
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      backgroundColor: colors.redAccent?.[500] || '#f44336',
+                      color: 'white',
+                      fontSize: '0.7rem'
+                    }
+                  }}
+                />
+              )}
+            </Box>
             <Button
               size="small"
               variant="outlined"
-              startIcon={<SearchIcon />}
-              onClick={handleSearchConversations}
+              startIcon={<LaunchIcon />}
+              onClick={handleOpenFullChat}
               sx={{ 
-                borderColor: colors.blueAccent?.[500] || '#6870fa',
-                color: colors.blueAccent?.[500] || '#6870fa',
+                borderColor: colors.blueAccent?.[500] || '#2196f3',
+                color: colors.blueAccent?.[500] || '#2196f3',
                 fontSize: '0.7rem',
-                height: 24,
-                minWidth: 60,
+                height: 28,
                 '&:hover': { 
-                  borderColor: colors.blueAccent?.[600] || '#535ac8',
-                  bgcolor: colors.blueAccent?.[500] + '10'
+                  borderColor: colors.blueAccent?.[600] || '#1976d2',
+                  bgcolor: (colors.blueAccent?.[500] || '#2196f3') + '10'
                 }
               }}
             >
-              Search
+              Open Chat
             </Button>
           </Box>
-        </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, overflowY: 'auto' }}>
-          {conversations.map((conversation) => (
-            <Box 
-              key={conversation.id}
-              onClick={() => handleConversationClick(conversation.id)}
-              sx={{ 
-                p: 2,
-                borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
-                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.primary[200],
-                  transform: 'translateX(4px)',
-                }
-              }}
-            >
-              <Box display="flex" alignItems="flex-start" gap={2}>
-                <Box position="relative">
-                  <Avatar 
-                    sx={{ 
-                      bgcolor: getConversationColor(conversation.type),
-                      width: 40,
-                      height: 40,
-                    }}
-                  >
-                    {getConversationIcon(conversation.type)}
-                  </Avatar>
-                  {conversation.isOnline && (
-                    <CircleIcon 
-                      sx={{ 
-                        position: 'absolute',
-                        bottom: 0,
-                        right: 0,
-                        color: colors.greenAccent?.[500] || '#4caf50',
-                        fontSize: 12,
-                        bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
-                        borderRadius: '50%',
-                        p: 0.5
-                      }} 
-                    />
-                  )}
-                </Box>
-                
-                <Box flex={1}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <Typography 
-                      variant="subtitle2" 
-                      fontWeight="bold" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
-                    >
-                      {conversation.name}
-                    </Typography>
-                    {conversation.type === 'group' && (
-                      <Chip 
-                        label={`${conversation.participants} members`} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: colors.greenAccent?.[500] || '#4caf50',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '0.6rem',
-                          height: 18
-                        }}
-                      />
-                    )}
-                    {conversation.unreadCount > 0 && (
-                      <Chip 
-                        label={conversation.unreadCount} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: colors.redAccent?.[500] || '#f44336',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '0.6rem',
-                          height: 18,
-                          minWidth: 20
-                        }}
-                      />
-                    )}
-                  </Box>
-                  
-                  <Typography 
-                    variant="body2" 
-                    color={theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700]}
-                    sx={{ 
-                      mb: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {conversation.lastMessage}
-                  </Typography>
-                  
-                  <Box display="flex" alignItems="center" gap={2}>
-                    <Box display="flex" alignItems="center" gap={0.5}>
-                      <ScheduleIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                      <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
-                        {conversation.timestamp}
-                      </Typography>
-                    </Box>
-                    
-                    {conversation.type === 'group' && (
-                      <Box display="flex" alignItems="center" gap={0.5}>
-                        <AttachFileIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                        <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
-                          Files shared
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-              </Box>
+          {/* Connection Status */}
+          {!isConnected && (
+            <Box sx={{ mb: 2 }}>
+              <Chip
+                label="Connecting to chat..."
+                size="small"
+                sx={{
+                  backgroundColor: colors.grey?.[500] || '#9e9e9e',
+                  color: 'white'
+                }}
+              />
             </Box>
-          ))}
-        </Box>
+          )}
 
-        <Box mt={2} pt={2} borderTop={`1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`}>
-          <Typography 
-            variant="caption" 
-            color={theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600]}
-            sx={{ fontSize: '0.7rem' }}
-          >
-            Click on any conversation to continue chatting
+          {/* Conversations List */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, overflowY: 'auto' }}>
+            {recentConversations.length === 0 ? (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '200px',
+                  gap: 2
+                }}
+              >
+                <ChatIcon sx={{ fontSize: 48, color: colors.grey?.[400] || '#bdbdbd' }} />
+                <Typography variant="body2" color="textSecondary" textAlign="center">
+                  No recent conversations
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleOpenFullChat}
+                  sx={{
+                    borderColor: colors.greenAccent?.[500] || '#4caf50',
+                    color: colors.greenAccent?.[500] || '#4caf50'
+                  }}
+                >
+                  Start Chatting
+                </Button>
+              </Box>
+            ) : (
+              recentConversations.map((room) => {
+                const unreadCount = unreadCounts[room.room_id] || 0;
+                
+                return (
+                  <Box 
+                    key={room.room_id}
+                    onClick={() => handleRoomClick(room)}
+                    sx={{ 
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
+                      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.primary[200],
+                        transform: 'translateX(4px)',
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="flex-start" gap={2}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: getConversationColor(room.room_type),
+                          width: 40,
+                          height: 40,
+                        }}
+                      >
+                        {getConversationIcon(room.room_type)}
+                      </Avatar>
+                      
+                      <Box flex={1}>
+                        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                          <Typography 
+                            variant="subtitle2" 
+                            fontWeight="bold" 
+                            sx={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              flex: 1
+                            }}
+                          >
+                            {room.room_name}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="caption" color="textSecondary">
+                              {formatTimestamp(room.last_message_time)}
+                            </Typography>
+                            {unreadCount > 0 && (
+                              <Chip 
+                                label={unreadCount} 
+                                size="small" 
+                                sx={{ 
+                                  bgcolor: colors.redAccent?.[500] || '#f44336',
+                                  color: 'white',
+                                  fontSize: '0.6rem',
+                                  height: 18,
+                                  minWidth: 18
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </Box>
+                        
+                        {room.room_type === 'project' && room.project_name && (
+                          <Typography variant="caption" color="textSecondary" display="block">
+                            Project: {room.project_name}
+                          </Typography>
+                        )}
+                        
+                        {room.last_message && (
+                          <Typography 
+                            variant="body2" 
+                            color="textSecondary"
+                            sx={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              mt: 0.5
+                            }}
+                          >
+                            {room.last_message}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+                );
+              })
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Chat Dialog */}
+      <Dialog
+        open={chatDialogOpen}
+        onClose={() => setChatDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            height: '80vh',
+            backgroundColor: colors.primary[400]
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'between',
+          p: 1,
+          backgroundColor: colors.primary[500]
+        }}>
+          <Typography variant="h6">
+            {selectedRoom ? selectedRoom.room_name : 'Chat'}
           </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+          <IconButton onClick={() => setChatDialogOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: 'flex', height: '100%' }}>
+          <Grid container sx={{ height: '100%' }}>
+            <Grid item xs={4} sx={{ borderRight: `1px solid ${colors.primary[200]}` }}>
+              <RoomList
+                onRoomSelect={setSelectedRoom}
+                selectedRoom={selectedRoom}
+                onCreateRoom={() => {/* TODO: Implement create room */}}
+              />
+            </Grid>
+            <Grid item xs={8}>
+              <ChatWindow
+                room={selectedRoom}
+                onClose={() => setSelectedRoom(null)}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

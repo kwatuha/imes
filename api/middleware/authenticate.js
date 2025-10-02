@@ -25,10 +25,21 @@ module.exports = function (req, res, next) {
     // Verify token
     try {
         const decoded = jwt.verify(token, JWT_SECRET); // Verify the token using your secret
+        console.log('Decoded token:', decoded); // Debug log
 
-        // Attach user information from the token payload to the request object
-        // This makes user info (like user ID, username, email, role, privileges) available in your route handlers
-        req.user = decoded.user;
+        // Handle different token structures
+        // Some tokens might have user info directly, others might have it nested under 'user'
+        if (decoded.user) {
+            req.user = decoded.user;
+        } else if (decoded.userId) {
+            // If token has userId directly, use the decoded object as user
+            req.user = decoded;
+        } else {
+            console.error('Invalid token structure:', decoded);
+            return res.status(401).json({ msg: 'Invalid token structure' });
+        }
+        
+        console.log('Authenticated user:', req.user); // Debug log
         next(); // Proceed to the next middleware/route handler
     } catch (err) {
         // If token is invalid (e.g., expired, tampered)

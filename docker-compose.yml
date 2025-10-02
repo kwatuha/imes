@@ -28,8 +28,8 @@ services:
       - api
     command: npm run dev
     environment:
-      # VITE_API_URL should point to the new Nginx host port
-      VITE_API_URL: http://localhost:8080/api
+      # VITE_API_URL should point directly to API server for localhost:5173 access
+      VITE_API_URL: http://localhost:3000/api
 
   api:
     build:
