@@ -39,6 +39,9 @@ import TypingIndicator from './TypingIndicator';
 const ChatWindow = ({ room, onClose }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // Helper function to check if current mode is a dark theme
+  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
   const { user } = useAuth();
   const {
     messages,
@@ -208,7 +211,7 @@ const ChatWindow = ({ room, onClose }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: colors.primary[400]
+          backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
         }}
       >
         <Typography variant="h6" color="textSecondary">
@@ -238,7 +241,7 @@ const ChatWindow = ({ room, onClose }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: colors.primary[500]
+          backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -292,7 +295,7 @@ const ChatWindow = ({ room, onClose }) => {
         <Box
           sx={{
             p: 1,
-            backgroundColor: colors.primary[300],
+            backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
             borderTop: `1px solid ${colors.primary[200]}`,
             display: 'flex',
             alignItems: 'center',
@@ -320,7 +323,7 @@ const ChatWindow = ({ room, onClose }) => {
         sx={{
           p: 2,
           borderTop: `1px solid ${colors.primary[200]}`,
-          backgroundColor: colors.primary[500]
+          backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
@@ -337,7 +340,7 @@ const ChatWindow = ({ room, onClose }) => {
             size="small"
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: colors.primary[400]
+                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
               }
             }}
           />
@@ -412,12 +415,12 @@ const ChatWindow = ({ room, onClose }) => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: colors.primary[500],
+            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
             color: colors.grey[100]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: colors.primary[400], borderBottom: `1px solid ${colors.primary[300]}` }}>
+        <DialogTitle sx={{ backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
           Room Participants
         </DialogTitle>
         <DialogContent sx={{ p: 2 }}>
@@ -491,12 +494,12 @@ const ChatWindow = ({ room, onClose }) => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: colors.primary[500],
+            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
             color: colors.grey[100]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: colors.primary[400], borderBottom: `1px solid ${colors.primary[300]}` }}>
+        <DialogTitle sx={{ backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
           Room Settings
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -511,7 +514,7 @@ const ChatWindow = ({ room, onClose }) => {
               label={room?.room_type || 'group'} 
               size="small" 
                   sx={{
-                    backgroundColor: colors.primary[300],
+                    backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
                     color: colors.greenAccent[500],
                 textTransform: 'capitalize'
               }}
@@ -534,12 +537,12 @@ const ChatWindow = ({ room, onClose }) => {
         maxWidth="xs"
         PaperProps={{
           sx: {
-            backgroundColor: colors.primary[500],
+            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
             color: colors.grey[100]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: colors.primary[400], borderBottom: `1px solid ${colors.primary[300]}` }}>
+        <DialogTitle sx={{ backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
           Leave Room
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>

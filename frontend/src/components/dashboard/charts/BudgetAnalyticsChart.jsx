@@ -42,3 +42,4 @@ const BudgetAnalyticsChart = ({ user, chartType = 'pie' }) => {
 export default BudgetAnalyticsChart;
 
 
+

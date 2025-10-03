@@ -28,6 +28,9 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 const FloatingChatButton = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // Helper function to check if current mode is a dark theme
+  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
   const { getTotalUnreadCount, isConnected, fetchRooms, joinRoom } = useChat();
   
   const [chatOpen, setChatOpen] = useState(false);
@@ -108,7 +111,7 @@ const FloatingChatButton = () => {
         sx={{
           '& .MuiDialog-paper': {
             height: '80vh',
-            backgroundColor: colors.primary[500],
+            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
             position: 'fixed',
             bottom: 100,
             right: 24,
@@ -118,10 +121,10 @@ const FloatingChatButton = () => {
             maxWidth: '800px',
             width: '800px',
             borderRadius: 2,
-            boxShadow: theme.palette.mode === 'dark' 
+            boxShadow: isDarkMode 
               ? '0 8px 32px rgba(0, 0, 0, 0.5)' 
               : '0 8px 32px rgba(0, 0, 0, 0.12)',
-            border: `1px solid ${colors.primary[400]}`
+            border: `1px solid ${isDarkMode ? colors.primary[400] : colors.primary[200]}`
           }
         }}
       >
@@ -131,9 +134,9 @@ const FloatingChatButton = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             p: 2,
-            backgroundColor: colors.primary[400],
-            borderBottom: `1px solid ${colors.primary[300]}`,
-            color: colors.grey[100],
+            backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+            borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}`,
+            color: isDarkMode ? colors.grey[100] : colors.grey[900],
             fontWeight: 600
           }}
         >
@@ -145,9 +148,9 @@ const FloatingChatButton = () => {
             onClick={() => setChatOpen(false)} 
             size="small"
             sx={{ 
-              color: colors.grey[300],
+              color: isDarkMode ? colors.grey[300] : colors.grey[600],
               '&:hover': {
-                backgroundColor: colors.primary[300]
+                backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
               }
             }}
           >

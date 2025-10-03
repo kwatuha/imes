@@ -25,6 +25,9 @@ import { axiosInstance } from '../../api';
 const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // Helper function to check if current mode is a dark theme
+  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
   const { createRoom } = useChat();
   const { user } = useAuth();
   
@@ -195,10 +198,10 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: colors.primary[500],
+          backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
           color: colors.grey[100],
           borderRadius: 2,
-          boxShadow: theme.palette.mode === 'dark' 
+          boxShadow: isDarkMode 
             ? '0 8px 32px rgba(0, 0, 0, 0.5)' 
             : '0 8px 32px rgba(0, 0, 0, 0.12)'
         }
@@ -206,8 +209,8 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
     >
       <DialogTitle
         sx={{
-          backgroundColor: colors.primary[400],
-          borderBottom: `1px solid ${colors.primary[300]}`,
+          backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+          borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}`,
           color: colors.grey[100],
           fontWeight: 600,
           fontSize: '1.25rem'
@@ -233,9 +236,9 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             required
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: colors.primary[400],
+                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
                 '&:hover': {
-                  backgroundColor: colors.primary[300]
+                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
                 },
                 '&.Mui-focused': {
                   backgroundColor: colors.primary[500]
@@ -258,10 +261,10 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
               onChange={(e) => handleInputChange('room_type', e.target.value)}
               label="Room Type"
               sx={{
-                backgroundColor: colors.primary[400],
+                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
                 color: colors.grey[100],
                 '&:hover': {
-                  backgroundColor: colors.primary[300]
+                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
                 },
                 '&.Mui-focused': {
                   backgroundColor: colors.primary[500]
@@ -378,9 +381,9 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             rows={3}
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: colors.primary[400],
+                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
                 '&:hover': {
-                  backgroundColor: colors.primary[300]
+                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
                 },
                 '&.Mui-focused': {
                   backgroundColor: colors.primary[500]
@@ -397,13 +400,13 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
         </Box>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 2, backgroundColor: colors.primary[400], borderTop: `1px solid ${colors.primary[300]}` }}>
+      <DialogActions sx={{ p: 3, pt: 2, backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderTop: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
         <Button 
           onClick={handleClose} 
           sx={{ 
             color: colors.grey[400],
             '&:hover': {
-              backgroundColor: colors.primary[300]
+              backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
             }
           }}
         >

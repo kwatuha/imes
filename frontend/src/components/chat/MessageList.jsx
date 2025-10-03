@@ -20,6 +20,9 @@ import { tokens } from '../../pages/dashboard/theme';
 const MessageList = ({ messages, currentUser, onReply, room }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // Helper function to check if current mode is a dark theme
+  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
   const messagesEndRef = useRef(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -95,7 +98,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
               label={formatDate(message.created_at)}
               size="small"
               sx={{
-                backgroundColor: colors.primary[300],
+                backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
                 color: colors.grey[100]
               }}
             />
@@ -160,7 +163,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                 sx={{
                   p: 1,
                   mb: 0.5,
-                  backgroundColor: colors.primary[300],
+                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
                   borderLeft: `3px solid ${colors.greenAccent[500]}`,
                   maxWidth: '100%'
                 }}
@@ -186,8 +189,12 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
             <Paper
               sx={{
                 p: 1.5,
-                backgroundColor: isCurrentUser ? colors.greenAccent[500] : colors.primary[300],
-                color: isCurrentUser ? colors.primary[900] : colors.grey[100],
+                backgroundColor: isCurrentUser 
+                  ? colors.greenAccent[500] 
+                  : (isDarkMode ? colors.primary[300] : colors.primary[100]),
+                color: isCurrentUser 
+                  ? colors.grey[100] 
+                  : (isDarkMode ? colors.grey[100] : colors.grey[900]),
                 borderRadius: 2,
                 borderTopLeftRadius: isCurrentUser ? 2 : (showAvatar ? 2 : 0.5),
                 borderTopRightRadius: isCurrentUser ? (showAvatar ? 2 : 0.5) : 2,
@@ -308,7 +315,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                   size="small"
                   onClick={() => onReply(message)}
                   sx={{
-                    backgroundColor: colors.primary[400],
+                    backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[200],
                     '&:hover': {
                       backgroundColor: colors.primary[300]
                     }
@@ -319,7 +326,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                 <IconButton
                   size="small"
                   sx={{
-                    backgroundColor: colors.primary[400],
+                    backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[200],
                     '&:hover': {
                       backgroundColor: colors.primary[300]
                     }
@@ -352,12 +359,12 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
 
   return (
     <Box
-      sx={{
-        flexGrow: 1,
-        overflowY: 'auto',
-        py: 1,
-        backgroundColor: colors.primary[400]
-      }}
+            sx={{
+              flexGrow: 1,
+              overflowY: 'auto',
+              py: 1,
+              backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[50]
+            }}
     >
       {messages.length === 0 ? (
         <Box

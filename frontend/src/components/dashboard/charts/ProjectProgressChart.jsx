@@ -42,3 +42,4 @@ const ProjectProgressChart = ({ user, chartType = 'line', timeRange = '6m' }) =>
 export default ProjectProgressChart;
 
 
+

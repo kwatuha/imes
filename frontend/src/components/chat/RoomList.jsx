@@ -32,6 +32,9 @@ import { tokens } from '../../pages/dashboard/theme';
 const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // Helper function to check if current mode is a dark theme
+  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
   const { rooms, unreadCounts } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all, direct, group, project
@@ -107,19 +110,19 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: colors.primary[500]
+        backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
       }}
     >
       {/* Header */}
       <Box
         sx={{
           p: 2,
-          borderBottom: `1px solid ${colors.primary[400]}`,
-          backgroundColor: colors.primary[400]
+          borderBottom: `1px solid ${isDarkMode ? colors.primary[400] : colors.primary[200]}`,
+          backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: colors.grey[100] }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: isDarkMode ? colors.grey[100] : colors.grey[900] }}>
             Chat Rooms
           </Typography>
           <IconButton 
@@ -127,7 +130,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
             sx={{ 
               color: colors.greenAccent[500],
               '&:hover': {
-                backgroundColor: colors.primary[300]
+                backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
               }
             }}
           >
@@ -145,22 +148,22 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: colors.grey[400] }} />
+                <SearchIcon sx={{ color: isDarkMode ? colors.grey[400] : colors.grey[600] }} />
               </InputAdornment>
             ),
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: colors.primary[500],
+              backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
               '&:hover': {
-                backgroundColor: colors.primary[400]
+                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
               },
               '&.Mui-focused': {
-                backgroundColor: colors.primary[500]
+                backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
               }
             },
             '& .MuiOutlinedInput-input': {
-              color: colors.grey[100]
+              color: isDarkMode ? colors.grey[100] : colors.grey[900]
             }
           }}
         />
@@ -181,10 +184,10 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
               variant={filter === filterOption.key ? 'filled' : 'outlined'}
               sx={{
                 backgroundColor: filter === filterOption.key ? colors.greenAccent[500] : 'transparent',
-                color: filter === filterOption.key ? colors.grey[100] : colors.grey[400],
-                borderColor: filter === filterOption.key ? colors.greenAccent[500] : colors.primary[300],
+                color: filter === filterOption.key ? colors.grey[100] : (isDarkMode ? colors.grey[400] : colors.grey[600]),
+                borderColor: filter === filterOption.key ? colors.greenAccent[500] : (isDarkMode ? colors.primary[300] : colors.primary[300]),
                 '&:hover': {
-                  backgroundColor: filter === filterOption.key ? colors.greenAccent[600] : colors.primary[300]
+                  backgroundColor: filter === filterOption.key ? colors.greenAccent[600] : (isDarkMode ? colors.primary[300] : colors.primary[200])
                 }
               }}
             />
@@ -237,14 +240,14 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                           sx={{
                             py: 1.5,
                             px: 2,
-                            backgroundColor: isSelected ? colors.primary[300] : 'transparent',
+                            backgroundColor: isSelected ? (isDarkMode ? colors.primary[300] : colors.primary[200]) : 'transparent',
                             '&:hover': {
-                              backgroundColor: colors.primary[400]
+                              backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
                             },
                             '&.Mui-selected': {
-                              backgroundColor: colors.primary[300],
+                              backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
                               '&:hover': {
-                                backgroundColor: colors.primary[200]
+                                backgroundColor: isDarkMode ? colors.primary[200] : colors.primary[100]
                               }
                             }
                           }}
@@ -274,7 +277,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
                                   flex: 1,
-                                  color: colors.grey[100]
+                                  color: isDarkMode ? colors.grey[100] : colors.grey[900]
                                 }}
                             >
                               {room.room_name}
@@ -283,7 +286,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                               {room.last_message_time && (
                                 <Typography
                                   variant="caption"
-                                  sx={{ color: colors.grey[400] }}
+                                  sx={{ color: isDarkMode ? colors.grey[400] : colors.grey[600] }}
                                 >
                                   {formatLastMessageTime(room.last_message_time)}
                                 </Typography>
@@ -311,7 +314,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   <Box
                                     component="span"
                                     sx={{ 
-                                      color: colors.grey[400],
+                                      color: isDarkMode ? colors.grey[400] : colors.grey[600],
                                       fontSize: '0.75rem',
                                       display: 'block'
                                     }}
@@ -323,7 +326,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                               <Box
                                 component="span"
                                 sx={{
-                                  color: colors.grey[400],
+                                  color: isDarkMode ? colors.grey[400] : colors.grey[600],
                                   fontSize: '0.875rem',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
@@ -341,7 +344,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                     </ListItemButton>
                   </ListItem>
                       {index < sortedRooms.length - 1 && (
-                        <Divider sx={{ borderColor: colors.primary[400] }} />
+                        <Divider sx={{ borderColor: isDarkMode ? colors.primary[400] : colors.primary[200] }} />
                       )}
                 </React.Fragment>
               );

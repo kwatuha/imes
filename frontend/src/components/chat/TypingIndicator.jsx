@@ -5,6 +5,9 @@ import { tokens } from '../../pages/dashboard/theme';
 const TypingIndicator = ({ users }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // Helper function to check if current mode is a dark theme
+  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
 
   if (!users || users.length === 0) {
     return null;
@@ -25,8 +28,8 @@ const TypingIndicator = ({ users }) => {
       sx={{
         px: 2,
         py: 1,
-        backgroundColor: colors.primary[500],
-        borderTop: `1px solid ${colors.primary[200]}`
+        backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
+        borderTop: `1px solid ${isDarkMode ? colors.primary[200] : colors.primary[100]}`
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -39,7 +42,7 @@ const TypingIndicator = ({ users }) => {
                 width: 4,
                 height: 4,
                 borderRadius: '50%',
-                backgroundColor: colors.grey[300],
+                backgroundColor: isDarkMode ? colors.grey[300] : colors.grey[600],
                 animation: 'typing 1.4s infinite',
                 animationDelay: `${dot * 0.2}s`,
                 '@keyframes typing': {
@@ -59,7 +62,7 @@ const TypingIndicator = ({ users }) => {
         <Typography
           variant="body2"
           sx={{
-            color: colors.grey[300],
+            color: isDarkMode ? colors.grey[300] : colors.grey[600],
             fontStyle: 'italic'
           }}
         >
