@@ -189,6 +189,20 @@ export const ChatProvider = ({ children }) => {
       
       if (response.data.success) {
         console.log('ChatContext - Setting messages for room', roomId, ':', response.data.messages.length, 'messages');
+        
+        // Debug: Log message structure for role-based rooms
+        if (response.data.messages.length > 0) {
+          console.log('ChatContext - Sample message structure:', {
+            roomId,
+            messageCount: response.data.messages.length,
+            firstMessage: response.data.messages[0],
+            hasFirstName: !!response.data.messages[0]?.firstName,
+            hasLastName: !!response.data.messages[0]?.lastName,
+            hasEmail: !!response.data.messages[0]?.email,
+            hasSenderId: !!response.data.messages[0]?.sender_id
+          });
+        }
+        
         setMessages(prev => ({
           ...prev,
           [roomId]: response.data.messages
@@ -270,6 +284,47 @@ export const ChatProvider = ({ children }) => {
       throw error;
     }
   }, [fetchRooms]);
+
+  // Create role-based room
+  const createRoleRoom = useCallback(async (roleId) => {
+    try {
+      console.log('ChatContext - Creating role-based room for role:', roleId);
+      const response = await axiosInstance.post(`/chat/rooms/role/${roleId}`);
+      console.log('ChatContext - Create role room response:', response.data);
+      
+      if (response.data.success) {
+        console.log('ChatContext - Role room created successfully, refreshing rooms...');
+        await fetchRooms(); // Refresh rooms list
+        return response.data.room_id;
+      } else {
+        console.error('ChatContext - Role room creation failed:', response.data);
+        throw new Error(response.data.message || 'Role room creation failed');
+      }
+    } catch (error) {
+      console.error('ChatContext - Error creating role room:', error);
+      console.error('ChatContext - Error response:', error.response?.data);
+      throw error;
+    }
+  }, [fetchRooms]);
+
+  // Fetch available roles
+  const fetchRoles = useCallback(async () => {
+    try {
+      console.log('ChatContext - Fetching roles');
+      const response = await axiosInstance.get('/chat/roles');
+      console.log('ChatContext - Roles response:', response.data);
+      
+      if (response.data.success) {
+        return response.data.roles;
+      } else {
+        console.error('ChatContext - fetchRoles failed:', response.data);
+        return [];
+      }
+    } catch (error) {
+      console.error('ChatContext - Error fetching roles:', error);
+      return [];
+    }
+  }, []);
 
   // Fetch room participants
   const fetchParticipants = useCallback(async (roomId) => {
@@ -387,6 +442,8 @@ export const ChatProvider = ({ children }) => {
     joinRoom,
     leaveRoom,
     createRoom,
+    createRoleRoom,
+    fetchRoles,
     uploadFile,
     setActiveRoom,
     

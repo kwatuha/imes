@@ -27,8 +27,8 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
-  const { createRoom } = useChat();
+  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
+  const { createRoom, createRoleRoom, fetchRoles: contextFetchRoles } = useChat();
   const { user } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -36,19 +36,22 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
     room_type: 'group',
     description: '',
     project_id: null,
+    role_id: null,
     participants: []
   });
   
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch users and projects when modal opens
+  // Fetch users, projects, and roles when modal opens
   useEffect(() => {
     if (open) {
       fetchUsers();
       fetchProjects();
+      fetchRoles();
     }
   }, [open]);
 
@@ -90,6 +93,23 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      console.log('CreateRoomModal - Fetching roles...');
+      const rolesData = await contextFetchRoles();
+      console.log('CreateRoomModal - Roles response:', rolesData);
+      
+      if (rolesData && Array.isArray(rolesData)) {
+        console.log('CreateRoomModal - Roles loaded:', rolesData.length);
+        setRoles(rolesData);
+      } else {
+        console.log('CreateRoomModal - Roles response data is not an array:', rolesData);
+      }
+    } catch (error) {
+      console.error('CreateRoomModal - Error fetching roles:', error);
+    }
+  };
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -119,21 +139,36 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
       return;
     }
 
+    if (formData.room_type === 'role' && !formData.role_id) {
+      setError('Role is required for role-based rooms');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      const roomData = {
-        room_name: formData.room_name.trim(),
-        room_type: formData.room_type,
-        description: formData.description.trim(),
-        project_id: formData.project_id,
-        participant_ids: formData.participants.map(p => p.userId)
-      };
+      let roomId;
+      
+      if (formData.room_type === 'role') {
+        // Use createRoleRoom for role-based rooms
+        console.log('CreateRoomModal - Creating role-based room for role_id:', formData.role_id);
+        roomId = await createRoleRoom(formData.role_id);
+        console.log('CreateRoomModal - Role room created with ID:', roomId);
+      } else {
+        // Use regular createRoom for other room types
+        const roomData = {
+          room_name: formData.room_name.trim(),
+          room_type: formData.room_type,
+          description: formData.description.trim(),
+          project_id: formData.project_id,
+          participant_ids: formData.participants.map(p => p.userId)
+        };
 
-      console.log('CreateRoomModal - Sending room data:', roomData);
-      const roomId = await createRoom(roomData);
-      console.log('CreateRoomModal - Room created with ID:', roomId);
+        console.log('CreateRoomModal - Sending room data:', roomData);
+        roomId = await createRoom(roomData);
+        console.log('CreateRoomModal - Room created with ID:', roomId);
+      }
       
       if (roomId) {
         onRoomCreated();
@@ -169,6 +204,7 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
       room_type: 'group',
       description: '',
       project_id: null,
+      role_id: null,
       participants: []
     });
     setError('');
@@ -185,6 +221,8 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
         return 'Project-specific discussion room';
       case 'department':
         return 'Department-wide communication';
+      case 'role':
+        return 'Role-based discussion room - automatically includes all users with this role';
       default:
         return '';
     }
@@ -275,6 +313,7 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
               <MenuItem value="direct">Direct Message</MenuItem>
               <MenuItem value="project">Project Room</MenuItem>
               <MenuItem value="department">Department Room</MenuItem>
+              <MenuItem value="role">Role-Based Room</MenuItem>
             </Select>
             <Typography variant="caption" sx={{ mt: 1, color: colors.grey[400] }}>
               {getRoomTypeDescription(formData.room_type)}
@@ -290,13 +329,13 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
                 onChange={(e) => handleInputChange('project_id', e.target.value)}
                 label="Project"
                 sx={{
-                  backgroundColor: '#f8f9fa',
-                  color: '#212529',
+                  backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                  color: colors.grey[100],
                   '&:hover': {
-                    backgroundColor: '#e9ecef'
+                    backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
                   },
                   '&.Mui-focused': {
-                    backgroundColor: '#ffffff'
+                    backgroundColor: colors.primary[500]
                   }
                 }}
               >
@@ -309,67 +348,110 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             </FormControl>
           )}
 
-          {/* Participants */}
-          <Autocomplete
-            multiple
-            options={users}
-            getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.email})`}
-            isOptionEqualToValue={(option, value) => option.userId === value.userId}
-            value={formData.participants}
-            onChange={(event, newValue) => handleInputChange('participants', newValue)}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  variant="outlined"
-                  label={`${option.firstName} ${option.lastName}`}
-                  {...getTagProps({ index })}
-                  key={option.userId}
+          {/* Role Selection (for role-based rooms) */}
+          {formData.room_type === 'role' && (
+            <FormControl fullWidth>
+              <InputLabel sx={{ color: colors.grey[400] }}>Role</InputLabel>
+              <Select
+                value={formData.role_id || ''}
+                onChange={(e) => handleInputChange('role_id', e.target.value)}
+                label="Role"
+                sx={{
+                  backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                  color: colors.grey[100],
+                  '&:hover': {
+                    backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                  },
+                  '&.Mui-focused': {
+                    backgroundColor: colors.primary[500]
+                  }
+                }}
+              >
+                {roles.map((role) => (
+                  <MenuItem key={role.roleId} value={role.roleId}>
+                    {role.roleName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          {/* Participants (not shown for role-based rooms) */}
+          {formData.room_type !== 'role' && (
+            <Autocomplete
+              multiple
+              options={users}
+              getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.email})`}
+              isOptionEqualToValue={(option, value) => option.userId === value.userId}
+              value={formData.participants}
+              onChange={(event, newValue) => handleInputChange('participants', newValue)}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    variant="outlined"
+                    label={`${option.firstName} ${option.lastName}`}
+                    {...getTagProps({ index })}
+                    key={option.userId}
+                    sx={{
+                      borderColor: colors.greenAccent[500],
+                      color: colors.greenAccent[500],
+                      backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                      }
+                    }}
+                  />
+                ))
+              }
+              renderOption={(props, option) => (
+                <li {...props} key={option.userId}>
+                  {`${option.firstName} ${option.lastName} (${option.email})`}
+                </li>
+              )}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Participants"
+                  placeholder="Select participants..."
                   sx={{
-                    borderColor: '#007bff',
-                    color: '#007bff',
-                    backgroundColor: '#e7f3ff',
-                    '&:hover': {
-                      backgroundColor: '#cce7ff'
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: colors.primary[500]
+                      }
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: colors.grey[400]
+                    },
+                    '& .MuiOutlinedInput-input': {
+                      color: colors.grey[100]
                     }
                   }}
                 />
-              ))
-            }
-            renderOption={(props, option) => (
-              <li {...props} key={option.userId}>
-                {`${option.firstName} ${option.lastName} (${option.email})`}
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Participants"
-                placeholder="Select participants..."
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: '#f8f9fa',
-                    '&:hover': {
-                      backgroundColor: '#e9ecef'
-                    },
-                    '&.Mui-focused': {
-                      backgroundColor: '#ffffff'
-                    }
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#6c757d'
-                  },
-                  '& .MuiOutlinedInput-input': {
-                    color: '#212529'
-                  }
-                }}
-              />
-            )}
-            sx={{
-              '& .MuiAutocomplete-popupIndicator': {
+              )}
+              sx={{
+                '& .MuiAutocomplete-popupIndicator': {
+                  color: colors.grey[100]
+                }
+              }}
+            />
+          )}
+          
+          {/* Info message for role-based rooms */}
+          {formData.room_type === 'role' && (
+            <Alert 
+              severity="info" 
+              sx={{ 
+                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
                 color: colors.grey[100]
-              }
-            }}
-          />
+              }}
+            >
+              All users with the selected role will be automatically added as participants.
+            </Alert>
+          )}
 
           {/* Description */}
           <TextField

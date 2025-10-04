@@ -7,7 +7,7 @@ const TypingIndicator = ({ users }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
+  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
 
   if (!users || users.length === 0) {
     return null;

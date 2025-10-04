@@ -50,8 +50,10 @@ router.get('/rooms', authenticate, async (req, res) => {
         r.room_type,
         r.description,
         r.project_id,
+        r.role_id,
         r.created_at,
         p.projectName as project_name,
+        ro.roleName as role_name,
         (SELECT COUNT(*) FROM chat_room_participants WHERE room_id = r.room_id) as participant_count,
         (SELECT COUNT(*) FROM chat_messages WHERE room_id = r.room_id AND created_at > COALESCE(crp.last_read_at, '1970-01-01')) as unread_count,
         (SELECT message_text FROM chat_messages WHERE room_id = r.room_id ORDER BY created_at DESC LIMIT 1) as last_message,
@@ -59,6 +61,7 @@ router.get('/rooms', authenticate, async (req, res) => {
       FROM chat_rooms r
       INNER JOIN chat_room_participants crp ON r.room_id = crp.room_id AND crp.user_id = ?
       LEFT JOIN kemri_projects p ON r.project_id = p.id
+      LEFT JOIN kemri_roles ro ON r.role_id = ro.roleId
       WHERE r.is_active = 1
       ORDER BY last_message_time DESC, r.created_at DESC
     `;
@@ -74,15 +77,15 @@ router.get('/rooms', authenticate, async (req, res) => {
 // Create new chat room
 router.post('/rooms', authenticate, privilegeMiddleware(['chat.create_room']), async (req, res) => {
   try {
-    const { room_name, room_type, description, project_id, participant_ids } = req.body;
+    const { room_name, room_type, description, project_id, role_id, participant_ids } = req.body;
     const userId = req.user.id || req.user.actualUserId;
     
-    console.log('Creating room with data:', { room_name, room_type, description, project_id, participant_ids, userId });
+    console.log('Creating room with data:', { room_name, room_type, description, project_id, role_id, participant_ids, userId });
     
     // Insert new room
     const [result] = await db.execute(
-      'INSERT INTO chat_rooms (room_name, room_type, description, project_id, created_by) VALUES (?, ?, ?, ?, ?)',
-      [room_name, room_type, description, project_id === null ? null : project_id, userId]
+      'INSERT INTO chat_rooms (room_name, room_type, description, project_id, role_id, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+      [room_name, room_type, description, project_id === null ? null : project_id, role_id === null ? null : role_id, userId]
     );
     
     const roomId = result.insertId;
@@ -93,8 +96,27 @@ router.post('/rooms', authenticate, privilegeMiddleware(['chat.create_room']), a
       [roomId, userId]
     );
     
-    // Add other participants if provided
-    if (participant_ids && participant_ids.length > 0) {
+    // For role-based rooms, automatically add all users with that role
+    if (room_type === 'role' && role_id) {
+      console.log('Adding all users with role_id:', role_id);
+      const [usersWithRole] = await db.execute(
+        'SELECT userId FROM kemri_users WHERE roleId = ?',
+        [role_id]
+      );
+      
+      for (const user of usersWithRole) {
+        // Skip the creator as they're already added as admin
+        if (user.userId !== userId) {
+          await db.execute(
+            'INSERT INTO chat_room_participants (room_id, user_id, is_admin) VALUES (?, ?, 0)',
+            [roomId, user.userId]
+          );
+        }
+      }
+    }
+    
+    // Add other participants if provided (for non-role rooms)
+    if (participant_ids && participant_ids.length > 0 && room_type !== 'role') {
       console.log('Adding participants:', participant_ids);
       for (const participantId of participant_ids) {
         await db.execute(
@@ -159,6 +181,18 @@ router.get('/rooms/:roomId/messages', authenticate, async (req, res) => {
     console.log('Executing simplified query with parameters:', { roomId: roomIdNum });
     console.log('Parameter types:', { roomIdType: typeof roomIdNum });
     const [allMessages] = await db.execute(query, [roomIdNum]);
+    
+    // Debug: Log message structure
+    if (allMessages.length > 0) {
+      console.log('API - Sample message from room', roomIdNum, ':', {
+        message_id: allMessages[0].message_id,
+        sender_id: allMessages[0].sender_id,
+        firstName: allMessages[0].firstName,
+        lastName: allMessages[0].lastName,
+        email: allMessages[0].email,
+        message_text: allMessages[0].message_text?.substring(0, 20) + '...'
+      });
+    }
     
     // Apply pagination manually
     const startIndex = offset;
@@ -414,6 +448,99 @@ router.get('/rooms/:roomId/participants', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error fetching participants:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch participants' });
+  }
+});
+
+// Create role-based chat room for a specific role
+router.post('/rooms/role/:roleId', authenticate, privilegeMiddleware(['chat.create_room']), async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const userId = req.user.id || req.user.actualUserId;
+    
+    console.log('Creating role-based room for role_id:', roleId, 'by user:', userId);
+    
+    // Get role information
+    const [roleInfo] = await db.execute(
+      'SELECT roleName, description FROM kemri_roles WHERE roleId = ?',
+      [roleId]
+    );
+    
+    if (roleInfo.length === 0) {
+      return res.status(404).json({ success: false, message: 'Role not found' });
+    }
+    
+    const role = roleInfo[0];
+    
+    // Check if role-based room already exists
+    const [existingRoom] = await db.execute(
+      'SELECT room_id FROM chat_rooms WHERE room_type = "role" AND role_id = ? AND is_active = 1',
+      [roleId]
+    );
+    
+    if (existingRoom.length > 0) {
+      return res.status(409).json({ 
+        success: false, 
+        message: 'Role-based chat room already exists for this role',
+        room_id: existingRoom[0].room_id
+      });
+    }
+    
+    // Create the role-based room
+    const roomName = `${role.roleName} Discussion`;
+    const description = `Discussion room for ${role.roleName} role members`;
+    
+    const [result] = await db.execute(
+      'INSERT INTO chat_rooms (room_name, room_type, role_id, description, created_by) VALUES (?, ?, ?, ?, ?)',
+      [roomName, 'role', roleId, description, userId]
+    );
+    
+    const roomId = result.insertId;
+    
+    // Add creator as admin participant
+    await db.execute(
+      'INSERT INTO chat_room_participants (room_id, user_id, is_admin) VALUES (?, ?, 1)',
+      [roomId, userId]
+    );
+    
+    // Automatically add all users with this role
+    const [usersWithRole] = await db.execute(
+      'SELECT userId FROM kemri_users WHERE roleId = ?',
+      [roleId]
+    );
+    
+    for (const user of usersWithRole) {
+      // Skip the creator as they're already added as admin
+      if (user.userId !== userId) {
+        await db.execute(
+          'INSERT INTO chat_room_participants (room_id, user_id, is_admin) VALUES (?, ?, 0)',
+          [roomId, user.userId]
+        );
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      room_id: roomId, 
+      message: `Role-based chat room created for ${role.roleName}`,
+      room_name: roomName,
+      participant_count: usersWithRole.length
+    });
+  } catch (error) {
+    console.error('Error creating role-based chat room:', error);
+    res.status(500).json({ success: false, message: 'Failed to create role-based chat room' });
+  }
+});
+
+// Get all roles for creating role-based rooms
+router.get('/roles', authenticate, async (req, res) => {
+  try {
+    const [roles] = await db.execute(
+      'SELECT roleId, roleName, description FROM kemri_roles ORDER BY roleName'
+    );
+    res.json({ success: true, roles });
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch roles' });
   }
 });
 

@@ -22,6 +22,7 @@ import {
   Person as PersonIcon,
   Work as ProjectIcon,
   Business as DepartmentIcon,
+  Security as RoleIcon,
   Search as SearchIcon,
   Add as AddIcon,
   Circle as OnlineIcon
@@ -34,7 +35,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
+  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
   const { rooms, unreadCounts } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all, direct, group, project
@@ -49,6 +50,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
         return <ProjectIcon />;
       case 'department':
         return <DepartmentIcon />;
+      case 'role':
+        return <RoleIcon />;
       default:
         return <GroupIcon />;
     }
@@ -64,6 +67,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
         return colors.redAccent[500];
       case 'department':
         return colors.grey[500];
+      case 'role':
+        return colors.orange[500];
       default:
         return colors.primary[500];
     }
@@ -174,7 +179,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
             { key: 'all', label: 'All' },
             { key: 'direct', label: 'Direct' },
             { key: 'group', label: 'Groups' },
-            { key: 'project', label: 'Projects' }
+            { key: 'project', label: 'Projects' },
+            { key: 'role', label: 'Roles' }
           ].map((filterOption) => (
             <Chip
               key={filterOption.key}
@@ -320,6 +326,29 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                     }}
                                   >
                                 Project: {room.project_name}
+                              </Box>
+                            )}
+                            {room.room_type === 'role' && room.role_name && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                                <Chip 
+                                  label={`Role: ${room.role_name}`} 
+                                  size="small" 
+                                  sx={{ 
+                                    backgroundColor: colors.orange[500], 
+                                    color: colors.grey[100],
+                                    fontSize: '0.65rem',
+                                    height: '18px'
+                                  }} 
+                                />
+                                <Box
+                                  component="span"
+                                  sx={{ 
+                                    color: isDarkMode ? colors.grey[400] : colors.grey[600],
+                                    fontSize: '0.75rem'
+                                  }}
+                                >
+                                  {room.participant_count} members
+                                </Box>
                               </Box>
                             )}
                             {room.last_message && (

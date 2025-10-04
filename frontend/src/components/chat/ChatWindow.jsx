@@ -41,7 +41,7 @@ const ChatWindow = ({ room, onClose }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
+  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
   const { user } = useAuth();
   const {
     messages,
@@ -246,7 +246,7 @@ const ChatWindow = ({ room, onClose }) => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Avatar sx={{ bgcolor: colors.greenAccent[500] }}>
-            {room.room_type === 'group' ? (
+            {(room.room_type === 'group' || room.room_type === 'role') ? (
               <PersonIcon />
             ) : (
               room.room_name.charAt(0).toUpperCase()
@@ -261,6 +261,19 @@ const ChatWindow = ({ room, onClose }) => {
                 `Project: ${room.project_name}`
               )}
               {room.room_type === 'group' && `${room.participant_count} members`}
+              {room.room_type === 'role' && room.role_name && (
+                <Chip 
+                  label={`Role: ${room.role_name}`} 
+                  size="small" 
+                  sx={{ 
+                    backgroundColor: colors.greenAccent[500], 
+                    color: colors.grey[100],
+                    fontSize: '0.7rem',
+                    height: '20px'
+                  }} 
+                />
+              )}
+              {room.room_type === 'role' && `${room.participant_count} members`}
             </Typography>
           </Box>
         </Box>

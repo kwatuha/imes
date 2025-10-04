@@ -22,8 +22,35 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = isDarkMode || theme.palette.mode === 'professional';
+  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
   const messagesEndRef = useRef(null);
+
+  // Debug: Log message structure for all rooms
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      console.log('MessageList - Messages structure for room:', {
+        roomId: room?.room_id,
+        roomType: room?.room_type,
+        roomName: room?.room_name,
+        messageCount: messages.length,
+        senders: [...new Set(messages.map(m => m.sender_id))],
+        currentUser: currentUser,
+        currentUserId: currentUser?.id,
+        currentUserActualId: currentUser?.actualUserId,
+        messagesWithSenderInfo: messages.map(m => ({
+          message_id: m.message_id,
+          sender_id: m.sender_id,
+          sender_id_type: typeof m.sender_id,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          email: m.email,
+          hasSenderInfo: !!(m.firstName && m.lastName),
+          message_preview: m.message_text?.substring(0, 20) + '...',
+          isCurrentUserMessage: m.sender_id === (currentUser?.id || currentUser?.actualUserId)
+        }))
+      });
+    }
+  }, [messages, room, currentUser]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -73,12 +100,40 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
   };
 
   const renderMessage = (message, index) => {
-    const isCurrentUser = message.sender_id === (currentUser?.id || currentUser?.actualUserId);
-    const showAvatar = !isCurrentUser && (
+    // Handle type conversion for user ID comparison
+    const currentUserId = currentUser?.id || currentUser?.actualUserId;
+    const messageSenderId = message.sender_id;
+    const isCurrentUser = String(messageSenderId) === String(currentUserId);
+    
+    const showAvatar = (
       index === 0 || 
       messages[index - 1]?.sender_id !== message.sender_id ||
       new Date(message.created_at).getTime() - new Date(messages[index - 1]?.created_at).getTime() > 300000 // 5 minutes
     );
+    
+    // Debug: Log message rendering details
+    if (room?.room_type === 'role' || room?.room_type === 'group') {
+      console.log('MessageList - Rendering message:', {
+        messageId: message.message_id,
+        senderId: message.sender_id,
+        firstName: message.firstName,
+        lastName: message.lastName,
+        isCurrentUser,
+        showAvatar,
+        roomType: room?.room_type,
+        hasSenderInfo: !!(message.firstName && message.lastName),
+        currentUser: currentUser,
+        currentUserId: currentUser?.id || currentUser?.actualUserId,
+        userIdComparison: {
+          messageSenderId: message.sender_id,
+          currentUserId: currentUser?.id || currentUser?.actualUserId,
+          isEqual: isCurrentUser,
+          messageSenderIdType: typeof messageSenderId,
+          currentUserIdType: typeof currentUserId,
+          stringComparison: String(messageSenderId) === String(currentUserId)
+        }
+      });
+    }
     
     const showDateSeparator = index === 0 || 
       formatDate(message.created_at) !== formatDate(messages[index - 1]?.created_at);
@@ -116,21 +171,21 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
           }}
         >
           {/* Avatar */}
-          {showAvatar && !isCurrentUser && (
+          {showAvatar && (
             <Avatar
               sx={{
                 width: 32,
                 height: 32,
                 mr: 1,
-                bgcolor: colors.greenAccent[500],
+                bgcolor: isCurrentUser ? colors.blueAccent[500] : colors.greenAccent[500],
                 fontSize: '0.875rem'
               }}
             >
-              {message.firstName?.charAt(0)}{message.lastName?.charAt(0)}
+              {message.firstName?.charAt(0) || '?'}{message.lastName?.charAt(0) || '?'}
             </Avatar>
           )}
           
-          {!showAvatar && !isCurrentUser && (
+          {!showAvatar && (
             <Box sx={{ width: 40 }} /> // Spacer for alignment
           )}
 
@@ -143,17 +198,19 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
               alignItems: isCurrentUser ? 'flex-end' : 'flex-start'
             }}
           >
-            {/* Sender Name (for group chats) */}
-            {showAvatar && !isCurrentUser && room?.room_type === 'group' && (
+            {/* Sender Name (for group and role-based chats) */}
+            {(room?.room_type === 'group' || room?.room_type === 'role') && (
               <Typography
                 variant="caption"
                 sx={{
-                  color: colors.grey[300],
+                  color: isCurrentUser ? colors.blueAccent[400] : colors.grey[300],
                   mb: 0.5,
-                  ml: 1
+                  ml: showAvatar ? 1 : 0,
+                  fontWeight: isCurrentUser ? 500 : 400
                 }}
               >
-                {message.firstName} {message.lastName}
+                {message.firstName || 'Unknown'} {message.lastName || 'User'}
+                {isCurrentUser && ' (You)'}
               </Typography>
             )}
 

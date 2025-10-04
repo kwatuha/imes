@@ -5,9 +5,10 @@
 CREATE TABLE IF NOT EXISTS `chat_rooms` (
   `room_id` int NOT NULL AUTO_INCREMENT,
   `room_name` varchar(255) NOT NULL,
-  `room_type` enum('direct','group','project','department') NOT NULL,
+  `room_type` enum('direct','group','project','department','role') NOT NULL,
   `project_id` int DEFAULT NULL,
   `department_id` int DEFAULT NULL,
+  `role_id` int DEFAULT NULL,
   `created_by` int NOT NULL,
   `description` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -16,8 +17,10 @@ CREATE TABLE IF NOT EXISTS `chat_rooms` (
   PRIMARY KEY (`room_id`),
   KEY `fk_chat_rooms_project` (`project_id`),
   KEY `fk_chat_rooms_creator` (`created_by`),
+  KEY `fk_chat_rooms_role` (`role_id`),
   CONSTRAINT `fk_chat_rooms_creator` FOREIGN KEY (`created_by`) REFERENCES `kemri_users` (`userId`) ON DELETE CASCADE,
-  CONSTRAINT `fk_chat_rooms_project` FOREIGN KEY (`project_id`) REFERENCES `kemri_projects` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_chat_rooms_project` FOREIGN KEY (`project_id`) REFERENCES `kemri_projects` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_chat_rooms_role` FOREIGN KEY (`role_id`) REFERENCES `kemri_roles` (`roleId`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Chat Messages
@@ -103,11 +106,34 @@ INSERT IGNORE INTO `chat_rooms` (`room_name`, `room_type`, `created_by`, `descri
 ('Project Updates', 'group', 1, 'Share project updates and milestones'),
 ('Technical Support', 'group', 1, 'Technical questions and IT support');
 
+-- Create role-based chat rooms for each role
+INSERT IGNORE INTO `chat_rooms` (`room_name`, `room_type`, `role_id`, `created_by`, `description`) 
+SELECT 
+    CONCAT(r.roleName, ' Discussion'),
+    'role',
+    r.roleId,
+    1,
+    CONCAT('Discussion room for ', r.roleName, ' role members')
+FROM `kemri_roles` r 
+WHERE r.roleId > 0;
+
 -- Add admin user to default rooms (assuming admin userId = 1)
 INSERT IGNORE INTO `chat_room_participants` (`room_id`, `user_id`, `is_admin`) 
 SELECT r.room_id, 1, 1
 FROM `chat_rooms` r 
 WHERE r.room_name IN ('General Discussion', 'Project Updates', 'Technical Support');
+
+-- Automatically add users to their role-based chat rooms
+INSERT IGNORE INTO `chat_room_participants` (`room_id`, `user_id`, `is_admin`)
+SELECT 
+    r.room_id,
+    u.userId,
+    0
+FROM `chat_rooms` r
+INNER JOIN `kemri_users` u ON r.role_id = u.roleId
+WHERE r.room_type = 'role' AND r.role_id IS NOT NULL
+ON DUPLICATE KEY UPDATE 
+    `last_read_at` = `last_read_at`;
 
 -- Create indexes for better performance
 CREATE INDEX `idx_chat_rooms_type` ON `chat_rooms` (`room_type`);
@@ -115,7 +141,57 @@ CREATE INDEX `idx_chat_rooms_active` ON `chat_rooms` (`is_active`);
 CREATE INDEX `idx_chat_messages_room_created` ON `chat_messages` (`room_id`, `created_at`);
 CREATE INDEX `idx_chat_participants_user` ON `chat_room_participants` (`user_id`);
 
+-- Create a procedure to add users to role-based rooms when their role changes
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS AddUserToRoleRooms(IN user_id INT, IN new_role_id INT)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE room_id INT;
+    DECLARE room_cursor CURSOR FOR 
+        SELECT room_id FROM chat_rooms 
+        WHERE room_type = 'role' AND role_id = new_role_id AND is_active = 1;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    OPEN room_cursor;
+    
+    read_loop: LOOP
+        FETCH room_cursor INTO room_id;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        
+        -- Add user to role-based room if not already a participant
+        INSERT IGNORE INTO chat_room_participants (room_id, user_id, is_admin) 
+        VALUES (room_id, user_id, 0);
+    END LOOP;
+    
+    CLOSE room_cursor;
+END //
+DELIMITER ;
+
+-- Create a trigger to automatically add users to role-based rooms when their role changes
+DELIMITER //
+CREATE TRIGGER IF NOT EXISTS user_role_change_trigger
+AFTER UPDATE ON kemri_users
+FOR EACH ROW
+BEGIN
+    IF OLD.roleId != NEW.roleId THEN
+        -- Remove user from old role-based rooms
+        DELETE crp FROM chat_room_participants crp
+        INNER JOIN chat_rooms r ON crp.room_id = r.room_id
+        WHERE crp.user_id = NEW.userId 
+        AND r.room_type = 'role' 
+        AND r.role_id = OLD.roleId
+        AND crp.is_admin = 0; -- Don't remove admins
+        
+        -- Add user to new role-based rooms
+        CALL AddUserToRoleRooms(NEW.userId, NEW.roleId);
+    END IF;
+END //
+DELIMITER ;
+
 -- Verification queries
 SELECT 'Chat schema created successfully' as status;
 SELECT COUNT(*) as chat_privileges FROM kemri_privileges WHERE privilegeName LIKE 'chat.%';
 SELECT COUNT(*) as default_rooms FROM chat_rooms WHERE room_type = 'group';
+SELECT COUNT(*) as role_rooms FROM chat_rooms WHERE room_type = 'role';
