@@ -49,6 +49,8 @@ import WorkflowManagementPage from './pages/WorkflowManagementPage';
 import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage';
 // ✨ NEW: Import the AdminPage component
 import AdminPage from './pages/AdminPage';
+// ✨ NEW: Import the FeedbackManagementPage component
+import FeedbackManagementPage from './pages/FeedbackManagementPage';
  
 import ReportingPage from './pages/ReportingPage';
 import ReportingView from './components/ReportingView';
@@ -148,6 +150,10 @@ const router = createBrowserRouter([
       {
         path: 'approval-levels-management',
         element: <ApprovalLevelsManagementPage />,
+      },
+      {
+        path: 'feedback-management',
+        element: <FeedbackManagementPage />,
       },
       {
         path: 'strategic-planning',

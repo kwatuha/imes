@@ -33,6 +33,7 @@ const chatRoutes = require('./routes/chatRoutes');
 // NEW: Consolidated reporting routes under a single router
 const reportsRouter = require('./routes/reportsRouter')
 const projectRouter = require('./routes/projectRouter')
+const publicRoutes = require('./routes/publicRoutes')
 
 const port = 3000;
 const app = express();
@@ -64,6 +65,9 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+
+// PUBLIC ROUTES - No authentication required (must be before authenticate middleware)
+app.use('/api/public', publicRoutes);
 
 // IMPORTANT: Mount the new dedicated routers
 // The reports router is mounted first to prevent conflicts with project routes.

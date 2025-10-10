@@ -638,4 +638,147 @@ router.put('/admin/roles/:roleName', async (req, res) => {
   }
 });
 
+// --- Statistics and Metrics Endpoints (Moved from dashboardRoutes) ---
+
+/**
+ * @route GET /api/dashboard/statistics/:userId
+ * @description Get user statistics including project counts and activity
+ */
+router.get('/statistics/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const connection = await getConnection();
+    
+    // Query project statistics
+    const [projectStats] = await connection.query(`
+      SELECT 
+        COUNT(*) as totalProjects,
+        SUM(CASE WHEN LOWER(status) LIKE '%active%' OR LOWER(status) LIKE '%ongoing%' THEN 1 ELSE 0 END) as activeProjects,
+        SUM(CASE WHEN LOWER(status) LIKE '%complete%' THEN 1 ELSE 0 END) as completedProjects,
+        SUM(CASE WHEN LOWER(status) LIKE '%pending%' OR LOWER(status) LIKE '%proposed%' THEN 1 ELSE 0 END) as pendingProjects
+      FROM kemri_projects
+      WHERE voided = 0
+    `);
+    
+    // Query user statistics
+    const [userStats] = await connection.query(`
+      SELECT 
+        COUNT(*) as totalUsers,
+        SUM(CASE WHEN isActive = 1 THEN 1 ELSE 0 END) as activeUsers,
+        SUM(CASE WHEN isActive = 0 THEN 1 ELSE 0 END) as inactiveUsers
+      FROM kemri_users
+    `);
+    
+    await connection.end();
+    
+    const statistics = {
+      projects: projectStats[0] || { totalProjects: 0, activeProjects: 0, completedProjects: 0, pendingProjects: 0 },
+      users: userStats[0] || { totalUsers: 0, activeUsers: 0, inactiveUsers: 0 },
+      lastUpdated: new Date().toISOString()
+    };
+    
+    res.status(200).json(statistics);
+  } catch (error) {
+    console.error('Error fetching statistics:', error);
+    res.status(500).json({ message: 'Error fetching statistics', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/dashboard/metrics/:userId
+ * @description Get metrics and KPIs for a user
+ */
+router.get('/metrics/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const connection = await getConnection();
+    
+    // Query project metrics
+    const [metrics] = await connection.query(`
+      SELECT 
+        COUNT(*) as totalProjects,
+        SUM(CASE WHEN LOWER(status) LIKE '%active%' OR LOWER(status) LIKE '%ongoing%' THEN 1 ELSE 0 END) as activeProjects,
+        SUM(CASE WHEN LOWER(status) LIKE '%complete%' THEN 1 ELSE 0 END) as completedProjects,
+        SUM(costOfProject) as totalBudget,
+        SUM(paidOut) as utilizedBudget,
+        COUNT(DISTINCT principalInvestigatorStaffId) as teamMembers
+      FROM kemri_projects
+      WHERE voided = 0
+    `);
+    
+    await connection.end();
+    
+    const metricsData = metrics[0] || {};
+    metricsData.pendingApprovals = 0; // Placeholder for approvals
+    metricsData.budgetUtilization = metricsData.totalBudget > 0 
+      ? Math.round((metricsData.utilizedBudget / metricsData.totalBudget) * 100) 
+      : 0;
+    
+    res.status(200).json(metricsData);
+  } catch (error) {
+    console.error('Error fetching metrics:', error);
+    res.status(500).json({ message: 'Error fetching metrics', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/dashboard/activity/:userId
+ * @description Get recent activity for a user
+ */
+router.get('/activity/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const connection = await getConnection();
+    
+    // Query recent project updates
+    const [activities] = await connection.query(`
+      SELECT 
+        projectName as action,
+        updatedAt as time,
+        'project' as type
+      FROM kemri_projects
+      ORDER BY updatedAt DESC
+      LIMIT 10
+    `);
+    
+    await connection.end();
+    
+    // Format activities
+    const recentActivity = activities.map((activity, index) => ({
+      id: index + 1,
+      action: `Project "${activity.action}" updated`,
+      time: activity.time,
+      type: activity.type
+    }));
+    
+    res.status(200).json(recentActivity);
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ message: 'Error fetching recent activity', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/dashboard/notifications/:userId
+ * @description Get notifications for a user
+ */
+router.get('/notifications/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Return mock notifications for now
+    const notifications = [
+      { id: 1, type: 'timeline', title: 'New Timeline Notifications', count: 0, priority: 'low', icon: 'schedule' },
+      { id: 2, type: 'project', title: 'New Project Updates', count: 1, priority: 'medium', icon: 'assignment' },
+      { id: 3, type: 'task', title: "Today's Pending Tasks", count: 0, priority: 'high', icon: 'warning' },
+      { id: 4, type: 'message', title: 'New Messages & Chats', count: 0, priority: 'low', icon: 'email' },
+    ];
+    
+    res.status(200).json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: 'Error fetching notifications', error: error.message });
+  }
+});
+
 module.exports = router;

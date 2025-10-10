@@ -71,6 +71,7 @@ export const ROUTES = {
     HR: '/hr-module', // New route for the HR module
     WORKFLOW_MANAGEMENT: '/workflow-management',
     APPROVAL_LEVELS_MANAGEMENT: '/approval-levels-management', // ✨ NEW: Add the approval levels management route
+    FEEDBACK_MANAGEMENT: '/feedback-management', // ✨ NEW: Public feedback management route
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',

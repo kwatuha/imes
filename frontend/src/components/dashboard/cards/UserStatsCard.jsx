@@ -1,6 +1,7 @@
-import React from 'react';
-import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, Typography, Box, Chip, CircularProgress } from '@mui/material';
 import { People as PeopleIcon, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
+import dashboardService from '../../../api/dashboardService';
 
 /**
  * User Statistics Card Component
@@ -9,13 +10,46 @@ import { People as PeopleIcon, TrendingUp as TrendingUpIcon } from '@mui/icons-m
  * active users, and growth metrics with visual indicators.
  */
 const UserStatsCard = ({ user, showGrowth = true, timeRange = '30d' }) => {
-  // Mock data - in real implementation, this would come from props or API
-  const stats = {
-    totalUsers: 1247,
-    activeUsers: 892,
-    newUsers: 45,
-    growthRate: 12.5
-  };
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    newUsers: 0,
+    growthRate: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setLoading(true);
+        const data = await dashboardService.getStatistics(user.id);
+        
+        setStats({
+          totalUsers: data.users?.totalUsers || 0,
+          activeUsers: data.users?.activeUsers || 0,
+          newUsers: 0, // This would need to be calculated from a date range
+          growthRate: 0 // This would need historical data to calculate
+        });
+      } catch (error) {
+        console.error('Error fetching user statistics:', error);
+        // Keep default stats on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Card>
+    );
+  }
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -75,6 +109,7 @@ const UserStatsCard = ({ user, showGrowth = true, timeRange = '30d' }) => {
 };
 
 export default UserStatsCard;
+
 
 
 

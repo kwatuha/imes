@@ -27,6 +27,22 @@ services:
     environment:
       VITE_API_URL: http://localhost:3000/api
 
+  public-dashboard:
+    build:
+      context: ./public-dashboard
+      dockerfile: Dockerfile
+    container_name: public_dashboard
+    ports:
+      - "5174:5173"
+    volumes:
+      - ./public-dashboard:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    command: npm run dev
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+
   api:
     build:
       context: ./api

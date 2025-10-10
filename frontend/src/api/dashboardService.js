@@ -15,11 +15,17 @@ const dashboardService = {
   // Get notifications for a user
   getNotifications: async (userId) => {
     try {
-      const response = await axiosInstance.get(`/api/notifications/${userId}`);
+      const response = await axiosInstance.get(`/api/dashboard/notifications/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      throw error;
+      // Return default notifications if API fails
+      return [
+        { id: 1, type: 'timeline', title: 'New Timeline Notifications', count: 0, priority: 'low', icon: 'schedule' },
+        { id: 2, type: 'project', title: 'New Project Updates', count: 0, priority: 'medium', icon: 'assignment' },
+        { id: 3, type: 'task', title: "Today's Pending Tasks", count: 0, priority: 'high', icon: 'warning' },
+        { id: 4, type: 'message', title: 'New Messages & Chats', count: 0, priority: 'low', icon: 'email' },
+      ];
     }
   },
 
@@ -37,22 +43,49 @@ const dashboardService = {
   // Get metrics and KPIs
   getMetrics: async (userId, role) => {
     try {
-      const response = await axiosInstance.get(`/api/metrics/${userId}?role=${role}`);
+      const response = await axiosInstance.get(`/api/dashboard/metrics/${userId}?role=${role}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching metrics:', error);
-      throw error;
+      // Return default metrics if API fails
+      return {
+        totalProjects: 0,
+        activeProjects: 0,
+        completedProjects: 0,
+        pendingApprovals: 0,
+        budgetUtilization: 0,
+        teamMembers: 0
+      };
+    }
+  },
+
+  // Get statistics
+  getStatistics: async (userId) => {
+    try {
+      const response = await axiosInstance.get(`/api/dashboard/statistics/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      // Return default statistics if API fails
+      return {
+        projects: { totalProjects: 0, activeProjects: 0, completedProjects: 0, pendingProjects: 0 },
+        users: { totalUsers: 0, activeUsers: 0, inactiveUsers: 0 },
+        lastUpdated: new Date().toISOString()
+      };
     }
   },
 
   // Get recent activity
   getRecentActivity: async (userId) => {
     try {
-      const response = await axiosInstance.get(`/api/activity/${userId}`);
+      const response = await axiosInstance.get(`/api/dashboard/activity/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching recent activity:', error);
-      throw error;
+      // Return default activity if API fails
+      return [
+        { id: 1, action: 'No recent activity', time: new Date().toISOString(), type: 'system' }
+      ];
     }
   },
 
