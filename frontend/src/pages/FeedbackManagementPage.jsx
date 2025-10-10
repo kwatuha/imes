@@ -49,9 +49,7 @@ import {
   Visibility
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import axiosInstance from '../api/axiosInstance';
 
 const FeedbackManagementPage = () => {
   const { user } = useAuth();
@@ -84,8 +82,8 @@ const FeedbackManagementPage = () => {
         params.append('search', searchTerm);
       }
 
-      const response = await axios.get(
-        `${API_BASE_URL}/api/public/feedback?${params.toString()}`
+      const response = await axiosInstance.get(
+        `/public/feedback?${params.toString()}`
       );
 
       setFeedbacks(response.data.feedbacks || []);
@@ -127,8 +125,8 @@ const FeedbackManagementPage = () => {
 
     try {
       setSubmitting(true);
-      await axios.put(
-        `${API_BASE_URL}/api/public/feedback/${selectedFeedback.id}/respond`,
+      await axiosInstance.put(
+        `/public/feedback/${selectedFeedback.id}/respond`,
         {
           admin_response: response,
           responded_by: user?.id || user?.userId,
@@ -150,8 +148,8 @@ const FeedbackManagementPage = () => {
 
   const handleUpdateStatus = async (feedbackId, newStatus) => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/api/public/feedback/${feedbackId}/status`,
+      await axiosInstance.put(
+        `/public/feedback/${feedbackId}/status`,
         {
           status: newStatus
         }
