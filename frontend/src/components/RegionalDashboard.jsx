@@ -38,6 +38,7 @@ import DepartmentProjectsModal from './modals/DepartmentProjectsModal';
 import YearProjectsModal from './modals/YearProjectsModal';
 import SubCountyProjectsModal from './modals/SubCountyProjectsModal';
 import WardProjectsModal from './modals/WardProjectsModal';
+import YearBudgetModal from './modals/YearBudgetModal';
 import EnhancedOverviewTab from './EnhancedOverviewTab';
 import EnhancedYearlyTrendsTab from './EnhancedYearlyTrendsTab';
 import { DEFAULT_COUNTY, DEFAULT_SUBCOUNTY } from '../configs/appConfig';
@@ -95,6 +96,8 @@ const RegionalDashboard = () => {
     const [selectedSubcounty, setSelectedSubcounty] = useState(null);
     const [wardModalOpen, setWardModalOpen] = useState(false);
     const [selectedWard, setSelectedWard] = useState(null);
+    const [yearBudgetModalOpen, setYearBudgetModalOpen] = useState(false);
+    const [selectedYearBudget, setSelectedYearBudget] = useState(null);
 
     // API Integration Functions
     const fetchProjectStatusData = async (filters) => {
@@ -403,6 +406,16 @@ const RegionalDashboard = () => {
     const handleCloseWardModal = () => {
         setWardModalOpen(false);
         setSelectedWard(null);
+    };
+
+    const handleYearBudgetClick = (yearData) => {
+        setSelectedYearBudget(yearData);
+        setYearBudgetModalOpen(true);
+    };
+
+    const handleCloseYearBudgetModal = () => {
+        setYearBudgetModalOpen(false);
+        setSelectedYearBudget(null);
     };
 
     const renderNoDataCard = (title) => (
@@ -886,6 +899,20 @@ const RegionalDashboard = () => {
                     <Tab 
                         label="Yearly Trends" 
                         icon={<ShowChart sx={{ fontSize: '1.2rem' }} />} 
+                        iconPosition="start"
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            px: 2,
+                            '& .MuiTab-iconWrapper': {
+                                marginRight: '8px !important'
+                            }
+                        }}
+                    />
+                    <Tab 
+                        label="Budget Utilization" 
+                        icon={<Analytics sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
                         sx={{ 
                             display: 'flex', 
@@ -2366,6 +2393,365 @@ const RegionalDashboard = () => {
                             </Grid>
                         </Grid>
                     )}
+
+                    {activeTab === 5 && (
+                        <Grid container spacing={3}>
+                            {/* Budget Utilization Header */}
+                            <Grid item xs={12}>
+                                <Fade in timeout={1200}>
+                                    <Card sx={{ 
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(76, 175, 80, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Analytics sx={{ color: '#4caf50', fontSize: '1.5rem' }} />
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                                                        Budget Utilization Trends (5 Years)
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            subheader={
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Track budget allocation and utilization patterns over the past 5 years
+                                                </Typography>
+                                            }
+                                            sx={{ pb: 1 }}
+                                        />
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            {/* Budget Utilization Line Chart */}
+                            <Grid item xs={12}>
+                                <Fade in timeout={1400}>
+                                    <Card sx={{ 
+                                        height: '500px',
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(33, 150, 243, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #2196f3, #42a5f5, #64b5f6)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <ShowChart sx={{ color: 'info.main', fontSize: '1.2rem' }} />
+                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                        Budget Utilization Over Time
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                        />
+                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
+                                            <Box sx={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
+                                                {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? (
+                                                    <LineBarComboChart
+                                                        title=""
+                                                        data={trendsData.financialTrends.map((item, index) => ({
+                                                            year: item.year || (new Date().getFullYear() - 4 + index).toString(),
+                                                            totalBudget: parseFloat(item.totalBudget) || 0,
+                                                            amountPaid: parseFloat(item.amountPaid) || 0,
+                                                            absorptionRate: parseFloat(item.absorptionRate) || 0,
+                                                            utilizationRate: parseFloat(item.utilizationRate) || 0
+                                                        }))}
+                                                        barKeys={['totalBudget', 'amountPaid']}
+                                                        lineKeys={['absorptionRate']}
+                                                        xAxisKey="year"
+                                                        yAxisLabelLeft="Budget Amount (KES)"
+                                                        yAxisLabelRight="Absorption Rate (%)"
+                                                    />
+                                                ) : (
+                                                    <Box sx={{ 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column', 
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center', 
+                                                        height: '100%',
+                                                        textAlign: 'center',
+                                                        p: 3
+                                                    }}>
+                                                        <AttachMoney sx={{ fontSize: '3rem', color: 'text.secondary', mb: 2, opacity: 0.5 }} />
+                                                        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                                                            No Budget Data Available
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
+                                                            Budget utilization data will appear here once available
+                                                        </Typography>
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            {/* Budget Summary Cards */}
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={1600}>
+                                    <Card sx={{ 
+                                        height: '150px',
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(76, 175, 80, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                                    Total Budget (5 Years)
+                                                </Typography>
+                                                <AttachMoney sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                    {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
+                                                        formatCurrency(trendsData.financialTrends.reduce((sum, item) => sum + (parseFloat(item.totalBudget) || 0), 0))
+                                                        : 'KSh 0'
+                                                    }
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    Cumulative allocation
+                                                </Typography>
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={1800}>
+                                    <Card sx={{ 
+                                        height: '150px',
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(255, 152, 0, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                                    Total Utilized
+                                                </Typography>
+                                                <TrendingUp sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                    {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
+                                                        formatCurrency(trendsData.financialTrends.reduce((sum, item) => sum + (parseFloat(item.amountPaid) || 0), 0))
+                                                        : 'KSh 0'
+                                                    }
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    Amount disbursed
+                                                </Typography>
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={2000}>
+                                    <Card sx={{ 
+                                        height: '150px',
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(156, 39, 176, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #9c27b0, #ba68c8, #ce93d8)',
+                                            borderRadius: '12px 12px 0 0'
+                                        }
+                                    }}>
+                                        <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                                    Avg Absorption Rate
+                                                </Typography>
+                                                <Analytics sx={{ color: '#9c27b0', fontSize: '1.2rem' }} />
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                    {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
+                                                        (trendsData.financialTrends.reduce((sum, item) => sum + (parseFloat(item.absorptionRate) || 0), 0) / trendsData.financialTrends.length).toFixed(1) + '%'
+                                                        : '0%'
+                                                    }
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    Over 5 years
+                                                </Typography>
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            {/* Detailed Budget Report by Year */}
+                            <Grid item xs={12}>
+                                <Fade in timeout={2200}>
+                                    <Box sx={{ mt: 3 }}>
+                                        <ProjectDetailTable
+                                            data={trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
+                                                trendsData.financialTrends.map((item, index) => ({
+                                                    id: item.year || (new Date().getFullYear() - 4 + index).toString(),
+                                                    rowNumber: index + 1,
+                                                    year: item.year || (new Date().getFullYear() - 4 + index).toString(),
+                                                    totalBudget: formatCurrency(parseFloat(item.totalBudget) || 0),
+                                                    amountPaid: formatCurrency(parseFloat(item.amountPaid) || 0),
+                                                    absorptionRate: (parseFloat(item.absorptionRate) || 0).toFixed(1) + '%',
+                                                    utilizationRate: (parseFloat(item.utilizationRate) || 0).toFixed(1) + '%',
+                                                    remainingBudget: formatCurrency((parseFloat(item.totalBudget) || 0) - (parseFloat(item.amountPaid) || 0)),
+                                                    efficiency: ((parseFloat(item.amountPaid) || 0) / (parseFloat(item.totalBudget) || 1) * 100).toFixed(1) + '%'
+                                                })) : []
+                                            }
+                                            columns={[
+                                                {
+                                                    id: 'rowNumber',
+                                                    label: '#',
+                                                    minWidth: 60,
+                                                    type: 'number'
+                                                },
+                                                {
+                                                    id: 'year',
+                                                    label: 'Year',
+                                                    minWidth: 80,
+                                                    type: 'text'
+                                                },
+                                                {
+                                                    id: 'totalBudget',
+                                                    label: 'Total Budget',
+                                                    minWidth: 140,
+                                                    type: 'text'
+                                                },
+                                                {
+                                                    id: 'amountPaid',
+                                                    label: 'Amount Paid',
+                                                    minWidth: 140,
+                                                    type: 'text'
+                                                },
+                                                {
+                                                    id: 'remainingBudget',
+                                                    label: 'Remaining',
+                                                    minWidth: 140,
+                                                    type: 'text'
+                                                },
+                                                {
+                                                    id: 'absorptionRate',
+                                                    label: 'Absorption Rate',
+                                                    minWidth: 130,
+                                                    type: 'text'
+                                                },
+                                                {
+                                                    id: 'utilizationRate',
+                                                    label: 'Utilization Rate',
+                                                    minWidth: 130,
+                                                    type: 'text'
+                                                },
+                                                {
+                                                    id: 'efficiency',
+                                                    label: 'Efficiency',
+                                                    minWidth: 100,
+                                                    type: 'text'
+                                                }
+                                            ]}
+                                            title="Budget Utilization by Year"
+                                            onRowClick={(row) => handleYearBudgetClick(row)}
+                                        />
+                                    </Box>
+                                </Fade>
+                            </Grid>
+                        </Grid>
+                    )}
                     </>
                 </Box>
             </Box>
@@ -2405,6 +2791,13 @@ const RegionalDashboard = () => {
                 open={wardModalOpen}
                 onClose={handleCloseWardModal}
                 wardData={selectedWard}
+            />
+
+            {/* Year Budget Modal */}
+            <YearBudgetModal
+                open={yearBudgetModalOpen}
+                onClose={handleCloseYearBudgetModal}
+                yearData={selectedYearBudget}
             />
         </Box>
     );

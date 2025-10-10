@@ -8,6 +8,7 @@ frontend/.env
 /*.sql
 frontend/dist/
 frontend/src/configs/*.sql
+frontend/src/components/chat/*.sql
 # Sensitive data and user uploads
  
 api/dump/

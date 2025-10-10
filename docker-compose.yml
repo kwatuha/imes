@@ -1,10 +1,8 @@
 version: '3.8'
-
 services:
   nginx_proxy:
     image: nginx:alpine
     container_name: nginx_proxy
-    # Changed host port from 80 to 8080
     ports:
       - "8080:80"
     volumes:
@@ -18,7 +16,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: react_frontend
-    # Keeping the default Vite port 5173
     ports:
       - "5173:5173"
     volumes:
@@ -28,7 +25,6 @@ services:
       - api
     command: npm run dev
     environment:
-      # VITE_API_URL should point directly to API server for localhost:5173 access
       VITE_API_URL: http://localhost:3000/api
 
   api:
@@ -36,7 +32,6 @@ services:
       context: ./api
       dockerfile: Dockerfile
     container_name: node_api
-    # Keeping the default Express port 3000
     ports:
       - "3000:3000"
     volumes:
@@ -64,7 +59,6 @@ services:
     volumes:
       - ./api/init.sql:/docker-entrypoint-initdb.d/init.sql
       - db_data:/var/lib/mysql
-    # Changed host port from 3306 to 3307
     ports:
       - "3307:3306"
 

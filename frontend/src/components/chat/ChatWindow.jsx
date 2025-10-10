@@ -41,7 +41,7 @@ const ChatWindow = ({ room, onClose }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
+  const isDarkMode = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const {
     messages,

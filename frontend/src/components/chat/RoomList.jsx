@@ -35,7 +35,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
   const colors = tokens(theme.palette.mode);
   
   // Helper function to check if current mode is a dark theme
-  const isDarkMode = theme.palette.mode === 'dark' || theme.palette.mode === 'professional';
+  const isDarkMode = theme.palette.mode === 'dark';
   const { rooms, unreadCounts } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all'); // all, direct, group, project
