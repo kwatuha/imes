@@ -15,12 +15,14 @@ import {
   Assessment,
   Business,
   LocationOn,
+  LocationCity,
   Dashboard as DashboardIcon
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import StatCard from '../components/StatCard';
 import DepartmentSummaryTable from '../components/DepartmentSummaryTable';
 import SubCountySummaryTable from '../components/SubCountySummaryTable';
+import WardSummaryTable from '../components/WardSummaryTable';
 import { getOverviewStats, getFinancialYears } from '../services/publicApi';
 import { formatCurrency } from '../utils/formatters';
 
@@ -213,6 +215,7 @@ const DashboardPage = () => {
         >
           <Tab icon={<Business />} label="By Department" iconPosition="start" />
           <Tab icon={<LocationOn />} label="By Sub-County" iconPosition="start" />
+          <Tab icon={<LocationCity />} label="By Ward" iconPosition="start" />
         </Tabs>
 
         <Box sx={{ p: 4 }}>
@@ -221,6 +224,9 @@ const DashboardPage = () => {
           )}
           {activeTab === 1 && (
             <SubCountySummaryTable finYearId={selectedFinYear?.id} />
+          )}
+          {activeTab === 2 && (
+            <WardSummaryTable finYearId={selectedFinYear?.id} />
           )}
         </Box>
       </Paper>

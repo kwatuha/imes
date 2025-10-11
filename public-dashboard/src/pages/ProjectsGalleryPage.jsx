@@ -27,7 +27,7 @@ import {
   FilterList,
   Visibility,
   LocationOn,
-  AttachMoney,
+  AccountBalanceWallet,
   CalendarToday,
   Comment
 } from '@mui/icons-material';
@@ -133,6 +133,12 @@ const ProjectsGalleryPage = () => {
     console.log('Opening feedback modal for project:', project);
     setSelectedProject({
       ...project,
+      // Normalize field names for feedback modal compatibility
+      projectName: project.project_name || project.projectName,
+      project_name: project.project_name || project.projectName,
+      startDate: project.start_date || project.startDate,
+      endDate: project.end_date || project.endDate,
+      department: project.department_name || project.department,
       statusColor: getStatusColor(project.status)
     });
     setFeedbackModalOpen(true);
@@ -157,7 +163,7 @@ const ProjectsGalleryPage = () => {
           component="img"
           height="200"
           image={`http://localhost:3000/uploads/${project.thumbnail}`}
-          alt={project.projectName}
+          alt={project.project_name || project.projectName}
           sx={{ objectFit: 'cover' }}
         />
       ) : (
@@ -173,7 +179,7 @@ const ProjectsGalleryPage = () => {
           }}
         >
           <Typography variant="h4" fontWeight="bold">
-            {project.projectName?.charAt(0) || 'P'}
+            {(project.project_name || project.projectName)?.charAt(0) || 'P'}
           </Typography>
         </Box>
       )}
@@ -191,7 +197,7 @@ const ProjectsGalleryPage = () => {
         />
         
         <Typography variant="h6" fontWeight="bold" gutterBottom>
-          {truncateText(project.projectName, 60)}
+          {truncateText(project.project_name || project.projectName, 60)}
         </Typography>
         
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -201,12 +207,12 @@ const ProjectsGalleryPage = () => {
         <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <LocationOn sx={{ fontSize: 18, color: 'text.secondary' }} />
           <Typography variant="body2" color="text.secondary">
-            {project.department || 'N/A'}
+            {project.ward_name || project.subcounty_name || project.department_name || 'N/A'}
           </Typography>
         </Box>
 
         <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AttachMoney sx={{ fontSize: 18, color: 'text.secondary' }} />
+          <AccountBalanceWallet sx={{ fontSize: 18, color: 'success.main' }} />
           <Typography variant="body2" fontWeight="bold">
             {formatCurrency(project.budget)}
           </Typography>
@@ -215,7 +221,7 @@ const ProjectsGalleryPage = () => {
         <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <CalendarToday sx={{ fontSize: 18, color: 'text.secondary' }} />
           <Typography variant="body2" color="text.secondary">
-            {formatDate(project.startDate)} - {formatDate(project.endDate)}
+            {formatDate(project.start_date || project.startDate)} - {formatDate(project.end_date || project.endDate)}
           </Typography>
         </Box>
 

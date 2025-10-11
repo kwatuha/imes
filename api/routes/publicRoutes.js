@@ -397,9 +397,10 @@ router.get('/stats/by-ward', async (req, res) => {
 
         const query = `
             SELECT 
-                w.wardId as id,
-                w.name as ward,
-                sc.name as subCounty,
+                w.wardId as ward_id,
+                w.name as ward_name,
+                sc.subcountyId as subcounty_id,
+                sc.name as subcounty_name,
                 COUNT(pw.projectId) as project_count,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
                 COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_count,
@@ -409,9 +410,9 @@ router.get('/stats/by-ward', async (req, res) => {
             LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
             LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
             ${finYearId ? 'AND p.finYearId = ?' : ''}
-            GROUP BY w.wardId, w.name, sc.name
+            GROUP BY w.wardId, w.name, sc.subcountyId, sc.name
             HAVING project_count > 0
-            ORDER BY total_budget DESC
+            ORDER BY sc.name, total_budget DESC
         `;
 
         const [results] = await pool.query(query, finYearId ? [finYearId] : []);
