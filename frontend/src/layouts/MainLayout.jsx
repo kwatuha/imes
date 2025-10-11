@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
 import logo from '../assets/logo.png';
 import { useTheme } from "@mui/material";
-import { ColorModeContext, tokens } from "../pages/dashboard/theme";
+// ✨ Removed old theme system imports
 import Topbar from "./Topbar.jsx";
 import Sidebar from "./Sidebar.jsx";
 import FloatingChatButton from "../components/chat/FloatingChatButton.jsx";
@@ -24,8 +24,7 @@ const collapsedDrawerWidth = 60;
 
 function MainLayout() {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-  const colorMode = useContext(ColorModeContext);
+  // ✨ Using MUI theme directly - simpler and clearer!
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

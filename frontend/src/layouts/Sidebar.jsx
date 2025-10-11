@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import { Link, useLocation } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
-import { tokens } from "../pages/dashboard/theme";
+// ✨ Removed old theme system - using modern theme directly!
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -47,10 +47,7 @@ import { ROUTES } from '../configs/appConfig.js';
 import logo from '../assets/logo.png';
 import userProfilePicture from '../assets/user.png';
 
-const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCheck }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-
+const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCheck, theme }) => {
   if (privilegeCheck && !privilegeCheck()) {
     return null;
   }
@@ -59,7 +56,10 @@ const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCh
     <Tooltip title={title} placement="right" disableHoverListener={!isCollapsed}>
       <MenuItem
         active={selected === title}
-        style={{ color: colors.grey[100] }}
+        style={{ 
+          color: selected === title ? theme.palette.primary.main : theme.palette.text.primary,
+          backgroundColor: selected === title ? theme.palette.action.selected : 'transparent'
+        }}
         onClick={() => setSelected(title)}
         icon={icon}
       >
@@ -70,18 +70,16 @@ const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCh
   );
 };
 
-const MenuGroup = ({ title, icon, children, isCollapsed, isOpen, onToggle }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+const MenuGroup = ({ title, icon, children, isCollapsed, isOpen, onToggle, theme, colors }) => {
 
   return (
     <Box>
       <MenuItem
         onClick={onToggle}
         style={{ 
-          color: colors.grey[100],
+          color: theme.palette.text.primary,
           fontWeight: 'bold',
-          backgroundColor: colors.primary[500]
+          backgroundColor: theme.palette.action.hover
         }}
         icon={icon}
       >
@@ -97,7 +95,7 @@ const MenuGroup = ({ title, icon, children, isCollapsed, isOpen, onToggle }) => 
   );
 };
 
-const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm }) => {
+const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm, theme }) => {
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
     return items.filter(item => 
@@ -119,6 +117,7 @@ const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm 
                 setSelected={setSelected}
                 isCollapsed={isCollapsed}
                 privilegeCheck={item.privilege}
+                theme={theme}
               />
             </Box>
           </Zoom>
@@ -130,7 +129,31 @@ const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm 
 
 const Sidebar = ({ collapsed, onCollapseChange }) => {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+  
+  // ✨ Compatibility layer for theme colors (simplified from old token system)
+  const colors = {
+    grey: theme.palette.grey,
+    primary: {
+      50: theme.palette.background.default,
+      100: theme.palette.background.paper,
+      300: theme.palette.action.selected,
+      400: theme.palette.background.paper,
+      500: theme.palette.primary.dark,
+      600: theme.palette.primary.main,
+    },
+    blueAccent: {
+      200: theme.palette.primary.light,
+      300: theme.palette.primary.light,
+      400: theme.palette.primary.main,
+      500: theme.palette.primary.main,
+      600: theme.palette.primary.dark,
+    },
+    greenAccent: {
+      400: theme.palette.success.light,
+      600: theme.palette.success.main,
+    }
+  };
+  
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -537,6 +560,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                 setSelected={setSelected}
                 isCollapsed={isCollapsed}
                 searchTerm={searchTerm}
+                theme={theme}
               />
             ) : user?.roleName === 'contractor' ? (
               // Contractor menu (simple list)
@@ -550,6 +574,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                 setSelected={setSelected}
                 isCollapsed={isCollapsed}
                 privilegeCheck={item.privilege}
+                theme={theme}
               />
               ))
             ) : (
@@ -561,6 +586,8 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                   isCollapsed={isCollapsed}
                   isOpen={openGroups.dashboard}
                   onToggle={() => toggleGroup('dashboard')}
+                  theme={theme}
+                  colors={colors}
                 >
                   <SearchableMenu
                     items={dashboardItems}
@@ -568,6 +595,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                     setSelected={setSelected}
                     isCollapsed={isCollapsed}
                     searchTerm=""
+                    theme={theme}
                   />
                 </MenuGroup>
 
@@ -577,6 +605,8 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                   isCollapsed={isCollapsed}
                   isOpen={openGroups.reporting}
                   onToggle={() => toggleGroup('reporting')}
+                  theme={theme}
+                  colors={colors}
                 >
                   <SearchableMenu
                     items={reportingItems}
@@ -584,6 +614,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                     setSelected={setSelected}
                     isCollapsed={isCollapsed}
                     searchTerm=""
+                    theme={theme}
                   />
                 </MenuGroup>
 
@@ -593,6 +624,8 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                   isCollapsed={isCollapsed}
                   isOpen={openGroups.management}
                   onToggle={() => toggleGroup('management')}
+                  theme={theme}
+                  colors={colors}
                 >
                   <SearchableMenu
                     items={managementItems}
@@ -600,6 +633,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                     setSelected={setSelected}
                     isCollapsed={isCollapsed}
                     searchTerm=""
+                    theme={theme}
                   />
                 </MenuGroup>
 
@@ -610,6 +644,8 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                     isCollapsed={isCollapsed}
                     isOpen={openGroups.admin}
                     onToggle={() => toggleGroup('admin')}
+                    theme={theme}
+                    colors={colors}
                   >
                     <SearchableMenu
                       items={adminItems}
@@ -617,6 +653,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                       setSelected={setSelected}
                       isCollapsed={isCollapsed}
                       searchTerm=""
+                      theme={theme}
                     />
                   </MenuGroup>
                 )}
