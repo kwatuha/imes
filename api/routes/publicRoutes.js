@@ -103,6 +103,9 @@ router.get('/projects', async (req, res) => {
             finYearId, 
             status, 
             department,
+            departmentId,
+            subCountyId,
+            wardId,
             projectType,
             page = 1, 
             limit = 20,
@@ -127,6 +130,21 @@ router.get('/projects', async (req, res) => {
             queryParams.push(department);
         }
 
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (subCountyId) {
+            whereConditions.push('psc.subcountyId = ?');
+            queryParams.push(subCountyId);
+        }
+
+        if (wardId) {
+            whereConditions.push('pw.wardId = ?');
+            queryParams.push(wardId);
+        }
+
         if (projectType) {
             whereConditions.push('pc.categoryName = ?');
             queryParams.push(projectType);
@@ -146,31 +164,44 @@ router.get('/projects', async (req, res) => {
             FROM kemri_projects p
             LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
             LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
+            LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId AND psc.voided = 0
+            LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId AND pw.voided = 0
             WHERE ${whereClause}
         `;
 
         const [countResult] = await pool.query(countQuery, queryParams);
         const totalProjects = countResult[0].total;
 
-        // Get paginated projects
+        // Get paginated projects with geographic info
         const projectsQuery = `
-            SELECT 
+            SELECT DISTINCT
                 p.id,
-                p.projectName,
+                p.projectName as project_name,
                 p.projectDescription as description,
                 p.costOfProject as budget,
                 p.status,
-                p.startDate,
-                p.endDate,
+                p.startDate as start_date,
+                p.endDate as end_date,
                 p.overallProgress as completionPercentage,
-                d.name as department,
+                p.createdAt,
+                d.name as department_name,
                 pc.categoryName as projectType,
                 fy.finYearName as financialYear,
+                (SELECT GROUP_CONCAT(DISTINCT sc.name SEPARATOR ', ')
+                 FROM kemri_project_subcounties psc2
+                 JOIN kemri_subcounties sc ON psc2.subcountyId = sc.subcountyId
+                 WHERE psc2.projectId = p.id AND psc2.voided = 0) as subcounty_name,
+                (SELECT GROUP_CONCAT(DISTINCT w.name SEPARATOR ', ')
+                 FROM kemri_project_wards pw2
+                 JOIN kemri_wards w ON pw2.wardId = w.wardId
+                 WHERE pw2.projectId = p.id AND pw2.voided = 0) as ward_name,
                 (SELECT filePath FROM kemri_project_photos WHERE projectId = p.id AND voided = 0 LIMIT 1) as thumbnail
             FROM kemri_projects p
             LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
             LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
             LEFT JOIN kemri_financialyears fy ON p.finYearId = fy.finYearId
+            LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId AND psc.voided = 0
+            LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId AND pw.voided = 0
             WHERE ${whereClause}
             ORDER BY p.createdAt DESC
             LIMIT ? OFFSET ?
@@ -270,19 +301,21 @@ router.get('/stats/by-department', async (req, res) => {
 
         const query = `
             SELECT 
-                d.departmentId as id,
-                d.name as department,
+                d.departmentId as department_id,
+                d.name as department_name,
                 d.alias as departmentAlias,
-                COUNT(p.id) as project_count,
+                COUNT(p.id) as total_projects,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_count,
-                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_count,
-                COUNT(CASE WHEN p.status = 'Not Started' THEN 1 END) as not_started_count
+                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_projects,
+                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_projects,
+                COUNT(CASE WHEN p.status = 'Stalled' THEN 1 END) as stalled_projects,
+                COUNT(CASE WHEN p.status = 'Not Started' THEN 1 END) as not_started_projects,
+                COUNT(CASE WHEN p.status = 'Under Procurement' THEN 1 END) as under_procurement_projects
             FROM kemri_departments d
             LEFT JOIN kemri_projects p ON d.departmentId = p.departmentId AND p.voided = 0
             ${finYearId ? 'AND p.finYearId = ?' : ''}
             GROUP BY d.departmentId, d.name, d.alias
-            HAVING project_count > 0
+            HAVING total_projects > 0
             ORDER BY total_budget DESC
         `;
 
@@ -315,12 +348,12 @@ router.get('/stats/by-subcounty', async (req, res) => {
 
         const query = `
             SELECT 
-                sc.subcountyId as id,
-                sc.name as subCounty,
+                sc.subcountyId as subcounty_id,
+                sc.name as subcounty_name,
                 COUNT(psc.projectId) as project_count,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_count,
-                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_count
+                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_projects,
+                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_projects
             FROM kemri_subcounties sc
             LEFT JOIN kemri_project_subcounties psc ON sc.subcountyId = psc.subcountyId AND psc.voided = 0
             LEFT JOIN kemri_projects p ON psc.projectId = p.id AND p.voided = 0

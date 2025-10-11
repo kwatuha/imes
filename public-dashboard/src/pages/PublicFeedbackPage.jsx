@@ -22,7 +22,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Pagination
+  Pagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import {
   Search,
@@ -34,7 +41,8 @@ import {
   Person,
   Business,
   CalendarToday,
-  FilterList
+  FilterList,
+  Close
 } from '@mui/icons-material';
 import { formatDate } from '../utils/formatters';
 import { getFeedbackList } from '../services/publicApi';
@@ -48,6 +56,9 @@ const PublicFeedbackPage = () => {
   const [expandedId, setExpandedId] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStatus, setModalStatus] = useState('');
+  const [modalFeedbacks, setModalFeedbacks] = useState([]);
 
   useEffect(() => {
     fetchFeedbacks();
@@ -115,6 +126,22 @@ const PublicFeedbackPage = () => {
 
   const handleAccordionChange = (id) => (event, isExpanded) => {
     setExpandedId(isExpanded ? id : null);
+  };
+
+  const handleStatClick = (status) => {
+    const filtered = status === 'all' 
+      ? feedbacks 
+      : feedbacks.filter(f => f.status === status);
+    
+    setModalFeedbacks(filtered);
+    setModalStatus(status);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalFeedbacks([]);
+    setModalStatus('');
   };
 
   const getStatusInfo = (status) => {
@@ -210,10 +237,22 @@ const PublicFeedbackPage = () => {
         </Grid>
       </Paper>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards - Now Clickable! */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)', color: 'white' }}>
+          <Card 
+            onClick={() => handleStatClick('all')}
+            sx={{ 
+              background: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 12px 24px rgba(33, 150, 243, 0.4)'
+              }
+            }}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <Comment sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -222,12 +261,27 @@ const PublicFeedbackPage = () => {
               <Typography variant="body2">
                 Total Feedback
               </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                Click to view all
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', color: 'white' }}>
+          <Card 
+            onClick={() => handleStatClick('pending')}
+            sx={{ 
+              background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 12px 24px rgba(255, 152, 0, 0.4)'
+              }
+            }}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <Schedule sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -236,12 +290,27 @@ const PublicFeedbackPage = () => {
               <Typography variant="body2">
                 Pending Review
               </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                Click to view pending
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)', color: 'white' }}>
+          <Card 
+            onClick={() => handleStatClick('responded')}
+            sx={{ 
+              background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 12px 24px rgba(76, 175, 80, 0.4)'
+              }
+            }}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <CheckCircle sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -250,12 +319,27 @@ const PublicFeedbackPage = () => {
               <Typography variant="body2">
                 Responded
               </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                Click to view responses
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)', color: 'white' }}>
+          <Card 
+            onClick={() => handleStatClick('reviewed')}
+            sx={{ 
+              background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 12px 24px rgba(156, 39, 176, 0.4)'
+              }
+            }}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <Reply sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -263,6 +347,9 @@ const PublicFeedbackPage = () => {
               </Typography>
               <Typography variant="body2">
                 Under Review
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                Click to view reviewed
               </Typography>
             </CardContent>
           </Card>
@@ -506,6 +593,141 @@ const PublicFeedbackPage = () => {
           Browse Projects
         </Button>
       </Box>
+
+      {/* Feedback Status Modal */}
+      <Dialog
+        open={modalOpen}
+        onClose={handleCloseModal}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '85vh'
+          }
+        }}
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box display="flex" alignItems="center" gap={1}>
+              {modalStatus === 'all' && <Comment color="primary" />}
+              {modalStatus === 'pending' && <Schedule sx={{ color: '#ff9800' }} />}
+              {modalStatus === 'responded' && <CheckCircle sx={{ color: '#4caf50' }} />}
+              {modalStatus === 'reviewed' && <Reply sx={{ color: '#9c27b0' }} />}
+              <Box>
+                <Typography variant="h6" fontWeight="bold">
+                  {modalStatus === 'all' && 'All Feedback'}
+                  {modalStatus === 'pending' && 'Pending Review'}
+                  {modalStatus === 'responded' && 'Responded Feedback'}
+                  {modalStatus === 'reviewed' && 'Under Review'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {modalFeedbacks.length} {modalFeedbacks.length === 1 ? 'item' : 'items'}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton onClick={handleCloseModal} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent dividers>
+          {modalFeedbacks.length > 0 ? (
+            <List>
+              {modalFeedbacks.map((feedback, index) => (
+                <React.Fragment key={feedback.id || index}>
+                  <ListItem alignItems="flex-start" sx={{ display: 'block', py: 2 }}>
+                    <Box sx={{ mb: 1 }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {feedback.project_name || 'General Feedback'}
+                        </Typography>
+                        <Chip
+                          label={getStatusInfo(feedback.status).label}
+                          size="small"
+                          sx={{
+                            backgroundColor: getStatusInfo(feedback.status).color,
+                            color: 'white',
+                            fontWeight: 'bold'
+                          }}
+                        />
+                      </Box>
+                      
+                      <Typography variant="body2" fontWeight="medium" gutterBottom>
+                        {feedback.subject || 'No subject'}
+                      </Typography>
+                      
+                      <Box display="flex" gap={2} mb={1}>
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <Person sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            {feedback.name}
+                          </Typography>
+                        </Box>
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDate(feedback.created_at)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    <Paper 
+                      elevation={0}
+                      sx={{ 
+                        p: 2, 
+                        backgroundColor: '#f8f9fa',
+                        borderLeft: '4px solid #2196f3',
+                        borderRadius: '8px',
+                        mb: 2
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {feedback.message}
+                      </Typography>
+                    </Paper>
+
+                    {feedback.status === 'responded' && feedback.admin_response && (
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2, 
+                          backgroundColor: '#e8f5e9',
+                          borderLeft: '4px solid #4caf50',
+                          borderRadius: '8px'
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={1} mb={1}>
+                          <Reply sx={{ fontSize: 18, color: 'success.main' }} />
+                          <Typography variant="body2" fontWeight="bold" color="success.main">
+                            County Response
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {feedback.admin_response}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                          Responded on {formatDate(feedback.responded_at)}
+                        </Typography>
+                      </Paper>
+                    )}
+                  </ListItem>
+                  {index < modalFeedbacks.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
+            </List>
+          ) : (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Comment sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary">
+                No {modalStatus} feedback found
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 };

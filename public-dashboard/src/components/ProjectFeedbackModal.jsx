@@ -21,7 +21,6 @@ import {
   Send,
   Comment,
   LocationOn,
-  AttachMoney,
   Business
 } from '@mui/icons-material';
 import { submitFeedback } from '../services/publicApi';
@@ -198,12 +197,9 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AttachMoney sx={{ fontSize: 18, color: 'text.secondary' }} />
-                <Typography variant="body2" fontWeight="bold">
-                  {formatCurrency(project.budget)}
-                </Typography>
-              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Budget: <strong>{formatCurrency(project.budget)}</strong>
+              </Typography>
             </Grid>
 
             <Grid item xs={12}>

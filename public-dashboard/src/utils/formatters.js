@@ -1,15 +1,16 @@
-// Format currency in KES
+// Format currency in KES (Kenyan Shillings)
 export const formatCurrency = (amount) => {
   if (!amount || amount === 0) return 'Ksh 0';
   
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
+  // Format number with commas, no currency symbol
+  const formatted = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(num).replace('KES', 'Ksh');
+  }).format(num);
+  
+  return `Ksh ${formatted}`;
 };
 
 // Format large numbers with commas

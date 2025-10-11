@@ -26,13 +26,13 @@ import {
 import {
     Close,
     Assessment,
-    AttachMoney,
     CheckCircle,
     Construction,
     HourglassEmpty,
     ShoppingCart,
     Warning,
-    Comment
+    Comment,
+    TrendingUp
 } from '@mui/icons-material';
 import { getProjects } from '../services/publicApi';
 import { formatCurrency, formatDate, getStatusColor } from '../utils/formatters';
@@ -248,7 +248,7 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
                                         borderRadius: '12px'
                                     }}>
                                         <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                                            <AttachMoney sx={{ fontSize: '2rem', mb: 1 }} />
+                                            <TrendingUp sx={{ fontSize: '2rem', mb: 1 }} />
                                             <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                                                 {formatCurrency(stats.totalBudget)}
                                             </Typography>

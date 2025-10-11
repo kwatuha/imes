@@ -51,6 +51,33 @@ export const getProjectDetails = async (projectId) => {
   return response.data;
 };
 
+export const getProjectsByDepartment = async (departmentId, finYearId = null) => {
+  const params = { departmentId };
+  if (finYearId) params.finYearId = finYearId;
+  const response = await publicApi.get('/projects', { params });
+  return response.data.projects || [];
+};
+
+export const getProjectsBySubCounty = async (subCountyId, finYearId = null) => {
+  const params = { subCountyId };
+  if (finYearId) params.finYearId = finYearId;
+  const response = await publicApi.get('/projects', { params });
+  return response.data.projects || [];
+};
+
+export const getProjectsByWard = async (wardId, finYearId = null) => {
+  const params = { wardId };
+  if (finYearId) params.finYearId = finYearId;
+  const response = await publicApi.get('/projects', { params });
+  return response.data.projects || [];
+};
+
+export const getWardStats = async (finYearId = null) => {
+  const params = finYearId ? { finYearId } : {};
+  const response = await publicApi.get('/stats/by-ward', { params });
+  return response.data;
+};
+
 // Metadata
 export const getDepartments = async () => {
   const response = await publicApi.get('/metadata/departments');
