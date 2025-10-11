@@ -17,8 +17,12 @@ import FeedbackPage from './pages/FeedbackPage';
 import PublicFeedbackPage from './pages/PublicFeedbackPage';
 
 function App() {
+  // Use /public as basename when accessed through nginx proxy
+  // Empty string for direct access on port 5174
+  const basename = import.meta.env.VITE_BASE_PATH || '';
+  
   return (
-    <Router>
+    <Router basename={basename}>
       <CssBaseline />
       
       {/* Navigation Bar */}

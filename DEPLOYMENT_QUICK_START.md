@@ -332,3 +332,4 @@ See comprehensive guides:
 **Path**: /projects/imes  
 **Ports**: 3000 (API), 5173 (Frontend), 5174 (Public), 3306 (DB)
 
+
