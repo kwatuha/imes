@@ -63,7 +63,21 @@ const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCh
         onClick={() => setSelected(title)}
         icon={icon}
       >
-        <Typography>{title}</Typography>
+        <Typography 
+          variant="body2"
+          sx={{ 
+            fontSize: '0.875rem',
+            lineHeight: 1.3,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            wordBreak: 'break-word'
+          }}
+        >
+          {title}
+        </Typography>
         <Link to={to} />
       </MenuItem>
     </Tooltip>
@@ -83,11 +97,20 @@ const MenuGroup = ({ title, icon, children, isCollapsed, isOpen, onToggle, theme
         }}
         icon={icon}
       >
-        <Typography variant="h6">{title}</Typography>
+        <Typography 
+          variant="subtitle1"
+          sx={{ 
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            letterSpacing: '0.3px'
+          }}
+        >
+          {title}
+        </Typography>
         {!isCollapsed && (isOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />)}
       </MenuItem>
       <Collapse in={isOpen && !isCollapsed} timeout="auto" unmountOnExit>
-        <Box sx={{ pl: 2 }}>
+        <Box sx={{ pl: 1.5 }}>
           {children}
         </Box>
       </Collapse>
@@ -269,7 +292,8 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
           backgroundColor: "transparent !important",
         },
         "& .pro-inner-item": {
-          padding: "5px 35px 5px 20px !important",
+          padding: "6px 20px 6px 15px !important",
+          minHeight: "40px !important",
           color: theme.palette.mode === 'dark' 
             ? `${colors.grey[100]} !important` 
             : `${colors.grey[900]} !important`,
@@ -365,8 +389,8 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              padding: "15px 20px",
-              margin: "10px 15px",
+              padding: "10px 15px",
+              margin: "8px 12px",
               backgroundColor: theme.palette.mode === 'dark' 
                 ? colors.primary[600] 
                 : colors.primary[50],
@@ -374,26 +398,26 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
               ...(theme.palette.mode !== 'dark' && {
                 backgroundColor: `${colors.primary[50]} !important`,
               }),
-              borderRadius: "12px",
+              borderRadius: "10px",
               position: "relative",
               zIndex: 1005,
-              marginTop: "10px",
+              marginTop: "8px",
               border: `2px solid ${theme.palette.mode === 'dark' 
                 ? colors.primary[400] 
                 : colors.primary[100]}`,
               boxShadow: theme.palette.mode === 'dark' 
-                ? "0 4px 12px rgba(0,0,0,0.15)" 
-                : "0 4px 12px rgba(0,0,0,0.1)",
+                ? "0 3px 10px rgba(0,0,0,0.15)" 
+                : "0 3px 10px rgba(0,0,0,0.1)",
             }}
           >
             {/* Clean Title Only */}
             <Box display="flex" alignItems="center">
               <Typography 
-                variant="h4" 
+                variant="h5" 
                 color={theme.palette.mode === 'dark' 
                   ? colors.grey[100] 
                   : colors.grey[900]}
-                sx={{ fontWeight: 'bold' }}
+                sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}
               >
                 Menu
                 </Typography>
@@ -445,27 +469,27 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
             </Tooltip>
               </Box>
 
-          {/* User Profile Section - Cleaner Design */}
+          {/* User Profile Section - Compact Design */}
           {!isCollapsed && (
             <Box 
               sx={{ 
-                margin: "20px 15px",
-                padding: "20px",
+                margin: "12px 12px",
+                padding: "15px",
                 backgroundColor: theme.palette.mode === 'dark' 
                   ? colors.primary[500] 
                   : colors.primary[50],
-                borderRadius: "12px",
+                borderRadius: "10px",
                 border: `1px solid ${theme.palette.mode === 'dark' 
                   ? colors.primary[300] 
                   : colors.primary[100]}`,
                 textAlign: "center"
               }}
             >
-              <Box display="flex" justifyContent="center" alignItems="center" mb={2}>
+              <Box display="flex" justifyContent="center" alignItems="center" mb={1.5}>
                 <img
                   alt="Profile Picture"
-                  width="80px"
-                  height="80px"
+                  width="60px"
+                  height="60px"
                   src={userProfilePicture}
                   style={{ 
                     cursor: "pointer", 
@@ -475,24 +499,31 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                 />
               </Box>
                 <Typography
-                variant="h5"
+                variant="subtitle1"
                 color={theme.palette.mode === 'dark' 
                   ? colors.grey[100] 
                   : colors.grey[900]}
                   fontWeight="bold"
-                sx={{ mb: 0.5 }}
+                sx={{ 
+                  mb: 0.5,
+                  fontSize: '0.95rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
                 >
                   {user?.username}
                 </Typography>
               <Typography 
-                variant="body2" 
+                variant="caption" 
                 color={theme.palette.mode === 'dark' 
                   ? colors.greenAccent[400] 
                   : colors.greenAccent[600]}
                 sx={{ 
-                  fontWeight: 'medium',
+                  fontWeight: 600,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.5px',
+                  fontSize: '0.7rem'
                 }}
               >
                   {user?.roleName}
@@ -502,11 +533,11 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
 
           {/* Search functionality */}
           {!isCollapsed && (
-            <Box sx={{ margin: "0 15px 15px 15px" }}>
+            <Box sx={{ margin: "0 12px 12px 12px" }}>
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Search menu..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={handleSearchChange}
                 InputProps={{
@@ -551,7 +582,7 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
             </Box>
           )}
 
-          <Box paddingLeft={isCollapsed ? undefined : "10%"}>
+          <Box paddingLeft={isCollapsed ? undefined : "5%"}>
             {searchTerm ? (
               // Show search results
               <SearchableMenu

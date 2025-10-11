@@ -1,6 +1,7 @@
 # Node.js dependencies and environment files
 api/uploads/
 frontend/node_modules/
+public-dashboard/node_modules/
 api/package-lock.json
 frontend/package-lock.json
 api/.env
