@@ -170,21 +170,21 @@ const ProjectActivityFeed = ({ currentUser }) => {
   };
 
   return (
-    <Card sx={{ 
-      height: '100%',
-      borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: `0 8px 30px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}25`,
-      }
-    }}>
+      <Card sx={{ 
+        height: '100%',
+        borderRadius: 3, 
+        bgcolor: '#ffffff',
+        boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
+        border: `1px solid rgba(0,0,0,0.08)`,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: `0 8px 30px rgba(0,0,0,0.08)`,
+        }
+      }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
+          <Typography variant="h6" fontWeight="bold" color="#000000">
             Project Activity Feed
           </Typography>
           <Box display="flex" alignItems="center" gap={1}>
@@ -234,7 +234,7 @@ const ProjectActivityFeed = ({ currentUser }) => {
                         <Typography 
                           variant="subtitle2" 
                           fontWeight="bold" 
-                          color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
+                          color="#000000"
                           sx={{ fontSize: '0.9rem' }}
                         >
                           {getActivityTitle(activity.type)}
@@ -260,7 +260,8 @@ const ProjectActivityFeed = ({ currentUser }) => {
                       
                       <Typography 
                         variant="body2" 
-                        color={theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700]}
+                        color="#333333"
+                        fontWeight="500"
                         sx={{ fontSize: '0.8rem', mb: 1 }}
                       >
                         {activity.content}
@@ -268,10 +269,11 @@ const ProjectActivityFeed = ({ currentUser }) => {
                       
                       <Box display="flex" alignItems="center" gap={2}>
                         <Box display="flex" alignItems="center" gap={0.5}>
-                          <PersonIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
+                          <PersonIcon sx={{ fontSize: 12, color: '#666666' }} />
                           <Typography 
                             variant="caption" 
-                            color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}
+                            color="#555555"
+                            fontWeight="600"
                             sx={{ fontSize: '0.7rem' }}
                           >
                             {activity.user}
@@ -279,10 +281,11 @@ const ProjectActivityFeed = ({ currentUser }) => {
                         </Box>
                         
                         <Box display="flex" alignItems="center" gap={0.5}>
-                          <ScheduleIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
+                          <ScheduleIcon sx={{ fontSize: 12, color: '#666666' }} />
                           <Typography 
                             variant="caption" 
-                            color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}
+                            color="#555555"
+                            fontWeight="600"
                             sx={{ fontSize: '0.7rem' }}
                           >
                             {activity.timestamp}

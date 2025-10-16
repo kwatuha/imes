@@ -11,27 +11,30 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import { Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { PageTitleProvider } from '../context/PageTitleContext.jsx';
+import { ProfileModalProvider } from '../context/ProfileModalContext.jsx';
+import { usePageTitleEffect } from '../hooks/usePageTitle.js';
 import { ROUTES } from '../configs/appConfig.js';
 import logo from '../assets/logo.png';
 import { useTheme } from "@mui/material";
-import { ColorModeContext, tokens } from "../pages/dashboard/theme";
+// ✨ Removed old theme system imports
 import Topbar from "./Topbar.jsx";
 import Sidebar from "./Sidebar.jsx";
 import FloatingChatButton from "../components/chat/FloatingChatButton.jsx";
 
 const drawerWidth = 240;
-const collapsedDrawerWidth = 60;
 
-function MainLayout() {
+function MainLayoutContent() {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-  const colorMode = useContext(ColorModeContext);
+  // ✨ Using MUI theme directly - simpler and clearer!
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auto-update page title based on route
+  usePageTitleEffect();
 
 
   const handleDrawerToggle = () => {
@@ -65,7 +68,7 @@ function MainLayout() {
           zIndex: 1000,
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ p: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <IconButton
               color="inherit"
@@ -77,7 +80,7 @@ function MainLayout() {
               <MenuIcon />
             </IconButton>
             
-            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: '200px' }}>
               <img src={logo} alt="IPMES Logo" style={{ height: '40px', marginRight: '10px' }} />
               <Typography variant="h6" noWrap component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
                 IPMES
@@ -86,11 +89,6 @@ function MainLayout() {
             
             <Topbar />
             
-            {user && (
-              <Typography variant="subtitle1" sx={{ ml: 2, color: 'white' }}>
-                Welcome, {user.username}!
-              </Typography>
-            )}
             <Button
               variant="contained"
               color="secondary"
@@ -104,6 +102,7 @@ function MainLayout() {
                 borderRadius: '8px',
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                 transition: 'background-color 0.2s ease-in-out',
+                minWidth: '80px'
               }}
             >
               Logout
@@ -113,8 +112,6 @@ function MainLayout() {
       </AppBar>
       <Box sx={{ display: 'flex' }}>
         <Sidebar 
-          collapsed={sidebarCollapsed} 
-          onCollapseChange={setSidebarCollapsed}
           mobileOpen={mobileOpen}
           onMobileClose={handleDrawerToggle}
         />
@@ -122,12 +119,17 @@ function MainLayout() {
           component="main"
           sx={{
             flexGrow: 1, 
-            p: 3, 
+            p: { xs: 2, sm: 3, md: 4 }, 
             mt: '64px',
-            width: { sm: `calc(100% - ${sidebarCollapsed ? collapsedDrawerWidth : drawerWidth}px)` },
-            ml: { sm: `${sidebarCollapsed ? collapsedDrawerWidth : drawerWidth}px` },
-            transition: 'margin 0.3s ease-in-out, width 0.3s ease-in-out',
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            ml: { sm: `${drawerWidth}px` },
             minHeight: 'calc(100vh - 64px)',
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? theme.palette.background.default
+              : '#ffffff',
+            borderLeft: { sm: `none` },
+            position: 'relative',
+            zIndex: 1,
           }}
         >
           <Outlet />
@@ -137,6 +139,16 @@ function MainLayout() {
       {/* Floating Chat Button */}
       <FloatingChatButton />
     </>
+  );
+}
+
+function MainLayout() {
+  return (
+    <PageTitleProvider>
+      <ProfileModalProvider>
+        <MainLayoutContent />
+      </ProfileModalProvider>
+    </PageTitleProvider>
   );
 }
 

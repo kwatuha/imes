@@ -124,16 +124,21 @@ const TeamDirectoryCard = ({ currentUser }) => {
   });
 
   return (
-    <Card sx={{ 
-      height: '100%',
-      borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-    }}>
+      <Card sx={{ 
+        height: '100%',
+        borderRadius: 3, 
+        bgcolor: '#ffffff',
+        boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
+        border: `1px solid rgba(0,0,0,0.08)`,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: `0 8px 30px rgba(0,0,0,0.08)`,
+        }
+      }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
+          <Typography variant="h6" fontWeight="bold" color="#000000">
             Team Directory
           </Typography>
           <Chip 
@@ -158,7 +163,7 @@ const TeamDirectoryCard = ({ currentUser }) => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
+                  <SearchIcon sx={{ color: '#666666' }} />
                 </InputAdornment>
               ),
             }}
@@ -166,7 +171,7 @@ const TeamDirectoryCard = ({ currentUser }) => {
               flex: 1, 
               minWidth: 200,
               '& .MuiOutlinedInput-root': {
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
+                bgcolor: '#ffffff',
               }
             }}
           />
@@ -177,7 +182,7 @@ const TeamDirectoryCard = ({ currentUser }) => {
               onChange={(e) => setDepartmentFilter(e.target.value)}
               label="Department"
               sx={{ 
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
+                bgcolor: '#ffffff',
               }}
             >
               {departments.map(dept => (
@@ -197,11 +202,11 @@ const TeamDirectoryCard = ({ currentUser }) => {
               sx={{ 
                 p: 2,
                 borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
-                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`,
+                bgcolor: '#ffffff',
+                border: `1px solid rgba(0,0,0,0.08)`,
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.primary[200],
+                  bgcolor: '#f8fafc',
                   transform: 'translateX(4px)',
                 }
               }}
@@ -224,7 +229,7 @@ const TeamDirectoryCard = ({ currentUser }) => {
                     <Typography 
                       variant="subtitle1" 
                       fontWeight="bold" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
+                      color="#000000"
                     >
                       {member.name}
                     </Typography>
@@ -243,7 +248,8 @@ const TeamDirectoryCard = ({ currentUser }) => {
                   
                   <Typography 
                     variant="body2" 
-                    color={theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700]}
+                    color="#333333"
+                    fontWeight="500"
                     sx={{ mb: 1 }}
                   >
                     {member.role} • {member.department}
@@ -251,27 +257,27 @@ const TeamDirectoryCard = ({ currentUser }) => {
                   
                   <Box display="flex" alignItems="center" gap={2} mb={1} flexWrap="wrap">
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <EmailIcon sx={{ fontSize: 14, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                      <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
+                      <EmailIcon sx={{ fontSize: 14, color: '#666666' }} />
+                      <Typography variant="caption" color="#555555" fontWeight="600">
                         {member.email}
                       </Typography>
                     </Box>
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <PhoneIcon sx={{ fontSize: 14, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                      <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
+                      <PhoneIcon sx={{ fontSize: 14, color: '#666666' }} />
+                      <Typography variant="caption" color="#555555" fontWeight="600">
                         {member.phone}
                       </Typography>
                     </Box>
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <LocationIcon sx={{ fontSize: 14, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                      <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
+                      <LocationIcon sx={{ fontSize: 14, color: '#666666' }} />
+                      <Typography variant="caption" color="#555555" fontWeight="600">
                         {member.location}
                       </Typography>
                     </Box>
                   </Box>
                   
                   <Box mb={1}>
-                    <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]} sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                    <Typography variant="caption" color="#555555" fontWeight="600" sx={{ fontSize: '0.7rem' }}>
                       Skills:
                     </Typography>
                     <Box display="flex" gap={0.5} mt={0.5} flexWrap="wrap">

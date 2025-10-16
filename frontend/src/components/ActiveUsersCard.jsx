@@ -15,6 +15,7 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   Chat as ChatIcon,
@@ -25,7 +26,7 @@ import {
 } from '@mui/icons-material';
 import { tokens } from '../pages/dashboard/theme';
 
-const ActiveUsersCard = ({ currentUser }) => {
+const ActiveUsersCard = ({ currentUser, compact = false, onUserSelect }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [activeUsers, setActiveUsers] = useState([]);
@@ -95,7 +96,7 @@ const ActiveUsersCard = ({ currentUser }) => {
     setTimeout(() => {
       setActiveUsers(mockActiveUsers);
       setLoading(false);
-    }, 1000);
+    }, 500); // Reduced loading time for better UX
   }, []);
 
   const getStatusColor = (status) => {
@@ -126,7 +127,9 @@ const ActiveUsersCard = ({ currentUser }) => {
 
   const handleStartChat = (user) => {
     console.log('Starting chat with:', user.name);
-    // TODO: Implement chat functionality
+    if (onUserSelect) {
+      onUserSelect(user);
+    }
   };
 
   const handleVideoCall = (user) => {
@@ -141,73 +144,59 @@ const ActiveUsersCard = ({ currentUser }) => {
 
   if (loading) {
     return (
-      <Card sx={{ 
-        height: '100%',
-        borderRadius: 3, 
-        bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-        boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-        border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-      }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]} mb={3}>
-            Active Users
+      <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={24} sx={{ color: colors.blueAccent?.[500] || '#6870fa', mb: 1 }} />
+          <Typography variant="body2" sx={{ color: '#555555', fontWeight: '500' }}>
+            Loading active users...
           </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-            <Typography variant="body2" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
-              Loading active users...
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
+        </Box>
+      </Box>
     );
   }
 
-  return (
-    <Card sx={{ 
-      height: '100%',
-      borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: `0 8px 30px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}25`,
-      }
-    }}>
-      <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
-            Active Users
-          </Typography>
-          <Box display="flex" alignItems="center" gap={1}>
-            <Chip 
-              label={`${activeUsers.filter(user => user.status === 'online').length} online`}
-              size="small"
-              sx={{ 
-                bgcolor: colors.greenAccent?.[500] || '#4caf50',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '0.7rem'
-              }}
-            />
-            <IconButton size="small" sx={{ color: colors.blueAccent?.[500] || '#6870fa' }}>
-              <ChatIcon />
-            </IconButton>
-          </Box>
-        </Box>
+  // Show only first 4 users in compact mode
+  const displayUsers = compact ? activeUsers.slice(0, 4) : activeUsers;
+  
+  // Debug logging
+  console.log('ActiveUsersCard - compact:', compact, 'activeUsers:', activeUsers.length, 'displayUsers:', displayUsers.length);
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, overflowY: 'auto' }}>
-          {activeUsers.map((user) => (
+  return (
+    <Box sx={{ height: '100%' }}>
+      {/* Users List - Always render */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: 1, 
+        flex: 1, 
+        overflowY: 'auto',
+        height: '100%'
+      }}>
+        {displayUsers.length === 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '100%',
+            p: 2
+          }}>
+            <Typography variant="body2" sx={{ color: '#555555', fontWeight: '500' }}>
+              No active users found
+            </Typography>
+          </Box>
+        ) : (
+          displayUsers.map((user) => (
             <ListItem 
               key={user.id}
+              onClick={() => handleStartChat(user)}
               sx={{ 
                 p: 1,
                 borderRadius: 2,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
+                  bgcolor: '#f8fafc',
+                  transform: 'translateX(2px)'
                 }
               }}
             >
@@ -220,7 +209,7 @@ const ActiveUsersCard = ({ currentUser }) => {
                       sx={{ 
                         color: getStatusColor(user.status),
                         fontSize: 12,
-                        bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
+                        bgcolor: '#ffffff',
                         borderRadius: '50%',
                         p: 0.5
                       }} 
@@ -247,8 +236,10 @@ const ActiveUsersCard = ({ currentUser }) => {
                     <Typography 
                       variant="subtitle2" 
                       fontWeight="bold" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
-                      sx={{ fontSize: '0.9rem' }}
+                      sx={{ 
+                        color: '#000000',
+                        fontSize: '0.9rem' 
+                      }}
                     >
                       {user.name}
                     </Typography>
@@ -285,8 +276,10 @@ const ActiveUsersCard = ({ currentUser }) => {
                   <Box>
                     <Typography 
                       variant="caption" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}
-                      sx={{ fontSize: '0.75rem' }}
+                      sx={{ 
+                        color: '#555555',
+                        fontSize: '0.75rem' 
+                      }}
                     >
                       {user.role} • {user.department}
                     </Typography>
@@ -350,20 +343,10 @@ const ActiveUsersCard = ({ currentUser }) => {
                 </Box>
               </ListItemSecondaryAction>
             </ListItem>
-          ))}
-        </Box>
-
-        <Box mt={2} pt={2} borderTop={`1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`}>
-          <Typography 
-            variant="caption" 
-            color={theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600]}
-            sx={{ fontSize: '0.7rem' }}
-          >
-            Click on any user to start a conversation
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+          ))
+        )}
+      </Box>
+    </Box>
   );
 };
 

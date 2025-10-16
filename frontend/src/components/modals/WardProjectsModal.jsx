@@ -33,7 +33,8 @@ import reportsService from '../../api/reportsService';
 window.testWardAPI = async (wardName) => {
     try {
         console.log('Testing API endpoint for ward:', wardName);
-        const response = await fetch(`http://localhost:8080/api/reports/project-list-detailed?ward=${encodeURIComponent(wardName)}`);
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/reports/project-list-detailed?ward=${encodeURIComponent(wardName)}`);
         const data = await response.json();
         console.log('API Response:', data);
         console.log('Response length:', data.length);

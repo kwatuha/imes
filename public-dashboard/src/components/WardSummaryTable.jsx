@@ -30,7 +30,7 @@ import WardProjectsModal from './WardProjectsModal';
 import { getWardStats } from '../services/publicApi';
 import { formatCurrency } from '../utils/formatters';
 
-const WardSummaryTable = ({ finYearId }) => {
+const WardSummaryTable = ({ finYearId, filters = {} }) => {
   const theme = useTheme();
   const [wardsBySubCounty, setWardsBySubCounty] = useState({});
   const [loading, setLoading] = useState(true);
@@ -41,12 +41,12 @@ const WardSummaryTable = ({ finYearId }) => {
 
   useEffect(() => {
     fetchWardStats();
-  }, [finYearId]);
+  }, [finYearId, filters]);
 
   const fetchWardStats = async () => {
     try {
       setLoading(true);
-      const data = await getWardStats(finYearId);
+      const data = await getWardStats(finYearId, filters);
       
       // Group wards by sub-county
       const grouped = (data || []).reduce((acc, ward) => {
@@ -367,4 +367,5 @@ const WardSummaryTable = ({ finYearId }) => {
 };
 
 export default WardSummaryTable;
+
 

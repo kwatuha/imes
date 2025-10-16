@@ -2,7 +2,7 @@
 
 ## 🎯 Overview
 
-Enhanced the public dashboard (http://localhost:5174) with comprehensive department and regional analytics inspired by [Makueni County PMTS](https://pmts.makueni.go.ke/views/landing_dashboard).
+Enhanced the public dashboard (http://165.22.227.234:5174) with comprehensive department and regional analytics inspired by [Makueni County PMTS](https://pmts.makueni.go.ke/views/landing_dashboard).
 
 ---
 
@@ -251,7 +251,7 @@ Updated landing page with:
 ### **For Citizens:**
 
 1. **Visit Home Page**
-   - Go to: http://localhost:5174
+   - Go to: http://165.22.227.234:5174
    - See quick stats overview
    - Click "View Full Dashboard" button
 
@@ -339,7 +339,7 @@ Updated landing page with:
 ## 🔄 Complete User Journey
 
 ```
-Landing Page (http://localhost:5174)
+Landing Page (http://165.22.227.234:5174)
     ↓
 View Quick Stats
     ↓
@@ -528,7 +528,7 @@ DashboardPage
 
 ### **Scenario: Citizen Exploring County Projects**
 
-1. **Start:** Visit http://localhost:5174
+1. **Start:** Visit http://165.22.227.234:5174
    - See homepage with quick stats
    - Notice new "Explore Detailed Analytics" section
    
@@ -558,7 +558,7 @@ DashboardPage
 
 ### **Public Dashboard:**
 ```
-Base URL: http://localhost:5174
+Base URL: http://165.22.227.234:5174
 
 Routes:
   /              - Landing page with overview
@@ -570,7 +570,7 @@ Routes:
 
 ### **Admin Dashboard (For Responses):**
 ```
-Base URL: http://localhost:5173
+Base URL: http://165.22.227.234:5173
 
 Routes:
   /feedback-management - Respond to citizen feedback
@@ -684,4 +684,5 @@ Your public dashboard now rivals Makueni County's PMTS with:
 ---
 
 *Inspired by: [Makueni County PMTS](https://pmts.makueni.go.ke/views/landing_dashboard?fy=2025/2026&id=6)*
+
 

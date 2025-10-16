@@ -14,7 +14,7 @@
 
 #### ✅ Statistics - Overview
 ```bash
-GET http://localhost:3000/api/public/stats/overview
+GET http://165.22.227.234:3000/api/public/stats/overview
 ```
 **Response:**
 ```json
@@ -36,7 +36,7 @@ GET http://localhost:3000/api/public/stats/overview
 
 #### ✅ Financial Years
 ```bash
-GET http://localhost:3000/api/public/financial-years
+GET http://165.22.227.234:3000/api/public/financial-years
 ```
 **Response:**
 ```json
@@ -193,7 +193,7 @@ Update `docker-compose.yml`:
       - ./public-dashboard:/app
       - /app/node_modules
     environment:
-      VITE_API_URL: http://localhost:3000/api
+      VITE_API_URL: http://165.22.227.234:3000/api
     command: npm run dev
 ```
 
@@ -254,8 +254,8 @@ From Makueni PMTS:
 
 ```bash
 # Test current working endpoints
-curl http://localhost:3000/api/public/stats/overview
-curl http://localhost:3000/api/public/financial-years
+curl http://165.22.227.234:3000/api/public/stats/overview
+curl http://165.22.227.234:3000/api/public/financial-years
 
 # Create public dashboard
 cd /home/dev/dev/imes
@@ -285,5 +285,6 @@ The public API foundation is ready. You can start building the public dashboard 
 ---
 
 **Questions?** Refer to `PUBLIC_DASHBOARD_IMPLEMENTATION_GUIDE.md` for detailed implementation steps.
+
 
 

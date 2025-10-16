@@ -10,7 +10,9 @@ import {
   Alert,
   Card,
   CardContent,
-  Divider
+  Divider,
+  Avatar,
+  Chip
 } from '@mui/material';
 import {
   CheckCircle,
@@ -24,7 +26,10 @@ import {
   LocationOn,
   PhotoLibrary,
   Feedback,
-  ArrowForward
+  ArrowForward,
+  TrendingUp,
+  Engineering,
+  Public
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
@@ -137,23 +142,80 @@ const HomePage = () => {
 
   return (
     <Box>
-      {/* Hero Section */}
+      {/* Logo and Header Section */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-          color: 'white',
-          py: 8,
-          mb: 6
+          background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+          py: 6,
+          borderBottom: '2px solid #dee2e6',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}
       >
         <Container maxWidth="lg">
-          <Typography variant="h2" fontWeight="bold" gutterBottom align="center">
-            County Projects Monitoring & Tracking System
+          <Box display="flex" alignItems="center" justifyContent="center" gap={4}>
+            <Box
+              component="img"
+              src="images/logo.min.png"
+              alt="County Government of Kisumu Logo"
+              sx={{
+                height: 120,
+                width: 'auto',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
+              }}
+            />
+            <Box textAlign="center">
+              <Typography variant="h3" fontWeight="bold" color="#2c3e50" gutterBottom>
+                COUNTY GOVERNMENT OF KISUMU
+              </Typography>
+              <Typography variant="h5" color="#6c757d" sx={{ fontWeight: 500 }}>
+                Project Management System
+              </Typography>
+              <Typography variant="body1" color="#6c757d" sx={{ mt: 1, opacity: 0.8 }}>
+                Empowering Transparency • Building Communities • Delivering Results
+              </Typography>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+
+      {/* Hero Section with Road Construction Photo */}
+      <Box
+        sx={{
+          position: 'relative',
+          background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+          color: 'white',
+          py: 8,
+          mb: 6,
+          overflow: 'hidden'
+        }}
+      >
+        {/* Background Pattern */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 0h60v60H0z\' fill=\'none\'/%3E%3Cpath d=\'M30 30a15 15 0 1 0 30 0 15 15 0 1 0-30 0\' fill=\'%23fff\' opacity=\'0.05\'/%3E%3C/svg%3E")',
+            opacity: 0.1
+          }}
+        />
+        
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Grid container spacing={4} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Typography variant="h3" fontWeight="bold" gutterBottom>
+                Building Kisumu Together
           </Typography>
-          <Typography variant="h5" align="center" sx={{ mb: 4, opacity: 0.9 }}>
+              <Typography variant="h5" sx={{ mb: 2, opacity: 0.9, fontWeight: 600 }}>
+                Infrastructure Development in Progress
+          </Typography>
+              <Typography variant="h6" sx={{ mb: 4, opacity: 0.8 }}>
             A Unified Platform For Transparency And Accountability
           </Typography>
-          <Box display="flex" justifyContent="center" gap={2}>
+              <Box display="flex" gap={2} flexWrap="wrap" sx={{ mb: 3 }}>
             <Button
               variant="contained"
               size="large"
@@ -161,9 +223,18 @@ const HomePage = () => {
               sx={{
                 backgroundColor: 'white',
                 color: '#1976d2',
+                    px: 4,
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                    borderRadius: 3,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 '&:hover': {
-                  backgroundColor: '#f5f5f5'
-                }
+                      backgroundColor: '#f5f5f5',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
+                    },
+                    transition: 'all 0.3s ease'
               }}
             >
               View Dashboard
@@ -175,17 +246,615 @@ const HomePage = () => {
               sx={{
                 borderColor: 'white',
                 color: 'white',
+                    px: 4,
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                    borderRadius: 3,
+                    borderWidth: 2,
                 '&:hover': {
                   borderColor: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                }
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
+                    },
+                    transition: 'all 0.3s ease'
               }}
             >
               Browse Projects
             </Button>
           </Box>
+              <Box display="flex" gap={4} flexWrap="wrap" sx={{ mt: 2 }}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <CheckCircle sx={{ color: '#4caf50', fontSize: 20 }} />
+                  <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+                    Real-time Project Tracking
+                  </Typography>
+                </Box>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Public sx={{ color: '#4caf50', fontSize: 20 }} />
+                  <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+                    Public Transparency
+                  </Typography>
+                </Box>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <TrendingUp sx={{ color: '#4caf50', fontSize: 20 }} />
+                  <Typography variant="body2" color="white" sx={{ opacity: 0.9 }}>
+                    Progress Monitoring
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Paper
+                elevation={8}
+                sx={{
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}
+              >
+                <Box
+                  sx={{
+                    background: 'linear-gradient(45deg, #ff6b35, #f7931e)',
+                    p: 3,
+                    color: 'white',
+                    textAlign: 'center'
+                  }}
+                >
+                  <Typography variant="h5" fontWeight="bold" sx={{ mb: 1 }}>
+                    Wells-Walgudha Road Project
+                  </Typography>
+                  <Chip
+                    label="29.1% Complete"
+                    sx={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem',
+                      px: 2,
+                      py: 0.5
+                    }}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    height: 450,
+                    backgroundImage: 'url("/images/wells-walgudha-road.jpg")',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                    pb: 3,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%)',
+                      zIndex: 1
+                    }
+                  }}
+                >
+                  <Box
+                    sx={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      color: 'white',
+                      px: 3,
+                      py: 2,
+                      borderRadius: 3,
+                      textAlign: 'center',
+                      position: 'relative',
+                      zIndex: 2,
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      maxWidth: '95%',
+                      mx: 'auto'
+                    }}
+                  >
+                    <Typography variant="body1" fontWeight="bold" gutterBottom>
+                      Infrastructure Development in Progress
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Connecting Communities • Building Futures
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
         </Container>
       </Box>
+
+      {/* Featured Project Section */}
+      <Container maxWidth="lg" sx={{ mb: 8 }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom align="center" sx={{ mb: 4 }}>
+          Featured Project
+        </Typography>
+        
+        <Paper
+          elevation={6}
+          sx={{
+            borderRadius: 4,
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+            border: '1px solid #e9ecef'
+          }}
+        >
+          <Grid container>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ p: 4 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <Engineering sx={{ fontSize: 40, color: '#1976d2' }} />
+                  <Box>
+                    <Typography variant="h5" fontWeight="bold" color="#2c3e50">
+                      Wells-Walgudha Road
+                    </Typography>
+                    <Typography variant="body1" color="#6c757d">
+                      Infrastructure Development Project
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Typography variant="body1" color="text.secondary" paragraph>
+                  This critical infrastructure project aims to improve connectivity between Wells and Walgudha areas, 
+                  enhancing transportation efficiency and supporting local economic development.
+                </Typography>
+                
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={6}>
+                    <Box textAlign="center" p={2} sx={{ backgroundColor: '#e3f2fd', borderRadius: 2 }}>
+                      <Typography variant="h6" fontWeight="bold" color="#1976d2">
+                        29.1%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Completion
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box textAlign="center" p={2} sx={{ backgroundColor: '#f3e5f5', borderRadius: 2 }}>
+                      <Typography variant="h6" fontWeight="bold" color="#9c27b0">
+                        Ongoing
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Status
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+                
+                <Box display="flex" gap={2} flexWrap="wrap">
+                  <Chip
+                    icon={<TrendingUp />}
+                    label="Infrastructure"
+                    color="primary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    icon={<Public />}
+                    label="Public Works"
+                    color="secondary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    icon={<LocationOn />}
+                    label="Wells-Walgudha"
+                    color="default"
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  height: { xs: 400, md: '100%' },
+                  backgroundImage: 'url("/images/wells-walgudha-road.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  pb: 4,
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 100%)',
+                    zIndex: 1
+                  }
+                }}
+              >
+                <Box
+                  sx={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                    color: 'white',
+                    px: 4,
+                    py: 3,
+                    borderRadius: 4,
+                    textAlign: 'center',
+                    position: 'relative',
+                    zIndex: 2,
+                    backdropFilter: 'blur(15px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    maxWidth: '95%',
+                    mx: 'auto',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                  }}
+                >
+                  <Typography variant="h5" fontWeight="bold" gutterBottom>
+                    Wells-Walgudha Road Progress
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9, mb: 1 }}>
+                    Sub-base layer processing • Km 0+560-0+750
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                    GCS base layer and priming • Km 0+030-0+180
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Container>
+
+      {/* Project Gallery Section */}
+      <Container maxWidth="lg" sx={{ mb: 8 }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom align="center" sx={{ mb: 4 }}>
+          Project Gallery
+        </Typography>
+        <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
+          See the progress and leadership involvement in our infrastructure development projects
+        </Typography>
+        
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={4}
+              sx={{
+                borderRadius: 3,
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 8
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  height: 250,
+                  backgroundImage: 'url("images/governor_coming_out_of_road_machine.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+                    zIndex: 1
+                  }
+                }}
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    p: 2,
+                    zIndex: 2
+                  }}
+                >
+                  <Typography variant="body2" color="white" fontWeight="bold">
+                    Governor Inspecting Road Equipment
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={4}
+              sx={{
+                borderRadius: 3,
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 8
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  height: 250,
+                  backgroundImage: 'url("images/governor_driving_road_equipment.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+                    zIndex: 1
+                  }
+                }}
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    p: 2,
+                    zIndex: 2
+                  }}
+                >
+                  <Typography variant="body2" color="white" fontWeight="bold">
+                    Hands-On Leadership
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={4}
+              sx={{
+                borderRadius: 3,
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 8
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  height: 250,
+                  backgroundImage: 'url("images/governor_greeting.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+                    zIndex: 1
+                  }
+                }}
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    p: 2,
+                    zIndex: 2
+                  }}
+                >
+                  <Typography variant="body2" color="white" fontWeight="bold">
+                    Community Engagement
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              elevation={4}
+              sx={{
+                borderRadius: 3,
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 8
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  height: 250,
+                  backgroundImage: 'url("images/wells-walgudha-road.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%)',
+                    zIndex: 1
+                  }
+                }}
+              >
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    p: 2,
+                    zIndex: 2
+                  }}
+                >
+                  <Typography variant="body2" color="white" fontWeight="bold">
+                    Wells-Walgudha Road Progress
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Grid>
+        </Grid>
+      </Container>
+
+      {/* Key Features Section */}
+      <Container maxWidth="lg" sx={{ mb: 8 }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom align="center" sx={{ mb: 2 }}>
+          Why Choose Our Platform?
+        </Typography>
+        <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 6 }}>
+          Experience the future of transparent and accountable project management
+        </Typography>
+        
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={4}>
+            <Card
+              elevation={3}
+              sx={{
+                p: 3,
+                height: '100%',
+                textAlign: 'center',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 6
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  backgroundColor: '#e3f2fd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3
+                }}
+              >
+                <Dashboard sx={{ fontSize: 40, color: '#1976d2' }} />
+              </Box>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Real-Time Dashboard
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Monitor project progress, budgets, and timelines with live updates and comprehensive analytics.
+              </Typography>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Card
+              elevation={3}
+              sx={{
+                p: 3,
+                height: '100%',
+                textAlign: 'center',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 6
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  backgroundColor: '#f3e5f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3
+                }}
+              >
+                <Public sx={{ fontSize: 40, color: '#9c27b0' }} />
+              </Box>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Public Transparency
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Citizens can track projects, submit proposals, and provide feedback for better governance.
+              </Typography>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Card
+              elevation={3}
+              sx={{
+                p: 3,
+                height: '100%',
+                textAlign: 'center',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-8px)',
+                  boxShadow: 6
+                }
+              }}
+            >
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  backgroundColor: '#e8f5e8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3
+                }}
+              >
+                <TrendingUp sx={{ fontSize: 40, color: '#4caf50' }} />
+              </Box>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Performance Analytics
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Detailed insights into project performance, budget utilization, and completion rates.
+              </Typography>
+            </Card>
+          </Grid>
+        </Grid>
+      </Container>
 
       {/* Quick Stats Section */}
       <Container maxWidth="lg" sx={{ mb: 8 }}>

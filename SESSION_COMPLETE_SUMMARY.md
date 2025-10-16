@@ -23,7 +23,7 @@
 **What:** Complete two-way feedback mechanism
 
 **For County Staff (Protected):**
-- URL: http://localhost:5173/feedback-management
+- URL: http://165.22.227.234:5173/feedback-management
 - Features:
   - View all citizen feedback
   - Respond via modal dialog
@@ -32,7 +32,7 @@
   - Real-time statistics
 
 **For Citizens (Public):**
-- URL: http://localhost:5174/public-feedback
+- URL: http://165.22.227.234:5174/public-feedback
 - Features:
   - View all feedback submissions
   - See official county responses
@@ -320,29 +320,29 @@
 
 ```
 🏠 Homepage
-http://localhost:5174
+http://165.22.227.234:5174
 ├─ Quick stats overview
 ├─ Analytics promo banner
 └─ Quick access cards
 
 📊 Analytics Dashboard
-http://localhost:5174/dashboard
+http://165.22.227.234:5174/dashboard
 ├─ Financial year tabs
 ├─ Department summary table ← CLICK ROWS
 ├─ Sub-county summary table ← CLICK ROWS
 └─ Interactive modals with 💬 icons
 
 📷 Projects Gallery
-http://localhost:5174/projects
+http://165.22.227.234:5174/projects
 └─ Browse all projects with photos
 
 💬 View Feedback
-http://localhost:5174/public-feedback
+http://165.22.227.234:5174/public-feedback
 ├─ All feedback with responses
 └─ Clickable stat cards ← CLICK CARDS
 
 📝 Submit Feedback
-http://localhost:5174/feedback
+http://165.22.227.234:5174/feedback
 └─ Feedback submission form
 ```
 
@@ -350,13 +350,13 @@ http://localhost:5174/feedback
 
 ```
 🔐 Login
-http://localhost:5173/login
+http://165.22.227.234:5173/login
 
 📊 Admin Home
-http://localhost:5173
+http://165.22.227.234:5173
 
 💬 Feedback Management
-http://localhost:5173/feedback-management
+http://165.22.227.234:5173/feedback-management
 ├─ View all feedback
 ├─ Respond to citizens
 └─ Update statuses
@@ -477,7 +477,7 @@ http://localhost:5173/feedback-management
 ## 🎯 Interactive Features Map
 
 ```
-Public Dashboard (http://localhost:5174)
+Public Dashboard (http://165.22.227.234:5174)
 │
 ├─ Homepage (/)
 │  ├─ Quick stats cards
@@ -619,11 +619,11 @@ Impact: National-standard quality! 🏆
 
 ```bash
 # 1. Test Statistics Fix (Admin)
-Visit: http://localhost:5173
+Visit: http://165.22.227.234:5173
 Check: Dashboard loads without "Failed to load statistics"
 
 # 2. Test Department Analytics (Public)
-Visit: http://localhost:5174/dashboard
+Visit: http://165.22.227.234:5174/dashboard
 Click: "Ministry of Water & Irrigation" row
 Verify: Modal opens with 6 projects
 Click: 💬 icon on any project
@@ -639,7 +639,7 @@ Click: 💬 icon
 Verify: Can submit feedback
 
 # 4. Test Clickable Stats (Public)
-Visit: http://localhost:5174/public-feedback
+Visit: http://165.22.227.234:5174/public-feedback
 Click: "Pending Review" card (orange)
 Verify: Modal opens with pending items only
 Close: Modal
@@ -647,7 +647,7 @@ Click: "Responded" card (green)
 Verify: Shows responses
 
 # 5. Test Feedback Response (Admin)
-Visit: http://localhost:5173/feedback-management
+Visit: http://165.22.227.234:5173/feedback-management
 Find: Pending feedback
 Click: "Respond to Feedback"
 Write: Response
@@ -801,7 +801,7 @@ Feedback: 2+ items
 ### **✅ All Systems Operational:**
 
 ```
-Public Dashboard: http://localhost:5174
+Public Dashboard: http://165.22.227.234:5174
 ├─ Homepage ✅
 ├─ Dashboard ✅
 │  ├─ Department tables ✅
@@ -812,7 +812,7 @@ Public Dashboard: http://localhost:5174
 └─ Public Feedback ✅
    └─ Clickable stats ✅
 
-Admin Dashboard: http://localhost:5173
+Admin Dashboard: http://165.22.227.234:5173
 ├─ Login ✅
 ├─ Main Dashboard ✅
 │  └─ Statistics loading ✅
@@ -821,7 +821,7 @@ Admin Dashboard: http://localhost:5173
    ├─ Respond to feedback ✅
    └─ Status management ✅
 
-Backend API: http://localhost:3000
+Backend API: http://165.22.227.234:3000
 ├─ All public endpoints ✅
 ├─ All protected endpoints ✅
 ├─ Dashboard statistics ✅
@@ -893,7 +893,7 @@ Citizens can:
 ---
 
 **Test the latest feature now:**  
-http://localhost:5174/public-feedback  
+http://165.22.227.234:5174/public-feedback  
 **Click any colored statistics card! ✨**
 
 ---
@@ -901,4 +901,5 @@ http://localhost:5174/public-feedback
 *Thank you for the opportunity to build this amazing system with you!* 🙏
 
 *Every feature was crafted with care, tested thoroughly, and documented comprehensively.* 💝
+
 

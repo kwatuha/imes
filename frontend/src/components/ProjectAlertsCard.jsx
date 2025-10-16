@@ -165,21 +165,21 @@ const ProjectAlertsCard = ({ currentUser }) => {
   const activeAlerts = alerts.filter(alert => alert.status === 'active');
 
   return (
-    <Card sx={{ 
-      height: '100%',
-      borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: `0 8px 30px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}25`,
-      }
-    }}>
+      <Card sx={{ 
+        height: '100%',
+        borderRadius: 3, 
+        bgcolor: '#ffffff',
+        boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
+        border: `1px solid rgba(0,0,0,0.08)`,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: `0 8px 30px rgba(0,0,0,0.08)`,
+        }
+      }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
+          <Typography variant="h6" fontWeight="bold" color="#000000">
             Project Alerts
           </Typography>
           <Box display="flex" alignItems="center" gap={1}>
@@ -211,7 +211,7 @@ const ProjectAlertsCard = ({ currentUser }) => {
             severity="error" 
             sx={{ 
               mb: 2, 
-              bgcolor: theme.palette.mode === 'dark' ? colors.redAccent?.[900] : colors.redAccent?.[50],
+                bgcolor: '#fff5f5',
               border: `1px solid ${colors.redAccent?.[500] || '#f44336'}`,
             }}
           >
@@ -229,7 +229,7 @@ const ProjectAlertsCard = ({ currentUser }) => {
               sx={{ 
                 p: 2,
                 borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
+                bgcolor: '#ffffff',
                 border: `1px solid ${getSeverityColor(alert.severity)}30`,
                 borderLeft: `4px solid ${getSeverityColor(alert.severity)}`,
                 transition: 'all 0.2s ease',
@@ -256,7 +256,7 @@ const ProjectAlertsCard = ({ currentUser }) => {
                     <Typography 
                       variant="subtitle2" 
                       fontWeight="bold" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
+                      color="#000000"
                       sx={{ fontSize: '0.9rem' }}
                     >
                       {alert.title}
@@ -290,7 +290,8 @@ const ProjectAlertsCard = ({ currentUser }) => {
                   
                   <Typography 
                     variant="body2" 
-                    color={theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700]}
+                    color="#333333"
+                    fontWeight="500"
                     sx={{ fontSize: '0.8rem', mb: 1 }}
                   >
                     {alert.description}
@@ -300,7 +301,7 @@ const ProjectAlertsCard = ({ currentUser }) => {
                     sx={{ 
                       p: 1.5, 
                       borderRadius: 1, 
-                      bgcolor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.primary[200],
+                      bgcolor: '#f8fafc',
                       border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[300]}`,
                       mb: 1
                     }}
@@ -314,7 +315,8 @@ const ProjectAlertsCard = ({ currentUser }) => {
                     </Typography>
                     <Typography 
                       variant="body2" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800]}
+                      color="#000000"
+                      fontWeight="500"
                       sx={{ fontSize: '0.8rem' }}
                     >
                       {alert.actionRequired}
@@ -335,10 +337,11 @@ const ProjectAlertsCard = ({ currentUser }) => {
                       </Box>
                       
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <ScheduleIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
+                        <ScheduleIcon sx={{ fontSize: 12, color: '#666666' }} />
                         <Typography 
                           variant="caption" 
-                          color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}
+                          color="#555555"
+                          fontWeight="600"
                           sx={{ fontSize: '0.7rem' }}
                         >
                           {alert.timestamp}
@@ -398,7 +401,8 @@ const ProjectAlertsCard = ({ currentUser }) => {
         <Box mt={2} pt={2} borderTop={`1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`}>
           <Typography 
             variant="caption" 
-            color={theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600]}
+            color="#666666"
+            fontWeight="500"
             sx={{ fontSize: '0.7rem' }}
           >
             Monitor project health and take immediate action on critical alerts

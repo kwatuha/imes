@@ -236,21 +236,20 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
-          color: colors.grey[100],
+          backgroundColor: '#ffffff',
+          color: '#000000',
           borderRadius: 2,
-          boxShadow: isDarkMode 
-            ? '0 8px 32px rgba(0, 0, 0, 0.5)' 
-            : '0 8px 32px rgba(0, 0, 0, 0.12)'
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          border: '1px solid rgba(0,0,0,0.08)'
         }
       }}
     >
       <DialogTitle
         sx={{
-          backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
-          borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}`,
-          color: colors.grey[100],
-          fontWeight: 600,
+          backgroundColor: '#f8fafc',
+          borderBottom: `1px solid rgba(0,0,0,0.08)`,
+          color: '#000000',
+          fontWeight: 700,
           fontSize: '1.25rem'
         }}
       >
@@ -274,38 +273,60 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             required
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                backgroundColor: '#ffffff',
                 '&:hover': {
-                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                  backgroundColor: '#f8fafc',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.greenAccent?.[500] || '#4caf50'
+                  }
                 },
                 '&.Mui-focused': {
-                  backgroundColor: colors.primary[500]
+                  backgroundColor: '#ffffff',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.greenAccent?.[500] || '#4caf50'
+                  }
                 }
               },
               '& .MuiInputLabel-root': {
-                color: colors.grey[400]
+                color: '#555555',
+                fontWeight: '500',
+                '&.Mui-focused': {
+                  color: colors.greenAccent?.[500] || '#4caf50'
+                }
               },
               '& .MuiOutlinedInput-input': {
-                color: colors.grey[100]
+                color: '#333333'
               }
             }}
           />
 
           {/* Room Type */}
           <FormControl fullWidth>
-            <InputLabel sx={{ color: colors.grey[400] }}>Room Type</InputLabel>
+            <InputLabel sx={{ 
+              color: '#555555', 
+              fontWeight: '500',
+              '&.Mui-focused': {
+                color: colors.greenAccent?.[500] || '#4caf50'
+              }
+            }}>Room Type</InputLabel>
             <Select
               value={formData.room_type}
               onChange={(e) => handleInputChange('room_type', e.target.value)}
               label="Room Type"
               sx={{
-                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
-                color: colors.grey[100],
+                backgroundColor: '#ffffff',
+                color: '#333333',
                 '&:hover': {
-                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                  backgroundColor: '#f8fafc',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.greenAccent?.[500] || '#4caf50'
+                  }
                 },
                 '&.Mui-focused': {
-                  backgroundColor: colors.primary[500]
+                  backgroundColor: '#ffffff',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.greenAccent?.[500] || '#4caf50'
+                  }
                 }
               }}
             >
@@ -315,7 +336,7 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
               <MenuItem value="department">Department Room</MenuItem>
               <MenuItem value="role">Role-Based Room</MenuItem>
             </Select>
-            <Typography variant="caption" sx={{ mt: 1, color: colors.grey[400] }}>
+            <Typography variant="caption" sx={{ mt: 1, color: '#666666', fontWeight: '500' }}>
               {getRoomTypeDescription(formData.room_type)}
             </Typography>
           </FormControl>
@@ -323,19 +344,31 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
           {/* Project Selection (for project rooms) */}
           {formData.room_type === 'project' && (
             <FormControl fullWidth>
-              <InputLabel sx={{ color: colors.grey[400] }}>Project</InputLabel>
+              <InputLabel sx={{ 
+                color: '#555555', 
+                fontWeight: '500',
+                '&.Mui-focused': {
+                  color: colors.greenAccent?.[500] || '#4caf50'
+                }
+              }}>Project</InputLabel>
               <Select
                 value={formData.project_id || ''}
                 onChange={(e) => handleInputChange('project_id', e.target.value)}
                 label="Project"
                 sx={{
-                  backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
-                  color: colors.grey[100],
+                  backgroundColor: '#ffffff',
+                  color: '#333333',
                   '&:hover': {
-                    backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                    backgroundColor: '#f8fafc',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.greenAccent?.[500] || '#4caf50'
+                    }
                   },
                   '&.Mui-focused': {
-                    backgroundColor: colors.primary[500]
+                    backgroundColor: '#ffffff',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.greenAccent?.[500] || '#4caf50'
+                    }
                   }
                 }}
               >
@@ -351,19 +384,31 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
           {/* Role Selection (for role-based rooms) */}
           {formData.room_type === 'role' && (
             <FormControl fullWidth>
-              <InputLabel sx={{ color: colors.grey[400] }}>Role</InputLabel>
+              <InputLabel sx={{ 
+                color: '#555555', 
+                fontWeight: '500',
+                '&.Mui-focused': {
+                  color: colors.greenAccent?.[500] || '#4caf50'
+                }
+              }}>Role</InputLabel>
               <Select
                 value={formData.role_id || ''}
                 onChange={(e) => handleInputChange('role_id', e.target.value)}
                 label="Role"
                 sx={{
-                  backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
-                  color: colors.grey[100],
+                  backgroundColor: '#ffffff',
+                  color: '#333333',
                   '&:hover': {
-                    backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                    backgroundColor: '#f8fafc',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.greenAccent?.[500] || '#4caf50'
+                    }
                   },
                   '&.Mui-focused': {
-                    backgroundColor: colors.primary[500]
+                    backgroundColor: '#ffffff',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.greenAccent?.[500] || '#4caf50'
+                    }
                   }
                 }}
               >
@@ -393,11 +438,11 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
                     {...getTagProps({ index })}
                     key={option.userId}
                     sx={{
-                      borderColor: colors.greenAccent[500],
-                      color: colors.greenAccent[500],
-                      backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                      borderColor: colors.greenAccent?.[500] || '#4caf50',
+                      color: colors.greenAccent?.[500] || '#4caf50',
+                      backgroundColor: '#ffffff',
                       '&:hover': {
-                        backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                        backgroundColor: '#f8fafc'
                       }
                     }}
                   />
@@ -415,26 +460,36 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
                   placeholder="Select participants..."
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                      backgroundColor: '#ffffff',
                       '&:hover': {
-                        backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                        backgroundColor: '#f8fafc',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: colors.greenAccent?.[500] || '#4caf50'
+                        }
                       },
                       '&.Mui-focused': {
-                        backgroundColor: colors.primary[500]
+                        backgroundColor: '#ffffff',
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: colors.greenAccent?.[500] || '#4caf50'
+                        }
                       }
                     },
                     '& .MuiInputLabel-root': {
-                      color: colors.grey[400]
+                      color: '#555555',
+                      fontWeight: '500',
+                      '&.Mui-focused': {
+                        color: colors.greenAccent?.[500] || '#4caf50'
+                      }
                     },
                     '& .MuiOutlinedInput-input': {
-                      color: colors.grey[100]
+                      color: '#333333'
                     }
                   }}
                 />
               )}
               sx={{
                 '& .MuiAutocomplete-popupIndicator': {
-                  color: colors.grey[100]
+                  color: '#666666'
                 }
               }}
             />
@@ -445,8 +500,10 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             <Alert 
               severity="info" 
               sx={{ 
-                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
-                color: colors.grey[100]
+                backgroundColor: 'rgba(33, 150, 243, 0.08)',
+                color: '#333333',
+                fontWeight: '500',
+                border: '1px solid rgba(33, 150, 243, 0.2)'
               }}
             >
               All users with the selected role will be automatically added as participants.
@@ -463,32 +520,43 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
             rows={3}
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100],
+                backgroundColor: '#ffffff',
                 '&:hover': {
-                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                  backgroundColor: '#f8fafc',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.greenAccent?.[500] || '#4caf50'
+                  }
                 },
                 '&.Mui-focused': {
-                  backgroundColor: colors.primary[500]
+                  backgroundColor: '#ffffff',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.greenAccent?.[500] || '#4caf50'
+                  }
                 }
               },
               '& .MuiInputLabel-root': {
-                color: colors.grey[400]
+                color: '#555555',
+                fontWeight: '500',
+                '&.Mui-focused': {
+                  color: colors.greenAccent?.[500] || '#4caf50'
+                }
               },
               '& .MuiOutlinedInput-input': {
-                color: colors.grey[100]
+                color: '#333333'
               }
             }}
           />
         </Box>
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 2, backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderTop: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
+      <DialogActions sx={{ p: 3, pt: 2, backgroundColor: '#f8fafc', borderTop: `1px solid rgba(0,0,0,0.08)` }}>
         <Button 
           onClick={handleClose} 
           sx={{ 
-            color: colors.grey[400],
+            color: '#666666',
+            fontWeight: '600',
             '&:hover': {
-              backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+              backgroundColor: 'rgba(0,0,0,0.04)'
             }
           }}
         >
@@ -499,14 +567,17 @@ const CreateRoomModal = ({ open, onClose, onRoomCreated }) => {
           variant="contained"
           disabled={loading}
           sx={{
-            backgroundColor: colors.greenAccent[500],
-            color: colors.grey[100],
+            backgroundColor: colors.greenAccent?.[500] || '#4caf50',
+            color: '#ffffff',
+            fontWeight: '700',
             '&:hover': {
-              backgroundColor: colors.greenAccent[600]
+              backgroundColor: colors.greenAccent?.[600] || '#388e3c',
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
             },
             '&:disabled': {
-              backgroundColor: colors.grey[500],
-              color: colors.grey[100]
+              backgroundColor: '#bdbdbd',
+              color: '#ffffff'
             }
           }}
         >

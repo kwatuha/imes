@@ -1,3 +1,4 @@
+// Chat window component for displaying messages
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
@@ -211,10 +212,11 @@ const ChatWindow = ({ room, onClose }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
+          backgroundColor: '#ffffff',
+          background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
         }}
       >
-        <Typography variant="h6" color="textSecondary">
+        <Typography variant="h6" sx={{ color: '#555555', fontWeight: '500' }}>
           Select a chat room to start messaging
         </Typography>
       </Paper>
@@ -230,63 +232,10 @@ const ChatWindow = ({ room, onClose }) => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: colors.primary[400]
+        backgroundColor: '#ffffff',
+        background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
       }}
     >
-      {/* Chat Header */}
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: `1px solid ${colors.primary[200]}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar sx={{ bgcolor: colors.greenAccent[500] }}>
-            {(room.room_type === 'group' || room.room_type === 'role') ? (
-              <PersonIcon />
-            ) : (
-              room.room_name.charAt(0).toUpperCase()
-            )}
-          </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              {room.room_name}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              {room.room_type === 'project' && room.project_name && (
-                `Project: ${room.project_name}`
-              )}
-              {room.room_type === 'group' && `${room.participant_count} members`}
-              {room.room_type === 'role' && room.role_name && (
-                <Chip 
-                  label={`Role: ${room.role_name}`} 
-                  size="small" 
-                  sx={{ 
-                    backgroundColor: colors.greenAccent[500], 
-                    color: colors.grey[100],
-                    fontSize: '0.7rem',
-                    height: '20px'
-                  }} 
-                />
-              )}
-              {room.room_type === 'role' && `${room.participant_count} members`}
-            </Typography>
-          </Box>
-        </Box>
-        
-        <Box>
-          <IconButton onClick={handleMenuOpen}>
-            <MoreVertIcon />
-          </IconButton>
-          <IconButton onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      </Box>
 
       {/* Messages Area */}
       <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -307,9 +256,9 @@ const ChatWindow = ({ room, onClose }) => {
       {replyToMessage && (
         <Box
           sx={{
-            p: 1,
-            backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
-            borderTop: `1px solid ${colors.primary[200]}`,
+            p: 1.5,
+            backgroundColor: '#f8fafc',
+            borderTop: `1px solid rgba(0,0,0,0.08)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
@@ -317,10 +266,10 @@ const ChatWindow = ({ room, onClose }) => {
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <ReplyIcon fontSize="small" />
-            <Typography variant="body2" color="textSecondary">
+            <Typography variant="body2" sx={{ color: '#555555', fontWeight: '500' }}>
               Replying to {replyToMessage.firstName} {replyToMessage.lastName}
             </Typography>
-            <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+            <Typography variant="body2" sx={{ fontStyle: 'italic', color: colors.grey[700] }}>
               {replyToMessage.message_text?.substring(0, 50)}
               {replyToMessage.message_text?.length > 50 ? '...' : ''}
             </Typography>
@@ -334,9 +283,10 @@ const ChatWindow = ({ room, onClose }) => {
       {/* Message Input */}
       <Box
         sx={{
-          p: 2,
-          borderTop: `1px solid ${colors.primary[200]}`,
-          backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
+          p: 2.5,
+          borderTop: `1px solid rgba(0,0,0,0.08)`,
+          backgroundColor: '#f8fafc',
+          background: `linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%)`
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
@@ -353,7 +303,38 @@ const ChatWindow = ({ room, onClose }) => {
             size="small"
             sx={{
               '& .MuiOutlinedInput-root': {
-                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
+                backgroundColor: '#ffffff',
+                border: `1px solid rgba(0,0,0,0.12)`,
+                '&:hover': {
+                  backgroundColor: '#ffffff',
+                  border: `1px solid ${colors.greenAccent?.[500] || '#4caf50'}`,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: `${colors.greenAccent?.[500] || '#4caf50'}`
+                  }
+                },
+                '&.Mui-focused': {
+                  backgroundColor: '#ffffff',
+                  border: `2px solid ${colors.greenAccent?.[500] || '#4caf50'}`,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: `${colors.greenAccent?.[500] || '#4caf50'}`
+                  }
+                }
+              },
+              '& .MuiOutlinedInput-input': {
+                color: '#000000',
+                fontWeight: '500',
+                fontSize: '0.95rem',
+                '&::placeholder': {
+                  color: '#888888',
+                  fontWeight: '400',
+                  opacity: 1
+                }
+              },
+              '& .MuiInputLabel-root': {
+                color: '#666666',
+                '&.Mui-focused': {
+                  color: colors.greenAccent?.[500] || '#4caf50'
+                }
               }
             }}
           />
@@ -368,7 +349,7 @@ const ChatWindow = ({ room, onClose }) => {
           
           <IconButton
             onClick={() => fileInputRef.current?.click()}
-            sx={{ color: colors.grey[100] }}
+            sx={{ color: colors.grey[600] }}
           >
             <AttachFileIcon />
           </IconButton>
@@ -377,7 +358,13 @@ const ChatWindow = ({ room, onClose }) => {
             onClick={handleSendMessage}
             disabled={!messageText.trim()}
             sx={{
-              color: messageText.trim() ? colors.greenAccent[500] : colors.grey[500]
+              color: messageText.trim() ? colors.greenAccent?.[500] || '#4caf50' : '#cccccc',
+              '&:hover': {
+                backgroundColor: messageText.trim() ? 'rgba(76, 175, 80, 0.08)' : 'transparent'
+              },
+              '&:disabled': {
+                color: '#cccccc'
+              }
             }}
           >
             <SendIcon />
@@ -390,11 +377,55 @@ const ChatWindow = ({ room, onClose }) => {
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#ffffff',
+            border: '1px solid rgba(0,0,0,0.08)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+            minWidth: 200
+          }
+        }}
       >
-        <MenuItem onClick={handleViewParticipants}>View Participants</MenuItem>
-        <MenuItem onClick={handleRoomSettings}>Room Settings</MenuItem>
-        <Divider />
-        <MenuItem onClick={handleLeaveRoom}>Leave Room</MenuItem>
+        <MenuItem 
+          onClick={handleViewParticipants}
+          sx={{
+            color: '#333333',
+            fontWeight: '500',
+            '&:hover': {
+              backgroundColor: 'rgba(76, 175, 80, 0.08)',
+              color: colors.greenAccent?.[500] || '#4caf50'
+            }
+          }}
+        >
+          View Participants
+        </MenuItem>
+        <MenuItem 
+          onClick={handleRoomSettings}
+          sx={{
+            color: '#333333',
+            fontWeight: '500',
+            '&:hover': {
+              backgroundColor: 'rgba(104, 112, 250, 0.08)',
+              color: colors.blueAccent?.[500] || '#6870fa'
+            }
+          }}
+        >
+          Room Settings
+        </MenuItem>
+        <Divider sx={{ borderColor: 'rgba(0,0,0,0.08)' }} />
+        <MenuItem 
+          onClick={handleLeaveRoom}
+          sx={{
+            color: '#333333',
+            fontWeight: '500',
+            '&:hover': {
+              backgroundColor: 'rgba(244, 67, 54, 0.08)',
+              color: colors.redAccent?.[500] || '#f44336'
+            }
+          }}
+        >
+          Leave Room
+        </MenuItem>
       </Menu>
 
       {/* File Upload Dialog */}
@@ -428,16 +459,23 @@ const ChatWindow = ({ room, onClose }) => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
-            color: colors.grey[100]
+            backgroundColor: '#ffffff',
+            color: '#000000',
+            border: '1px solid rgba(0,0,0,0.08)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)'
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
+        <DialogTitle sx={{ 
+          backgroundColor: '#f8fafc', 
+          borderBottom: `1px solid rgba(0,0,0,0.08)`, 
+          color: '#000000',
+          fontWeight: '700'
+        }}>
           Room Participants
         </DialogTitle>
         <DialogContent sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ mb: 2, color: '#555555', fontWeight: '500' }}>
             {loadingParticipants ? 'Loading...' : `${participants.length} participants in this room`}
           </Typography>
           
@@ -450,6 +488,8 @@ const ChatWindow = ({ room, onClose }) => {
               {participants.length === 0 ? (
                 <ListItem>
                   <ListItemText
+                    primaryTypographyProps={{ color: '#333333', fontWeight: '500' }}
+                    secondaryTypographyProps={{ color: '#666666', fontWeight: '500' }}
                     primary="No participants found"
                     secondary="This room may not have any participants yet"
                   />
@@ -491,7 +531,7 @@ const ChatWindow = ({ room, onClose }) => {
             </List>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[400] }}>
+        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[50] }}>
           <Button onClick={() => {
             setParticipantsDialog(false);
             setParticipants([]);
@@ -507,12 +547,12 @@ const ChatWindow = ({ room, onClose }) => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
-            color: colors.grey[100]
+            backgroundColor: '#ffffff',
+            color: colors.grey[900]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
+        <DialogTitle sx={{ backgroundColor: colors.primary[50], borderBottom: `1px solid ${colors.primary[200]}`, color: colors.grey[900] }}>
           Room Settings
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -527,7 +567,7 @@ const ChatWindow = ({ room, onClose }) => {
               label={room?.room_type || 'group'} 
               size="small" 
                   sx={{
-                    backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
+                    backgroundColor: colors.primary[200],
                     color: colors.greenAccent[500],
                 textTransform: 'capitalize'
               }}
@@ -538,7 +578,7 @@ const ChatWindow = ({ room, onClose }) => {
             Room settings and management features will be available here.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[400] }}>
+        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[50] }}>
           <Button onClick={() => setSettingsDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
@@ -550,12 +590,12 @@ const ChatWindow = ({ room, onClose }) => {
         maxWidth="xs"
         PaperProps={{
           sx: {
-            backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
-            color: colors.grey[100]
+            backgroundColor: '#ffffff',
+            color: colors.grey[900]
           }
         }}
       >
-        <DialogTitle sx={{ backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100], borderBottom: `1px solid ${isDarkMode ? colors.primary[300] : colors.primary[200]}` }}>
+        <DialogTitle sx={{ backgroundColor: colors.primary[50], borderBottom: `1px solid ${colors.primary[200]}`, color: colors.grey[900] }}>
           Leave Room
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
@@ -566,7 +606,7 @@ const ChatWindow = ({ room, onClose }) => {
             You won't receive any new messages from this room.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[400] }}>
+        <DialogActions sx={{ p: 2, backgroundColor: colors.primary[50] }}>
           <Button onClick={() => setLeaveRoomDialog(false)}>Cancel</Button>
           <Button 
             onClick={() => {

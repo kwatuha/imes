@@ -9,9 +9,9 @@ A fully functional public-facing dashboard for the County Projects Monitoring & 
 ## 🚀 Quick Access
 
 ### URLs
-- **Public Dashboard**: http://localhost:5174
-- **Admin Dashboard**: http://localhost:5173 (existing)
-- **API**: http://localhost:3000
+- **Public Dashboard**: http://165.22.227.234:5174
+- **Admin Dashboard**: http://165.22.227.234:5173 (existing)
+- **API**: http://165.22.227.234:3000
 
 ### Container Status
 ```
@@ -180,34 +180,34 @@ A fully functional public-facing dashboard for the County Projects Monitoring & 
 ### 1. Test Home Page
 ```bash
 # Open in browser
-http://localhost:5174
+http://165.22.227.234:5174
 ```
 **Expected**: Hero section, 6 stat cards with real data, about section
 
 ### 2. Test Dashboard
 ```bash
 # Navigate to Dashboard
-http://localhost:5174/dashboard
+http://165.22.227.234:5174/dashboard
 ```
 **Expected**: Financial year filter, stats, 3 charts with data
 
 ### 3. Test Feedback
 ```bash
 # Navigate to Feedback
-http://localhost:5174/feedback
+http://165.22.227.234:5174/feedback
 ```
 **Expected**: Form with validation, submission works
 
 ### 4. Test API Directly
 ```bash
 # Test overview stats
-curl http://localhost:3000/api/public/stats/overview
+curl http://165.22.227.234:3000/api/public/stats/overview
 
 # Test financial years
-curl http://localhost:3000/api/public/financial-years
+curl http://165.22.227.234:3000/api/public/financial-years
 
 # Test department stats
-curl http://localhost:3000/api/public/stats/by-department
+curl http://165.22.227.234:3000/api/public/stats/by-department
 ```
 
 ---
@@ -414,13 +414,13 @@ You now have:
 - ✅ Production-ready code
 - ✅ Comprehensive documentation
 
-**Access it now at: http://localhost:5174**
+**Access it now at: http://165.22.227.234:5174**
 
 ---
 
 ## 📞 Next Steps
 
-1. **Test the dashboard** - Open http://localhost:5174 and explore
+1. **Test the dashboard** - Open http://165.22.227.234:5174 and explore
 2. **Customize branding** - Add your county logo and colors
 3. **Review data** - Ensure statistics match your expectations
 4. **Plan deployment** - Choose subdomain, path, or iframe
@@ -433,5 +433,6 @@ You now have:
 ---
 
 *Built with ❤️ for citizen engagement and government transparency*
+
 
 

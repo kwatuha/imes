@@ -62,9 +62,9 @@ docker-compose ps
 ```
 
 ### 4. Access Application
-- **Frontend**: http://localhost/impes/
-- **API**: http://localhost/api/
-- **Uploads**: http://localhost/uploads/
+- **Frontend**: http://165.22.227.234/impes/
+- **API**: http://165.22.227.234/api/
+- **Uploads**: http://165.22.227.234/uploads/
 
 ---
 
@@ -118,10 +118,10 @@ docker-compose ps
 ### Step 4: Verify Deployment
 ```bash
 # Test frontend
-curl http://localhost/impes/
+curl http://165.22.227.234/impes/
 
 # Test API
-curl http://localhost/api/auth/login
+curl http://165.22.227.234/api/auth/login
 
 # Check logs
 docker-compose logs
@@ -298,10 +298,10 @@ DB_NAME=imbesdb
 ### 3. Health Check Endpoints
 ```bash
 # Frontend health check
-curl http://localhost/impes/
+curl http://165.22.227.234/impes/
 
 # API health check
-curl http://localhost/api/
+curl http://165.22.227.234/api/
 
 # Database connection test
 docker-compose exec api node -e "console.log('API running')"

@@ -7,9 +7,9 @@ This document describes the new feedback response system that allows county staf
 ## Overview
 
 The system creates a complete feedback loop where:
-1. **Citizens** submit feedback via the public dashboard (http://localhost:5174/public-feedback)
-2. **County Staff** review and respond to feedback via the protected admin dashboard (http://localhost:5173/feedback-management)
-3. **Responses** are automatically displayed on the public feedback page for transparency
+1. **Citizens** submit feedback via the public dashboard (http://165.22.227.234:5174/public-feedback)
+2. **County Staff** review and respond to feedback via the protected admin dashboard (http://165.22.227.234:5173/feedback-management)
+3. **Responses** are automatically displayed on the public feedback page for accountability
 
 ---
 
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS public_feedback (
 1. **Access the Page**
    - Login to the admin dashboard
    - Navigate to: Sidebar > Administration > Feedback Management
-   - Or go directly to: `http://localhost:5173/feedback-management`
+   - Or go directly to: `http://165.22.227.234:5173/feedback-management`
 
 2. **View Feedback**
    - See statistics at the top showing pending, reviewed, and responded counts
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS public_feedback (
 ### For Citizens:
 
 1. **View Responses**
-   - Visit: `http://localhost:5174/public-feedback`
+   - Visit: `http://165.22.227.234:5174/public-feedback`
    - Browse all feedback submissions
    - Feedback with responses shows a green "Responded" badge
    - Click on any feedback to see the full official response
@@ -213,15 +213,15 @@ The system has been tested and verified to work:
 
 1. **Test Feedback Submission** (from public dashboard)
    ```
-   1. Go to http://localhost:5174/projects
+   1. Go to http://165.22.227.234:5174/projects
    2. Click on any project
    3. Submit feedback using the form
-   4. Verify it appears on http://localhost:5174/public-feedback
+   4. Verify it appears on http://165.22.227.234:5174/public-feedback
    ```
 
 2. **Test Response Flow** (from admin dashboard)
    ```
-   1. Login to http://localhost:5173
+   1. Login to http://165.22.227.234:5173
    2. Go to Administration > Feedback Management
    3. Find a pending feedback item
    4. Click "Respond to Feedback"
@@ -391,11 +391,12 @@ For issues or questions:
 
 You now have a complete feedback response system that:
 - ✅ Allows county staff to respond to public feedback
-- ✅ Maintains transparency with public visibility
+- ✅ Maintains accountability with public visibility
 - ✅ Provides comprehensive status management
 - ✅ Includes filtering and search capabilities
 - ✅ Follows existing security and authentication patterns
 - ✅ Integrates seamlessly with existing systems
 
 The system is ready for production use! 🎉
+
 

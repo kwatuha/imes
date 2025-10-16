@@ -86,14 +86,16 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
         return (
           <ResponsiveContainer width="100%" height={height}>
             <BarChart data={currentData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.primary[300]} />
-              <XAxis dataKey="name" stroke={colors.grey[100]} />
-              <YAxis stroke={colors.grey[100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <XAxis dataKey="name" stroke="#666666" />
+              <YAxis stroke="#666666" />
               <RechartsTooltip 
                 contentStyle={{ 
-                  backgroundColor: colors.primary[400], 
-                  border: `1px solid ${colors.primary[300]}`,
-                  borderRadius: '8px'
+                  backgroundColor: '#ffffff', 
+                  border: `1px solid rgba(0,0,0,0.08)`,
+                  borderRadius: '8px',
+                  color: '#333333',
+                  boxShadow: `0 4px 20px rgba(0,0,0,0.1)`
                 }}
               />
               <Legend />
@@ -124,9 +126,11 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
               </Pie>
               <RechartsTooltip 
                 contentStyle={{ 
-                  backgroundColor: colors.primary[400], 
-                  border: `1px solid ${colors.primary[300]}`,
-                  borderRadius: '8px'
+                  backgroundColor: '#ffffff', 
+                  border: `1px solid rgba(0,0,0,0.08)`,
+                  borderRadius: '8px',
+                  color: '#333333',
+                  boxShadow: `0 4px 20px rgba(0,0,0,0.1)`
                 }}
               />
             </PieChart>
@@ -137,14 +141,16 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
         return (
           <ResponsiveContainer width="100%" height={height}>
             <LineChart data={currentData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.primary[300]} />
-              <XAxis dataKey="name" stroke={colors.grey[100]} />
-              <YAxis stroke={colors.grey[100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <XAxis dataKey="name" stroke="#666666" />
+              <YAxis stroke="#666666" />
               <RechartsTooltip 
                 contentStyle={{ 
-                  backgroundColor: colors.primary[400], 
-                  border: `1px solid ${colors.primary[300]}`,
-                  borderRadius: '8px'
+                  backgroundColor: '#ffffff', 
+                  border: `1px solid rgba(0,0,0,0.08)`,
+                  borderRadius: '8px',
+                  color: '#333333',
+                  boxShadow: `0 4px 20px rgba(0,0,0,0.1)`
                 }}
               />
               <Legend />
@@ -170,14 +176,16 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
         return (
           <ResponsiveContainer width="100%" height={height}>
             <AreaChart data={currentData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.primary[300]} />
-              <XAxis dataKey="name" stroke={colors.grey[100]} />
-              <YAxis stroke={colors.grey[100]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <XAxis dataKey="name" stroke="#666666" />
+              <YAxis stroke="#666666" />
               <RechartsTooltip 
                 contentStyle={{ 
-                  backgroundColor: colors.primary[400], 
-                  border: `1px solid ${colors.primary[300]}`,
-                  borderRadius: '8px'
+                  backgroundColor: '#ffffff', 
+                  border: `1px solid rgba(0,0,0,0.08)`,
+                  borderRadius: '8px',
+                  color: '#333333',
+                  boxShadow: `0 4px 20px rgba(0,0,0,0.1)`
                 }}
               />
               <Legend />
@@ -224,25 +232,26 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
 
   return (
     <Card sx={{ 
-      bgcolor: colors.primary[400], 
+      bgcolor: '#ffffff', 
       borderRadius: 3,
-      border: `1px solid ${colors.primary[300]}`,
+      border: `1px solid rgba(0,0,0,0.08)`,
       transition: 'all 0.3s ease',
+      boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: `0 8px 25px ${colors.primary[300]}20`,
+        boxShadow: `0 8px 25px rgba(0,0,0,0.08)`,
       }
     }}>
       <CardContent>
         {/* Header */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box>
-            <Typography variant="h6" fontWeight="bold" color={colors.grey[100]} mb={1}>
+            <Typography variant="h6" fontWeight="bold" color="#000000" mb={1}>
               {title}
             </Typography>
             <Box display="flex" alignItems="center" gap={1}>
               {getTrendIcon()}
-              <Typography variant="body2" color={colors.grey[300]}>
+              <Typography variant="body2" color="#555555" fontWeight="500">
                 {getTrendText()}
               </Typography>
             </Box>
@@ -252,8 +261,11 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
               <IconButton 
                 size="small" 
                 sx={{ 
-                  color: colors.blueAccent[500],
-                  '&:hover': { bgcolor: colors.blueAccent[500] + '20' }
+                  color: colors.blueAccent?.[500] || '#6870fa',
+                  '&:hover': { 
+                    bgcolor: 'rgba(104, 112, 250, 0.08)',
+                    transform: 'scale(1.1)'
+                  }
                 }}
               >
                 <RefreshIcon />
@@ -263,8 +275,11 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
               <IconButton 
                 size="small" 
                 sx={{ 
-                  color: colors.greenAccent[500],
-                  '&:hover': { bgcolor: colors.greenAccent[500] + '20' }
+                  color: colors.greenAccent?.[500] || '#4caf50',
+                  '&:hover': { 
+                    bgcolor: 'rgba(76, 175, 80, 0.08)',
+                    transform: 'scale(1.1)'
+                  }
                 }}
               >
                 <DownloadIcon />
@@ -274,8 +289,11 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
               <IconButton 
                 size="small" 
                 sx={{ 
-                  color: colors.yellowAccent[500],
-                  '&:hover': { bgcolor: colors.yellowAccent[500] + '20' }
+                  color: colors.yellowAccent?.[500] || '#ff9800',
+                  '&:hover': { 
+                    bgcolor: 'rgba(255, 152, 0, 0.08)',
+                    transform: 'scale(1.1)'
+                  }
                 }}
               >
                 <FullscreenIcon />
@@ -288,14 +306,15 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
         <Grid container spacing={2} mb={3}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: colors.grey[200] }}>Time Range</InputLabel>
+              <InputLabel sx={{ color: '#555555', fontWeight: '600' }}>Time Range</InputLabel>
               <Select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
                 sx={{
-                  color: colors.grey[100],
+                  color: '#333333',
+                  bgcolor: '#ffffff',
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.primary[300],
+                    borderColor: 'rgba(0,0,0,0.08)',
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
                     borderColor: colors.blueAccent[500],
@@ -311,14 +330,15 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth size="small">
-              <InputLabel sx={{ color: colors.grey[200] }}>Chart Type</InputLabel>
+              <InputLabel sx={{ color: '#555555', fontWeight: '600' }}>Chart Type</InputLabel>
               <Select
                 value={chartType}
                 onChange={(e) => setChartType(e.target.value)}
                 sx={{
-                  color: colors.grey[100],
+                  color: '#333333',
+                  bgcolor: '#ffffff',
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.primary[300],
+                    borderColor: 'rgba(0,0,0,0.08)',
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
                     borderColor: colors.blueAccent[500],
@@ -336,10 +356,10 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
 
         {/* Chart */}
         <Box sx={{ 
-          bgcolor: colors.primary[500], 
+          bgcolor: '#ffffff', 
           borderRadius: 2, 
           p: 2,
-          border: `1px solid ${colors.primary[300]}`
+          border: `1px solid rgba(0,0,0,0.08)`
         }}>
           {renderChart()}
         </Box>
@@ -350,7 +370,7 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
             <Typography variant="h6" fontWeight="bold" color={colors.greenAccent[500]}>
               {currentData.reduce((sum, item) => sum + (item.projects || item.value || 0), 0)}
             </Typography>
-            <Typography variant="body2" color={colors.grey[300]}>
+            <Typography variant="body2" color="#555555" fontWeight="500">
               Total Items
             </Typography>
           </Box>
@@ -358,7 +378,7 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
             <Typography variant="h6" fontWeight="bold" color={colors.blueAccent[500]}>
               {Math.floor(Math.random() * 20) + 80}%
             </Typography>
-            <Typography variant="body2" color={colors.grey[300]}>
+            <Typography variant="body2" color="#555555" fontWeight="500">
               Success Rate
             </Typography>
           </Box>
@@ -366,7 +386,7 @@ const ProjectAnalyticsChart = ({ data, title, type = 'bar', height = 300 }) => {
             <Typography variant="h6" fontWeight="bold" color={colors.yellowAccent[500]}>
               {Math.floor(Math.random() * 10) + 5}
             </Typography>
-            <Typography variant="body2" color={colors.grey[300]}>
+            <Typography variant="body2" color="#555555" fontWeight="500">
               Active Projects
             </Typography>
           </Box>

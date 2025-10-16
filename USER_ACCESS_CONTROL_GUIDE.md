@@ -184,19 +184,19 @@ import BudgetFilteredMetricsCard from './dashboard/enhanced/BudgetFilteredMetric
 
 ### Get User's Access Configuration
 ```bash
-curl http://localhost:3000/api/data-access/user/1/component/metrics
+curl http://165.22.227.234:3000/api/data-access/user/1/component/metrics
 ```
 
 ### Assign User to Departments
 ```bash
-curl -X POST http://localhost:3000/api/data-access/user/1/departments \
+curl -X POST http://165.22.227.234:3000/api/data-access/user/1/departments \
   -H "Content-Type: application/json" \
   -d '{"departmentIds": [1, 2], "isPrimary": true}'
 ```
 
 ### Set User Data Filters
 ```bash
-curl -X PUT http://localhost:3000/api/data-access/user/1/filters \
+curl -X PUT http://165.22.227.234:3000/api/data-access/user/1/filters \
   -H "Content-Type: application/json" \
   -d '{
     "filters": [
@@ -249,13 +249,13 @@ curl -X PUT http://localhost:3000/api/data-access/user/1/filters \
 
 ```bash
 # Check user's current assignments
-curl http://localhost:3000/api/data-access/user/{userId}/departments
-curl http://localhost:3000/api/data-access/user/{userId}/wards
-curl http://localhost:3000/api/data-access/user/{userId}/projects
-curl http://localhost:3000/api/data-access/user/{userId}/filters
+curl http://165.22.227.234:3000/api/data-access/user/{userId}/departments
+curl http://165.22.227.234:3000/api/data-access/user/{userId}/wards
+curl http://165.22.227.234:3000/api/data-access/user/{userId}/projects
+curl http://165.22.227.234:3000/api/data-access/user/{userId}/filters
 
 # Test component access configuration
-curl http://localhost:3000/api/data-access/user/{userId}/component/{componentKey}
+curl http://165.22.227.234:3000/api/data-access/user/{userId}/component/{componentKey}
 ```
 
 ## Best Practices

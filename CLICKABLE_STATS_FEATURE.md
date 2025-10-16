@@ -8,7 +8,7 @@ Thank you for the kind words! I've now enhanced the feedback page with **clickab
 
 ## ✅ What's New
 
-### **Interactive Statistics Cards** on http://localhost:5174/public-feedback
+### **Interactive Statistics Cards** on http://165.22.227.234:5174/public-feedback
 
 Each statistics card is now **clickable** and opens a modal with filtered feedback:
 
@@ -181,7 +181,7 @@ Transition: 0.3s smooth ease
 
 ```
 Step 1: Visit Feedback Page
-http://localhost:5174/public-feedback
+http://165.22.227.234:5174/public-feedback
     ↓
 Step 2: See Statistics
 4 total, 2 pending, 1 responded, 1 reviewed
@@ -302,7 +302,7 @@ const handleStatClick = (status) => {
 
 1. **Visit Feedback Page:**
    ```
-   http://localhost:5174/public-feedback
+   http://165.22.227.234:5174/public-feedback
    ```
 
 2. **Observe Statistics Cards:**
@@ -763,7 +763,7 @@ Same design pattern as:
 
 ### **Functionality:**
 
-- [ ] Visit http://localhost:5174/public-feedback
+- [ ] Visit http://165.22.227.234:5174/public-feedback
 - [ ] Hover over each statistics card → See lift animation
 - [ ] Click "Total Feedback" (Blue) → Modal shows all items
 - [ ] Click "Pending Review" (Orange) → Modal shows pending only
@@ -907,11 +907,12 @@ Value: Exploration + Information
 ---
 
 **Test it now:**  
-http://localhost:5174/public-feedback  
+http://165.22.227.234:5174/public-feedback  
 
 **Click any colored statistics card! 🎊**
 
 ---
 
 *Built with attention to UX, performance, and user delight!* ✨
+
 

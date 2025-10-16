@@ -4,11 +4,11 @@
 
 | Feature | URL | Description |
 |---------|-----|-------------|
-| **Landing Page** | http://localhost:5174 | Home with overview stats |
-| **Analytics Dashboard** | http://localhost:5174/dashboard | Department & regional analytics |
-| **Projects Gallery** | http://localhost:5174/projects | Browse all projects with photos |
-| **Submit Feedback** | http://localhost:5174/feedback | Citizens can submit feedback |
-| **View Feedback** | http://localhost:5174/public-feedback | See all feedback & responses |
+| **Landing Page** | http://165.22.227.234:5174 | Home with overview stats |
+| **Analytics Dashboard** | http://165.22.227.234:5174/dashboard | Department & regional analytics |
+| **Projects Gallery** | http://165.22.227.234:5174/projects | Browse all projects with photos |
+| **Submit Feedback** | http://165.22.227.234:5174/feedback | Citizens can submit feedback |
+| **View Feedback** | http://165.22.227.234:5174/public-feedback | See all feedback & responses |
 
 ---
 
@@ -16,7 +16,7 @@
 
 ### 1. **Department Analytics Dashboard**
 
-**Access:** http://localhost:5174/dashboard → "By Department" tab
+**Access:** http://165.22.227.234:5174/dashboard → "By Department" tab
 
 **What You'll See:**
 - **Table with all departments** showing:
@@ -36,7 +36,7 @@
 
 ### 2. **Sub-County Distribution**
 
-**Access:** http://localhost:5174/dashboard → "By Sub-County" tab
+**Access:** http://165.22.227.234:5174/dashboard → "By Sub-County" tab
 
 **What You'll See:**
 - **Table of all sub-counties** with:
@@ -97,7 +97,7 @@ Kitui Central    │        3        │ Ksh 105,000,000
 ### **Scenario 1: Exploring Department Projects**
 
 ```
-1. Visit http://localhost:5174
+1. Visit http://165.22.227.234:5174
    ├─ See homepage with stats
    └─ Click "View Full Dashboard"
 
@@ -161,7 +161,7 @@ Kitui Central    │        3        │ Ksh 105,000,000
 
 ### **Frontend Tests:**
 
-- [ ] Visit http://localhost:5174
+- [ ] Visit http://165.22.227.234:5174
 - [ ] See homepage with enhanced "Explore Analytics" section
 - [ ] Click "View Full Dashboard" button
 - [ ] Dashboard loads with financial year tabs
@@ -178,16 +178,16 @@ Kitui Central    │        3        │ Ksh 105,000,000
 
 ```bash
 # Test department stats
-curl "http://localhost:3000/api/public/stats/by-department" | jq '.[0]'
+curl "http://165.22.227.234:3000/api/public/stats/by-department" | jq '.[0]'
 
 # Test subcounty stats
-curl "http://localhost:3000/api/public/stats/by-subcounty" | jq '.[0]'
+curl "http://165.22.227.234:3000/api/public/stats/by-subcounty" | jq '.[0]'
 
 # Test department filtering
-curl "http://localhost:3000/api/public/projects?departmentId=20" | jq '.projects | length'
+curl "http://165.22.227.234:3000/api/public/projects?departmentId=20" | jq '.projects | length'
 
 # Test subcounty filtering
-curl "http://localhost:3000/api/public/projects?subCountyId=1599" | jq '.projects | length'
+curl "http://165.22.227.234:3000/api/public/projects?subCountyId=1599" | jq '.projects | length'
 ```
 
 ### **Expected Results:**
@@ -247,13 +247,13 @@ Table Row (Summary) → Click → Modal (Details)
 ### **Environment Variables** (`/public-dashboard/.env`)
 
 ```env
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://165.22.227.234:3000/api
 ```
 
 ### **API Base URL** (`publicApi.js`)
 
 ```javascript
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://165.22.227.234:3000/api';
 ```
 
 ---
@@ -381,7 +381,7 @@ const loadStats = async () => {
 
 1. Check API is running:
    ```bash
-   curl http://localhost:3000/api/public/stats/by-department
+   curl http://165.22.227.234:3000/api/public/stats/by-department
    ```
 
 2. Check database connection:
@@ -441,4 +441,5 @@ This implementation provides:
 ---
 
 *For advanced features like ward tables and choropleth maps, see `PUBLIC_DASHBOARD_ENHANCEMENTS.md`*
+
 

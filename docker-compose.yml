@@ -16,22 +16,25 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: react_frontend
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5175:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
       - api
     command: npm run dev
-    environment:
-      VITE_API_URL: http://localhost:3000/api
+    # Remove VITE_API_URL - let .env.development handle it
+    # environment:
+    #   VITE_API_URL: /api  # Uses vite.config.js proxy to api:3000
 
   public-dashboard:
     build:
       context: ./public-dashboard
       dockerfile: Dockerfile
     container_name: public_dashboard
+    restart: unless-stopped
     ports:
       - "5174:5173"
     volumes:
@@ -40,8 +43,9 @@ services:
     depends_on:
       - api
     command: npm run dev
-    environment:
-      VITE_API_URL: http://localhost:3000/api
+    # Remove VITE_API_URL - let .env.development handle it
+    # environment:
+    #   VITE_API_URL: /api  # Uses vite.config.js proxy to api:3000
 
   api:
     build:

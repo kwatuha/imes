@@ -41,9 +41,9 @@ This dashboard provides citizens with transparent access to county project infor
 1. **The project is already set up!** It's located at `/home/dev/dev/imes/public-dashboard`
 
 2. **Access the dashboard:**
-   - **Public Dashboard**: http://localhost:5174
-   - **Admin Dashboard**: http://localhost:5173
-   - **API**: http://localhost:3000
+   - **Public Dashboard**: http://165.22.227.234:5174
+   - **Admin Dashboard**: http://165.22.227.234:5173
+   - **API**: http://165.22.227.234:3000
 
 ### Running Locally (without Docker)
 
@@ -53,7 +53,7 @@ npm install
 npm run dev
 ```
 
-The dashboard will be available at http://localhost:5173
+The dashboard will be available at http://165.22.227.234:5173
 
 ### Running with Docker
 
@@ -272,5 +272,6 @@ For issues or questions, contact the development team or submit feedback through
 ---
 
 **Built with ❤️ for transparency and accountability**
+
 
 

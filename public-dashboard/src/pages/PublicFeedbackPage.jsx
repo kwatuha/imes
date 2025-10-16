@@ -185,11 +185,11 @@ const PublicFeedbackPage = () => {
         }}
       >
         <Typography variant="body2" fontWeight="bold">
-          💡 Transparency & Accountability
+          💡 Implementation & Accountability
         </Typography>
         <Typography variant="body2">
           All feedback is reviewed by county officials. Responses are provided to ensure accountability 
-          and continuous improvement in project delivery.
+          and continuous improvement in project implementation and supervision.
         </Typography>
       </Alert>
 

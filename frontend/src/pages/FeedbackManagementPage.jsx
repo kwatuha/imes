@@ -29,7 +29,10 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
-  Badge
+  Badge,
+  Tabs,
+  Tab,
+  LinearProgress
 } from '@mui/material';
 import {
   Search,
@@ -46,13 +49,18 @@ import {
   Phone,
   Close,
   Send,
-  Visibility
+  Visibility,
+  Assessment,
+  Forum,
+  Star
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../api/axiosInstance';
+import FeedbackAnalytics from '../components/feedback/FeedbackAnalytics';
 
 const FeedbackManagementPage = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState(0);
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -203,9 +211,31 @@ const FeedbackManagementPage = () => {
           Public Feedback Management
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Review and respond to citizen feedback on projects
+          Review and respond to citizen feedback, analyze implementation and supervision ratings
         </Typography>
       </Box>
+
+      {/* Tabs */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="fullWidth"
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab 
+            icon={<Forum />} 
+            label="Feedback Management" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<Assessment />} 
+            label="Ratings Analytics" 
+            iconPosition="start"
+          />
+        </Tabs>
+      </Paper>
 
       {/* Success Message */}
       {successMessage && (
@@ -220,6 +250,10 @@ const FeedbackManagementPage = () => {
           {error}
         </Alert>
       )}
+
+      {/* Tab Content */}
+      {activeTab === 0 ? (
+        <Box>
 
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -465,6 +499,176 @@ const FeedbackManagementPage = () => {
                     </Paper>
                   </Box>
 
+                  {/* Ratings Display */}
+                  {(feedback.rating_overall_support || 
+                    feedback.rating_quality_of_life_impact || 
+                    feedback.rating_community_alignment || 
+                    feedback.rating_transparency || 
+                    feedback.rating_feasibility_confidence) && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle2" color="primary" fontWeight="bold" gutterBottom>
+                        CITIZEN RATINGS
+                      </Typography>
+                      
+                      <Paper 
+                        elevation={0} 
+                        sx={{ 
+                          p: 2, 
+                          backgroundColor: '#fff3e0',
+                          borderLeft: '4px solid #ff9800',
+                          borderRadius: '8px'
+                        }}
+                      >
+                        <Grid container spacing={2}>
+                          {feedback.rating_overall_support && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  Overall Support
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {feedback.rating_overall_support}/5
+                                  </Typography>
+                                  <Box sx={{ flexGrow: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={(feedback.rating_overall_support / 5) * 100}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        backgroundColor: '#e0e0e0',
+                                        '& .MuiLinearProgress-bar': {
+                                          backgroundColor: feedback.rating_overall_support >= 4 ? '#4caf50' : feedback.rating_overall_support >= 3 ? '#fdd835' : '#f44336'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              </Box>
+                            </Grid>
+                          )}
+                          
+                          {feedback.rating_quality_of_life_impact && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  Quality of Life Impact
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {feedback.rating_quality_of_life_impact}/5
+                                  </Typography>
+                                  <Box sx={{ flexGrow: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={(feedback.rating_quality_of_life_impact / 5) * 100}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        backgroundColor: '#e0e0e0',
+                                        '& .MuiLinearProgress-bar': {
+                                          backgroundColor: feedback.rating_quality_of_life_impact >= 4 ? '#4caf50' : feedback.rating_quality_of_life_impact >= 3 ? '#fdd835' : '#f44336'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              </Box>
+                            </Grid>
+                          )}
+                          
+                          {feedback.rating_community_alignment && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  Community Alignment
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {feedback.rating_community_alignment}/5
+                                  </Typography>
+                                  <Box sx={{ flexGrow: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={(feedback.rating_community_alignment / 5) * 100}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        backgroundColor: '#e0e0e0',
+                                        '& .MuiLinearProgress-bar': {
+                                          backgroundColor: feedback.rating_community_alignment >= 4 ? '#4caf50' : feedback.rating_community_alignment >= 3 ? '#fdd835' : '#f44336'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              </Box>
+                            </Grid>
+                          )}
+                          
+                          {feedback.rating_transparency && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  Implementation/Supervision
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {feedback.rating_transparency}/5
+                                  </Typography>
+                                  <Box sx={{ flexGrow: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={(feedback.rating_transparency / 5) * 100}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        backgroundColor: '#e0e0e0',
+                                        '& .MuiLinearProgress-bar': {
+                                          backgroundColor: feedback.rating_transparency >= 4 ? '#4caf50' : feedback.rating_transparency >= 3 ? '#fdd835' : '#f44336'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              </Box>
+                            </Grid>
+                          )}
+                          
+                          {feedback.rating_feasibility_confidence && (
+                            <Grid item xs={12} sm={6} md={4}>
+                              <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  Feasibility Confidence
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {feedback.rating_feasibility_confidence}/5
+                                  </Typography>
+                                  <Box sx={{ flexGrow: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={(feedback.rating_feasibility_confidence / 5) * 100}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        backgroundColor: '#e0e0e0',
+                                        '& .MuiLinearProgress-bar': {
+                                          backgroundColor: feedback.rating_feasibility_confidence >= 4 ? '#4caf50' : feedback.rating_feasibility_confidence >= 3 ? '#fdd835' : '#f44336'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              </Box>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Paper>
+                    </Box>
+                  )}
+
                   {/* Official Response */}
                   {feedback.status === 'responded' && feedback.admin_response && (
                     <Box sx={{ mb: 3 }}>
@@ -648,6 +852,10 @@ const FeedbackManagementPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+        </Box>
+      ) : (
+        <FeedbackAnalytics />
+      )}
     </Container>
   );
 };

@@ -9,7 +9,7 @@
 ### **1. Public Feedback Response System** ✅
 
 **For County Staff (Protected Dashboard):**
-- 📍 **URL:** http://localhost:5173/feedback-management
+- 📍 **URL:** http://165.22.227.234:5173/feedback-management
 - 🔐 **Access:** Admin users or users with `feedback.respond` privilege
 - ⚡ **Features:**
   - View all public feedback with statistics
@@ -19,7 +19,7 @@
   - Real-time status tracking
 
 **For Citizens (Public Dashboard):**
-- 📍 **URL:** http://localhost:5174/public-feedback
+- 📍 **URL:** http://165.22.227.234:5174/public-feedback
 - 👁️ **Access:** Public (no login required)
 - ⚡ **Features:**
   - View all submitted feedback
@@ -32,7 +32,7 @@
 ### **2. Department & Regional Analytics Dashboard** ✅
 
 **Enhanced Dashboard Page:**
-- 📍 **URL:** http://localhost:5174/dashboard
+- 📍 **URL:** http://165.22.227.234:5174/dashboard
 - 👁️ **Access:** Public
 - ⚡ **Features:**
 
@@ -189,21 +189,21 @@
 
 | Page | URL | Features |
 |------|-----|----------|
-| Landing | http://localhost:5174 | Overview, navigation |
-| **Dashboard** | http://localhost:5174/dashboard | **🆕 Department & regional analytics** |
-| Projects | http://localhost:5174/projects | Project gallery with photos |
-| Submit Feedback | http://localhost:5174/feedback | Feedback submission form |
-| View Feedback | http://localhost:5174/public-feedback | All feedback with responses |
+| Landing | http://165.22.227.234:5174 | Overview, navigation |
+| **Dashboard** | http://165.22.227.234:5174/dashboard | **🆕 Department & regional analytics** |
+| Projects | http://165.22.227.234:5174/projects | Project gallery with photos |
+| Submit Feedback | http://165.22.227.234:5174/feedback | Feedback submission form |
+| View Feedback | http://165.22.227.234:5174/public-feedback | All feedback with responses |
 
 ### **County Staff:**
 
 | Page | URL | Features |
 |------|-----|----------|
-| Login | http://localhost:5173/login | Authentication |
-| Main Dashboard | http://localhost:5173 | Admin overview |
-| **Feedback Management** | http://localhost:5173/feedback-management | **🆕 Respond to citizen feedback** |
-| Projects | http://localhost:5173/projects | Full project management |
-| User Management | http://localhost:5173/user-management | User administration |
+| Login | http://165.22.227.234:5173/login | Authentication |
+| Main Dashboard | http://165.22.227.234:5173 | Admin overview |
+| **Feedback Management** | http://165.22.227.234:5173/feedback-management | **🆕 Respond to citizen feedback** |
+| Projects | http://165.22.227.234:5173/projects | Full project management |
+| User Management | http://165.22.227.234:5173/user-management | User administration |
 
 ---
 
@@ -688,11 +688,12 @@ This implementation demonstrates:
 
 **🎊 IMPLEMENTATION COMPLETE! 🎊**
 
-*Access your enhanced public dashboard: http://localhost:5174/dashboard*
+*Access your enhanced public dashboard: http://165.22.227.234:5174/dashboard*
 
-*Manage citizen feedback: http://localhost:5173/feedback-management*
+*Manage citizen feedback: http://165.22.227.234:5173/feedback-management*
 
 ---
 
 *Developed with precision, tested thoroughly, documented comprehensively.* ✨
+
 

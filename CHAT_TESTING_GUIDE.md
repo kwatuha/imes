@@ -20,7 +20,7 @@
 ## 🎯 **HOW TO TEST THE CHAT SYSTEM:**
 
 ### **Step 1: Access the Application**
-1. **Open Browser**: Navigate to `http://localhost:5173/impes/`
+1. **Open Browser**: Navigate to `http://165.22.227.234:5173/impes/`
 2. **Login**: Use your existing admin credentials
 3. **Wait for Load**: Ensure the dashboard loads completely
 
@@ -61,7 +61,7 @@ WHERE p.privilegeName LIKE 'chat.%' AND u.userId = 1;"
 
 ### **If Socket.IO Connection Fails:**
 1. **Check Browser Console**: Look for connection errors
-2. **Verify Nginx**: `curl -I http://localhost:8080/socket.io/`
+2. **Verify Nginx**: `curl -I http://165.22.227.234:8080/socket.io/`
 3. **Check Backend**: `docker logs node_api --tail 20`
 4. **Check Frontend**: `docker logs react_frontend --tail 20`
 
@@ -70,7 +70,7 @@ WHERE p.privilegeName LIKE 'chat.%' AND u.userId = 1;"
 # Test API endpoint directly
 curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      -H "Content-Type: application/json" \
-     -X GET http://localhost:8080/api/chat/rooms
+     -X GET http://165.22.227.234:8080/api/chat/rooms
 ```
 
 ### **If Database Issues:**
@@ -149,13 +149,13 @@ docker logs -f nginx_proxy
 ### **Test Network Connectivity:**
 ```bash
 # Test API
-curl http://localhost:8080/api/chat/rooms
+curl http://165.22.227.234:8080/api/chat/rooms
 
 # Test Socket.IO
-curl http://localhost:8080/socket.io/
+curl http://165.22.227.234:8080/socket.io/
 
 # Test Frontend
-curl http://localhost:5173/impes/
+curl http://165.22.227.234:5173/impes/
 ```
 
 ---
@@ -202,6 +202,7 @@ curl http://localhost:5173/impes/
 **The chat system should now be fully functional! 🎉**
 
 *Test thoroughly and enjoy your new internal communication system!*
+
 
 
 

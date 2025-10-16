@@ -195,7 +195,7 @@ Progress: 45% (progress bar)
 
 ## 🎨 Visual Verification
 
-### **What You Should See on http://localhost:5174/projects:**
+### **What You Should See on http://165.22.227.234:5174/projects:**
 
 ```
 Row 1:
@@ -324,7 +324,7 @@ Row 1:
 
 ---
 
-**Test URL:** http://localhost:5174/projects
+**Test URL:** http://165.22.227.234:5174/projects
 
 **Look for:**
 - 👛 Green wallet icons
@@ -336,4 +336,5 @@ Row 1:
 ---
 
 *Projects gallery now displays complete, accurate information with universal icons!* ✨
+
 

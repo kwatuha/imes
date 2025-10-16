@@ -21,10 +21,12 @@ import {
   Send,
   Comment,
   LocationOn,
-  Business
+  Business,
+  CalendarToday
 } from '@mui/icons-material';
 import { submitFeedback } from '../services/publicApi';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import RatingInput from './RatingInput';
 
 const ProjectFeedbackModal = ({ open, onClose, project }) => {
   const [formData, setFormData] = useState({
@@ -32,7 +34,12 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
     email: '',
     phone: '',
     subject: '',
-    message: ''
+    message: '',
+    ratingOverallSupport: null,
+    ratingQualityOfLifeImpact: null,
+    ratingCommunityAlignment: null,
+    ratingTransparency: null,
+    ratingFeasibilityConfidence: null
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -53,9 +60,9 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
     console.log('Project ID:', project.id);
     
     // Validation
-    if (!formData.name || !formData.message) {
-      console.log('Validation failed:', { name: formData.name, message: formData.message });
-      setError('Name and message are required');
+    if (!formData.message) {
+      console.log('Validation failed:', { message: formData.message });
+      setError('Message is required');
       return;
     }
 
@@ -84,7 +91,12 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
         email: '',
         phone: '',
         subject: '',
-        message: ''
+        message: '',
+        ratingOverallSupport: null,
+        ratingQualityOfLifeImpact: null,
+        ratingCommunityAlignment: null,
+        ratingTransparency: null,
+        ratingFeasibilityConfidence: null
       });
       
       // Close modal after 2 seconds
@@ -107,7 +119,12 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
         email: '',
         phone: '',
         subject: '',
-        message: ''
+        message: '',
+        ratingOverallSupport: null,
+        ratingQualityOfLifeImpact: null,
+        ratingCommunityAlignment: null,
+        ratingTransparency: null,
+        ratingFeasibilityConfidence: null
       });
       setSuccess(false);
       setError(null);
@@ -202,6 +219,25 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
               </Typography>
             </Grid>
 
+            {/* Project Timeline */}
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarToday sx={{ fontSize: 18, color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary">
+                  Start: <strong>{formatDate(project.startDate || project.start_date)}</strong>
+                </Typography>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarToday sx={{ fontSize: 18, color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary">
+                  End: <strong>{formatDate(project.endDate || project.end_date)}</strong>
+                </Typography>
+              </Box>
+            </Grid>
+
             <Grid item xs={12}>
               <Chip 
                 label={project.status}
@@ -237,26 +273,150 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
           </Alert>
         )}
 
-        {/* Feedback Form */}
+        {/* Feedback Form - FIRST (Required) */}
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Your Feedback
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Please share your thoughts about this project. Your feedback is valuable and can be submitted anonymously.
+        </Typography>
+
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            {/* Message First */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                required
+                multiline
+                rows={5}
+                label="Your Feedback"
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
+                disabled={loading || success}
+                placeholder="Please share your feedback, suggestions, or concerns about this project..."
+                helperText="Your feedback helps us improve project delivery and transparency"
+              />
+            </Grid>
+          </Grid>
+        </form>
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* Rating Section - SECOND (Optional) */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+            Rate This Project (Optional)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Your ratings help us understand public sentiment and improve project delivery. All ratings are optional.
+          </Typography>
+
+          <RatingInput
+            label="1. Overall Satisfaction/Support for the Project"
+            name="ratingOverallSupport"
+            value={formData.ratingOverallSupport}
+            onChange={handleChange}
+            disabled={loading || success}
+            descriptions={[
+              'Strongly Oppose - The project should not proceed in its current form',
+              'Oppose - I have significant concerns or reservations about the project',
+              'Neutral - I have mixed feelings or no strong opinion on the project',
+              'Support - I generally agree with the project and its goals',
+              'Strongly Support - The project is excellent and I fully agree with it'
+            ]}
+          />
+
+          <RatingInput
+            label="2. Perceived Impact on Personal/Community Quality of Life"
+            name="ratingQualityOfLifeImpact"
+            value={formData.ratingQualityOfLifeImpact}
+            onChange={handleChange}
+            disabled={loading || success}
+            descriptions={[
+              'Highly Negative Impact - Will significantly worsen quality of life',
+              'Moderately Negative Impact - Will cause some inconvenience or harm',
+              'No Significant Change - The project will have little to no impact',
+              'Moderately Positive Impact - Will lead to noticeable improvements',
+              'Highly Positive Impact - Will significantly improve quality of life'
+            ]}
+          />
+
+          <RatingInput
+            label="3. Alignment with Community Needs and Priorities"
+            name="ratingCommunityAlignment"
+            value={formData.ratingCommunityAlignment}
+            onChange={handleChange}
+            disabled={loading || success}
+            descriptions={[
+              'Not Aligned at All - This project is unnecessary or misplaced',
+              'Poorly Aligned - This is not a priority for the community',
+              'Somewhat Aligned - This is a secondary need, but acceptable',
+              'Well Aligned - This addresses an important community need',
+              'Perfectly Aligned - This is a top priority need for the community'
+            ]}
+          />
+
+          <RatingInput
+            label="4. Implementation/Supervision"
+            name="ratingTransparency"
+            value={formData.ratingTransparency}
+            onChange={handleChange}
+            disabled={loading || success}
+            descriptions={[
+              'Very Poor Implementation - Implementation teams were unprofessional and unresponsive',
+              'Poor Implementation - Implementation teams showed poor management and communication',
+              'Adequate Implementation - Implementation teams were acceptable but had some issues',
+              'Good Implementation - Implementation teams managed the process well with minor issues',
+              'Excellent Implementation - Implementation teams were highly professional and effective'
+            ]}
+          />
+
+          <RatingInput
+            label="5. Confidence in the Project's Timeline and Budget (Feasibility)"
+            name="ratingFeasibilityConfidence"
+            value={formData.ratingFeasibilityConfidence}
+            onChange={handleChange}
+            disabled={loading || success}
+            descriptions={[
+              'Very Low Confidence - Do not believe the project can be completed successfully',
+              'Low Confidence - Significant concerns about delays and costs',
+              'Moderate Confidence - Expect delays or minor budget overruns',
+              'High Confidence - Mostly confident, with only minor doubts',
+              'Very High Confidence - Trust the project will be delivered as promised'
+            ]}
+          />
+        </Box>
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* Contact Information - THIRD (Optional) */}
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Contact Information (Optional)
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Provide your contact details only if you'd like us to respond. You can submit feedback anonymously.
+        </Typography>
+
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                required
-                label="Your Name"
+                label="Your Name (Optional)"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 disabled={loading || success}
-                placeholder="Enter your full name"
+                placeholder="Enter your name if you'd like us to contact you"
               />
             </Grid>
 
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Email Address"
+                label="Email Address (Optional)"
                 name="email"
                 type="email"
                 value={formData.email}
@@ -269,7 +429,7 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
+                label="Phone Number (Optional)"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
@@ -287,22 +447,6 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
                 onChange={handleChange}
                 disabled={loading || success}
                 placeholder={`Feedback about ${project.projectName}`}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                required
-                multiline
-                rows={5}
-                label="Your Feedback"
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                disabled={loading || success}
-                placeholder="Please share your feedback, suggestions, or concerns about this project..."
-                helperText="Your feedback helps us improve project delivery and transparency"
               />
             </Grid>
           </Grid>

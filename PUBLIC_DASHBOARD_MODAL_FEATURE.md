@@ -335,12 +335,13 @@ return (
 The public dashboard now has beautiful, interactive modals that allow citizens to explore project details with ease!
 
 **Try it now:**
-1. Open `http://10.221.96.53:5174/` or `http://localhost:5174/`
+1. Open `http://10.221.96.53:5174/` or `http://165.22.227.234:5174/`
 2. Click on any stat card
 3. Watch the beautiful modal appear with project details!
 
 ---
 
 **Built with inspiration from the RegionalDashboard modals** 🎨
+
 
 

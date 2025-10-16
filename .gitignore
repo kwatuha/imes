@@ -1,32 +1,55 @@
-# Node.js dependencies and environment files
-api/uploads/
-frontend/node_modules/
-api/package-lock.json
-frontend/package-lock.json
-api/.env
-frontend/.env
-/*.sql
-frontend/dist/
-frontend/src/configs/*.sql
-frontend/src/components/chat/*.sql
-# Sensitive data and user uploads
- 
-api/dump/
+# Environment files
+# IMPORTANT: .env.development and .env.production are committed (non-secret config)
+# Only .env.local files (with secrets/local overrides) are ignored
+.env.local
+.env*.local
+*.env.local
+# Do NOT ignore .env.development or .env.production - they're part of the config!
 
-templates/
-# Generated files and temporary data
-data_testing/
-.DS_Store # macOS system files
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
 
-# Visual Studio Code settings
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
 
+# Temporary files
+tmp/
+temp/
+*.tmp
 
-# Ignore all files in the config folder that are not templates
-# If you have a config.example.js, you would commit that, but not the filled-in version.
-# For example, ignore all .js and .json files in the config directory.
-# You can comment this out if your config files do not contain sensitive data.
-# config/*.js
-# config/*.json
+# Database
+*.sql.backup
+*.sql.bak
+
+# Uploads (comment out if you want to track uploads)
+# uploads/
+
+# Docker volumes data
+db_data/
+
+# Coverage
+coverage/
+.nyc_output/
+

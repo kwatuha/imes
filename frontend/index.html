@@ -4,18 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KEMRI Dashboard</title>
+    <title>IPMES Dashboard</title>
+    
+    <!-- Performance: Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    
     <!-- Google Fonts: Inter (for overall app consistency) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS CDN (for Login.jsx and any other Tailwind-styled components) -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind CSS CDN (for Login.jsx - Load async to not block rendering) -->
+    <script src="https://cdn.tailwindcss.com" async></script>
 
-    <!-- ArcGIS API for JavaScript CSS -->
-    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+    
+    <!-- Frappe Gantt CSS (Load async) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css"></noscript>
     
     <script>
-      // Optional: Configure Tailwind if you have custom colors/fonts beyond default
-      tailwind.config = {
+      // Configure Tailwind (runs after Tailwind CDN loads)
+      window.tailwindConfig = {
         theme: {
           extend: {
             fontFamily: {
@@ -33,17 +44,18 @@
           },
         },
       };
+      // Apply config when Tailwind loads
+      if (window.tailwind) {
+        window.tailwind.config = window.tailwindConfig;
+      }
     </script>
-    <!-- Frappe Gantt CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css">
     
-    <!-- ArcGIS API for JavaScript CDN (MUST be loaded before your React app tries to use it) -->
-    <script src="https://js.arcgis.com/4.29/"></script>
   </head>
   <body>
     <div id="root"></div>
-    <!-- Frappe Gantt JS -->
-    <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.min.js"></script>
+    <!-- Frappe Gantt JS (Load async, non-blocking) -->
+    <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.min.js" defer></script>
+    <!-- Main app bundle -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

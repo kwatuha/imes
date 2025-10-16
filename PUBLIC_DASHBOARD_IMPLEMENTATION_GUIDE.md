@@ -223,7 +223,7 @@ export default QuickStatsCard;
 // src/services/publicApi.js
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://165.22.227.234:3000/api';
 
 const publicApi = axios.create({
   baseURL: `${API_BASE_URL}/public`,
@@ -285,7 +285,7 @@ Add the public dashboard service:
       - ./public-dashboard:/app
       - /app/node_modules
     environment:
-      VITE_API_URL: http://localhost:3000/api
+      VITE_API_URL: http://165.22.227.234:3000/api
     command: npm run dev
 ```
 
@@ -317,9 +317,9 @@ location /public/ {
 
 1. Run all services: `docker-compose up -d`
 2. Access:
-   - Admin Dashboard: `http://localhost:5173/impes`
-   - Public Dashboard: `http://localhost:5174`
-   - API: `http://localhost:3000`
+   - Admin Dashboard: `http://165.22.227.234:5173/impes`
+   - Public Dashboard: `http://165.22.227.234:5174`
+   - API: `http://165.22.227.234:3000`
 
 ### 4.2 Production Deployment
 
@@ -365,13 +365,13 @@ location /public/ {
 1. **Test Public API Endpoints**
    ```bash
    # Test overview stats
-   curl http://localhost:3000/api/public/stats/overview
+   curl http://165.22.227.234:3000/api/public/stats/overview
    
    # Test projects list
-   curl http://localhost:3000/api/public/projects?page=1&limit=10
+   curl http://165.22.227.234:3000/api/public/projects?page=1&limit=10
    
    # Test financial years
-   curl http://localhost:3000/api/public/financial-years
+   curl http://165.22.227.234:3000/api/public/financial-years
    ```
 
 2. **Create Database Tables**
@@ -445,5 +445,6 @@ The public API is now ready and waiting for the frontend implementation. You can
 **Questions or Need Help?**
 
 Refer to this guide as you implement each phase. The API is production-ready and can be tested immediately.
+
 
 

@@ -85,7 +85,7 @@ const FilteredDashboardComponent = ({
     }
 
     return filtered;
-  }, []);
+  }, [user]); // Add user as dependency since it's used in applyCustomFilter
 
   // Apply custom filter logic
   const applyCustomFilter = (data, filter) => {
@@ -130,8 +130,58 @@ const FilteredDashboardComponent = ({
       // Fetch raw data using provided data fetcher
       const rawData = await dataFetcher(user, accessConfig);
       
-      // Apply user-specific filters
-      const filtered = await applyUserFilters(rawData, accessConfig);
+      // Apply user-specific filters inline to avoid dependency issues
+      let filtered = rawData;
+      if (accessConfig && rawData) {
+        // Apply department filter
+        if (accessConfig.departmentFilter && accessConfig.userDepartments?.length > 0) {
+          filtered = filtered.filter(item => 
+            accessConfig.userDepartments.includes(item.departmentId) ||
+            accessConfig.userDepartments.includes(item.department_id)
+          );
+        }
+
+        // Apply ward filter
+        if (accessConfig.wardFilter && accessConfig.userWards?.length > 0) {
+          filtered = filtered.filter(item => 
+            accessConfig.userWards.includes(item.wardId) ||
+            accessConfig.userWards.includes(item.ward_id)
+          );
+        }
+
+        // Apply project filter
+        if (accessConfig.projectFilter && accessConfig.userProjects?.length > 0) {
+          filtered = filtered.filter(item => 
+            accessConfig.userProjects.includes(item.projectId) ||
+            accessConfig.userProjects.includes(item.project_id) ||
+            accessConfig.userProjects.includes(item.id)
+          );
+        }
+
+        // Apply budget filter
+        if (accessConfig.budgetFilter && accessConfig.budgetRange) {
+          const { min, max } = accessConfig.budgetRange;
+          filtered = filtered.filter(item => {
+            const budget = item.budget || item.allocatedBudget || item.contractSum || 0;
+            return budget >= min && budget <= max;
+          });
+        }
+
+        // Apply status filter
+        if (accessConfig.statusFilter && accessConfig.allowedStatuses?.length > 0) {
+          filtered = filtered.filter(item => 
+            accessConfig.allowedStatuses.includes(item.status) ||
+            accessConfig.allowedStatuses.includes(item.projectStatus)
+          );
+        }
+
+        // Apply custom filters
+        if (accessConfig.customFilters) {
+          for (const customFilter of accessConfig.customFilters) {
+            filtered = applyCustomFilter(filtered, customFilter);
+          }
+        }
+      }
       
       setFilteredData(filtered);
     } catch (err) {
@@ -140,7 +190,7 @@ const FilteredDashboardComponent = ({
     } finally {
       setLoading(false);
     }
-  }, [user, dataFetcher, getUserDataAccess, applyUserFilters]);
+  }, [user, dataFetcher, getUserDataAccess]);
 
   useEffect(() => {
     if (user?.id) {

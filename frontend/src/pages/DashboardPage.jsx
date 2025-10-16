@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Box, Grid, Card, CardContent, CircularProgress, Button } from '@mui/material';
 import FilterPanel from '../components/FilterPanel';
+import DashboardStatsModal from '../components/modals/DashboardStatsModal';
 import apiService from '../api'; // This imports the consolidated apiService
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -52,6 +53,11 @@ function DashboardPage() {
   const [loadingHealthcareAccess, setLoadingHealthcareAccess] = useState(true);
   const [loadingWaterStorage, setLoadingWaterStorage] = useState(true);
   const [loadingClimatePerception, setLoadingClimatePerception] = useState(true);
+
+  // MODAL STATES
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStatType, setModalStatType] = useState('');
+  const [modalStatTitle, setModalStatTitle] = useState('');
 
   const fetchData = useCallback(async (currentFilters) => {
     // Only attempt to fetch data if a token is present
@@ -164,7 +170,7 @@ function DashboardPage() {
       setLoadingClimatePerception(false);
     }
 
-  }, [token, logout]);
+  }, [token]); // Remove logout from dependencies to prevent unnecessary re-renders
 
   useEffect(() => {
     fetchData(filters);
@@ -172,6 +178,20 @@ function DashboardPage() {
 
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
+  };
+
+  // Handle clicking on statistics cards
+  const handleStatClick = (statType, statTitle) => {
+    setModalStatType(statType);
+    setModalStatTitle(statTitle);
+    setModalOpen(true);
+  };
+
+  // Handle closing the modal
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalStatType('');
+    setModalStatTitle('');
   };
 
   return (
@@ -185,7 +205,10 @@ function DashboardPage() {
 
       {/* Summary Statistics */}
       <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>
-        Summary Statistics
+        Quick Stats
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Click on any statistic card below to view detailed breakdowns and analysis
       </Typography>
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {loadingSummary ? (
@@ -196,7 +219,22 @@ function DashboardPage() {
         ) : (
           <>
             <Grid item xs={12} sm={6} lg={3}>
-              <Card raised sx={{ backgroundColor: theme.palette.secondary.main }}>
+              <Card 
+                raised 
+                sx={{ 
+                  backgroundColor: theme.palette.secondary.main,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 8,
+                    '& .click-hint': {
+                      opacity: 1
+                    }
+                  }
+                }}
+                onClick={() => handleStatClick('totalParticipants', 'Total Participants')}
+              >
                 <CardContent>
                   <Typography variant="h6" color="primary.main" gutterBottom>
                     Total Participants
@@ -204,11 +242,40 @@ function DashboardPage() {
                   <Typography variant="h4" color="primary.main">
                     {summaryData.totalParticipants}
                   </Typography>
+                  <Typography 
+                    variant="caption" 
+                    className="click-hint"
+                    sx={{ 
+                      color: 'primary.main',
+                      fontWeight: 600,
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease',
+                      display: 'block',
+                      mt: 1
+                    }}
+                  >
+                    Click to view details →
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} lg={3}>
-              <Card raised sx={{ backgroundColor: theme.palette.secondary.main }}>
+              <Card 
+                raised 
+                sx={{ 
+                  backgroundColor: theme.palette.secondary.main,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 8,
+                    '& .click-hint': {
+                      opacity: 1
+                    }
+                  }
+                }}
+                onClick={() => handleStatClick('averageAge', 'Average Age')}
+              >
                 <CardContent>
                   <Typography variant="h6" color="primary.main" gutterBottom>
                     Average Age
@@ -216,11 +283,40 @@ function DashboardPage() {
                   <Typography variant="h4" color="primary.main">
                     {summaryData.averageAge} years
                   </Typography>
+                  <Typography 
+                    variant="caption" 
+                    className="click-hint"
+                    sx={{ 
+                      color: 'primary.main',
+                      fontWeight: 600,
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease',
+                      display: 'block',
+                      mt: 1
+                    }}
+                  >
+                    Click to view details →
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} lg={3}>
-              <Card raised sx={{ backgroundColor: theme.palette.secondary.main }}>
+              <Card 
+                raised 
+                sx={{ 
+                  backgroundColor: theme.palette.secondary.main,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 8,
+                    '& .click-hint': {
+                      opacity: 1
+                    }
+                  }
+                }}
+                onClick={() => handleStatClick('malariaPrevalence', 'Malaria Prevalence')}
+              >
                 <CardContent>
                   <Typography variant="h6" color="primary.main" gutterBottom>
                     Malaria Prevalence
@@ -228,17 +324,60 @@ function DashboardPage() {
                   <Typography variant="h4" color="primary.main">
                     {summaryData.malariaPrevalence}%
                   </Typography>
+                  <Typography 
+                    variant="caption" 
+                    className="click-hint"
+                    sx={{ 
+                      color: 'primary.main',
+                      fontWeight: 600,
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease',
+                      display: 'block',
+                      mt: 1
+                    }}
+                  >
+                    Click to view details →
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} lg={3}>
-              <Card raised sx={{ backgroundColor: theme.palette.secondary.main }}>
+              <Card 
+                raised 
+                sx={{ 
+                  backgroundColor: theme.palette.secondary.main,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 8,
+                    '& .click-hint': {
+                      opacity: 1
+                    }
+                  }
+                }}
+                onClick={() => handleStatClick('denguePrevalence', 'Dengue Prevalence')}
+              >
                 <CardContent>
                   <Typography variant="h6" color="primary.main" gutterBottom>
                     Dengue Prevalence
                   </Typography>
                   <Typography variant="h4" color="primary.main">
                     {summaryData.denguePrevalence}%
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
+                    className="click-hint"
+                    sx={{ 
+                      color: 'primary.main',
+                      fontWeight: 600,
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease',
+                      display: 'block',
+                      mt: 1
+                    }}
+                  >
+                    Click to view details →
                   </Typography>
                 </CardContent>
               </Card>
@@ -297,6 +436,15 @@ function DashboardPage() {
           </>
         )}
       </Grid>
+
+      {/* Dashboard Stats Modal */}
+      <DashboardStatsModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        statType={modalStatType}
+        statTitle={modalStatTitle}
+        filters={filters}
+      />
     </Box>
   );
 }

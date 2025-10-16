@@ -1,0 +1,6 @@
+INSERT IGNORE INTO kemri_role_privileges (roleId, privilegeId, createdAt) SELECT 7, privilegeId, NOW() FROM kemri_privileges;
+
+
+http://192.168.100.12:3000/api/hr/employees/performance/1
+
+https://dribbble.com/shots/26035662-HR-Management-MyID-Employee-Detail-Web-Design

@@ -17,15 +17,47 @@ const pool = require('../config/db');
  */
 router.get('/stats/overview', async (req, res) => {
     try {
-        const { finYearId } = req.query;
+        const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
         
-        let whereClause = 'WHERE p.voided = 0';
+        let whereConditions = ['p.voided = 0'];
         const queryParams = [];
         
         if (finYearId) {
-            whereClause += ' AND p.finYearId = ?';
+            whereConditions.push('p.finYearId = ?');
             queryParams.push(finYearId);
         }
+
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (subcountyId) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_subcounties psc 
+                WHERE psc.projectId = p.id 
+                AND psc.subcountyId = ? 
+                AND psc.voided = 0
+            )`);
+            queryParams.push(subcountyId);
+        }
+
+        if (wardId) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_wards pw 
+                WHERE pw.projectId = p.id 
+                AND pw.wardId = ? 
+                AND pw.voided = 0
+            )`);
+            queryParams.push(wardId);
+        }
+
+        if (search) {
+            whereConditions.push('p.projectName LIKE ?');
+            queryParams.push(`%${search}%`);
+        }
+
+        const whereClause = whereConditions.join(' AND ');
 
         const query = `
             SELECT 
@@ -48,7 +80,7 @@ router.get('/stats/overview', async (req, res) => {
                 COUNT(CASE WHEN p.status = 'Stalled' THEN 1 END) as stalled_projects,
                 COALESCE(SUM(CASE WHEN p.status = 'Stalled' THEN p.costOfProject END), 0) as stalled_budget
             FROM kemri_projects p
-            ${whereClause}
+            WHERE ${whereClause}
         `;
 
         const [results] = await pool.query(query, queryParams);
@@ -289,15 +321,47 @@ router.get('/projects/:id', async (req, res) => {
  */
 router.get('/stats/by-department', async (req, res) => {
     try {
-        const { finYearId } = req.query;
+        const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
         
-        let whereClause = 'WHERE p.voided = 0';
+        let whereConditions = ['p.voided = 0'];
         const queryParams = [];
         
         if (finYearId) {
-            whereClause += ' AND p.finYearId = ?';
+            whereConditions.push('p.finYearId = ?');
             queryParams.push(finYearId);
         }
+
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (subcountyId) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_subcounties psc 
+                WHERE psc.projectId = p.id 
+                AND psc.subcountyId = ? 
+                AND psc.voided = 0
+            )`);
+            queryParams.push(subcountyId);
+        }
+
+        if (wardId) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_wards pw 
+                WHERE pw.projectId = p.id 
+                AND pw.wardId = ? 
+                AND pw.voided = 0
+            )`);
+            queryParams.push(wardId);
+        }
+
+        if (search) {
+            whereConditions.push('p.projectName LIKE ?');
+            queryParams.push(`%${search}%`);
+        }
+
+        const whereClause = whereConditions.join(' AND ');
 
         const query = `
             SELECT 
@@ -313,13 +377,13 @@ router.get('/stats/by-department', async (req, res) => {
                 COUNT(CASE WHEN p.status = 'Under Procurement' THEN 1 END) as under_procurement_projects
             FROM kemri_departments d
             LEFT JOIN kemri_projects p ON d.departmentId = p.departmentId AND p.voided = 0
-            ${finYearId ? 'AND p.finYearId = ?' : ''}
+            WHERE ${whereClause}
             GROUP BY d.departmentId, d.name, d.alias
             HAVING total_projects > 0
             ORDER BY total_budget DESC
         `;
 
-        const [results] = await pool.query(query, finYearId ? [finYearId] : []);
+        const [results] = await pool.query(query, queryParams);
         res.json(results);
     } catch (error) {
         console.error('Error fetching department stats:', error);
@@ -336,15 +400,42 @@ router.get('/stats/by-department', async (req, res) => {
  */
 router.get('/stats/by-subcounty', async (req, res) => {
     try {
-        const { finYearId } = req.query;
+        const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
         
-        let whereClause = 'WHERE p.voided = 0';
+        let whereConditions = ['p.voided = 0'];
         const queryParams = [];
         
         if (finYearId) {
-            whereClause += ' AND p.finYearId = ?';
+            whereConditions.push('p.finYearId = ?');
             queryParams.push(finYearId);
         }
+
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (subcountyId) {
+            whereConditions.push('sc.subcountyId = ?');
+            queryParams.push(subcountyId);
+        }
+
+        if (wardId) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_wards pw 
+                WHERE pw.projectId = p.id 
+                AND pw.wardId = ? 
+                AND pw.voided = 0
+            )`);
+            queryParams.push(wardId);
+        }
+
+        if (search) {
+            whereConditions.push('p.projectName LIKE ?');
+            queryParams.push(`%${search}%`);
+        }
+
+        const whereClause = whereConditions.join(' AND ');
 
         const query = `
             SELECT 
@@ -357,13 +448,13 @@ router.get('/stats/by-subcounty', async (req, res) => {
             FROM kemri_subcounties sc
             LEFT JOIN kemri_project_subcounties psc ON sc.subcountyId = psc.subcountyId AND psc.voided = 0
             LEFT JOIN kemri_projects p ON psc.projectId = p.id AND p.voided = 0
-            ${finYearId ? 'AND p.finYearId = ?' : ''}
+            WHERE ${whereClause}
             GROUP BY sc.subcountyId, sc.name
             HAVING project_count > 0
             ORDER BY total_budget DESC
         `;
 
-        const [results] = await pool.query(query, finYearId ? [finYearId] : []);
+        const [results] = await pool.query(query, queryParams);
         res.json(results);
     } catch (error) {
         console.error('Error fetching sub-county stats:', error);
@@ -378,7 +469,7 @@ router.get('/stats/by-subcounty', async (req, res) => {
  */
 router.get('/stats/by-ward', async (req, res) => {
     try {
-        const { finYearId, subCountyId } = req.query;
+        const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
         
         let whereConditions = ['p.voided = 0'];
         const queryParams = [];
@@ -388,9 +479,24 @@ router.get('/stats/by-ward', async (req, res) => {
             queryParams.push(finYearId);
         }
 
-        if (subCountyId) {
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (subcountyId) {
             whereConditions.push('w.subcountyId = ?');
-            queryParams.push(subCountyId);
+            queryParams.push(subcountyId);
+        }
+
+        if (wardId) {
+            whereConditions.push('w.wardId = ?');
+            queryParams.push(wardId);
+        }
+
+        if (search) {
+            whereConditions.push('p.projectName LIKE ?');
+            queryParams.push(`%${search}%`);
         }
 
         const whereClause = whereConditions.join(' AND ');
@@ -409,13 +515,13 @@ router.get('/stats/by-ward', async (req, res) => {
             LEFT JOIN kemri_subcounties sc ON w.subcountyId = sc.subcountyId
             LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
             LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
-            ${finYearId ? 'AND p.finYearId = ?' : ''}
+            WHERE ${whereClause}
             GROUP BY w.wardId, w.name, sc.subcountyId, sc.name
             HAVING project_count > 0
             ORDER BY sc.name, total_budget DESC
         `;
 
-        const [results] = await pool.query(query, finYearId ? [finYearId] : []);
+        const [results] = await pool.query(query, queryParams);
         res.json(results);
     } catch (error) {
         console.error('Error fetching ward stats:', error);
@@ -550,19 +656,63 @@ router.get('/metadata/project-types', async (req, res) => {
  */
 router.post('/feedback', async (req, res) => {
     try {
-        const { name, email, phone, subject, message, projectId } = req.body;
+        const { 
+            name, 
+            email, 
+            phone, 
+            subject, 
+            message, 
+            projectId,
+            ratingOverallSupport,
+            ratingQualityOfLifeImpact,
+            ratingCommunityAlignment,
+            ratingTransparency,
+            ratingFeasibilityConfidence
+        } = req.body;
 
         // Validate required fields
-        if (!name || !message) {
-            return res.status(400).json({ error: 'Name and message are required' });
+        if (!message) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
+        // Validate ratings if provided (must be between 1-5)
+        const ratings = [
+            ratingOverallSupport,
+            ratingQualityOfLifeImpact,
+            ratingCommunityAlignment,
+            ratingTransparency,
+            ratingFeasibilityConfidence
+        ];
+
+        for (const rating of ratings) {
+            if (rating !== undefined && rating !== null && (rating < 1 || rating > 5)) {
+                return res.status(400).json({ error: 'Ratings must be between 1 and 5' });
+            }
         }
 
         const query = `
-            INSERT INTO public_feedback (name, email, phone, subject, message, project_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO public_feedback (
+                name, email, phone, subject, message, project_id, 
+                rating_overall_support, rating_quality_of_life_impact, 
+                rating_community_alignment, rating_transparency, 
+                rating_feasibility_confidence, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
-        await pool.query(query, [name, email, phone, subject, message, projectId || null]);
+        await pool.query(query, [
+            name, 
+            email, 
+            phone, 
+            subject, 
+            message, 
+            projectId || null,
+            ratingOverallSupport || null,
+            ratingQualityOfLifeImpact || null,
+            ratingCommunityAlignment || null,
+            ratingTransparency || null,
+            ratingFeasibilityConfidence || null
+        ]);
 
         res.status(201).json({ 
             success: true, 
@@ -712,6 +862,11 @@ router.get('/feedback', async (req, res) => {
                 f.admin_response,
                 f.responded_at,
                 f.created_at,
+                f.rating_overall_support,
+                f.rating_quality_of_life_impact,
+                f.rating_community_alignment,
+                f.rating_transparency,
+                f.rating_feasibility_confidence,
                 p.projectName as project_name
             FROM public_feedback f
             LEFT JOIN kemri_projects p ON f.project_id = p.id

@@ -32,10 +32,9 @@ export const ChatProvider = ({ children }) => {
     
     if (user && token) {
       // Connect through nginx proxy for socket.io
-      // Always use port 8080 for socket connections since that's where nginx routes socket.io
-      const socketUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:8080' 
-        : window.location.protocol + '//' + window.location.host;
+      // Use environment variable or auto-detect from current location
+      const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+        (window.location.protocol + '//' + window.location.host);
       console.log('ChatContext - Creating socket connection to', socketUrl);
       console.log('ChatContext - window.location:', window.location);
       const newSocket = io(socketUrl, {

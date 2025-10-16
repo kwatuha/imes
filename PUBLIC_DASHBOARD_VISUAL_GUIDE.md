@@ -629,11 +629,12 @@ Your public dashboard now provides:
 ✨ **Professional appearance**  
 ✨ **Citizen-friendly design**  
 
-**Access it now:** http://localhost:5174/dashboard
+**Access it now:** http://165.22.227.234:5174/dashboard
 
 ---
 
 *Inspired by [Makueni County PMTS](https://pmts.makueni.go.ke/views/landing_dashboard)*
 
 *Built with ❤️ using React, Material-UI, and MySQL*
+
 

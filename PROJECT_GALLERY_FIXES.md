@@ -477,7 +477,7 @@ Project 5 (No data):
 ### **Quick Verification:**
 
 ```bash
-1. Visit: http://localhost:5174/projects
+1. Visit: http://165.22.227.234:5174/projects
 
 2. Look at any project card and verify:
    ✅ Location shows actual ward/subcounty (not N/A)
@@ -556,7 +556,7 @@ Benefits:
 
 ---
 
-**Test it now:** http://localhost:5174/projects
+**Test it now:** http://165.22.227.234:5174/projects
 
 **You should see:**
 - 👛 Wallet icons (green)
@@ -569,4 +569,5 @@ Benefits:
 ---
 
 *All project information now displays correctly with appropriate universal icons!* 🎉
+
 

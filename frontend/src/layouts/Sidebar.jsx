@@ -7,8 +7,6 @@ import {
   useTheme, 
   Divider, 
   Tooltip, 
-  TextField, 
-  InputAdornment,
   Collapse,
   List,
   ListItem,
@@ -17,13 +15,16 @@ import {
   ListItemText,
   useMediaQuery,
   Fade,
-  Zoom
+  Zoom,
+  Avatar,
+  Badge,
+  Chip,
+  LinearProgress
 } from "@mui/material";
-import { Link, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
-import { tokens } from "../pages/dashboard/theme";
+// ✨ Removed old theme system - using modern theme directly!
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
-import SearchIcon from '@mui/icons-material/Search';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -41,55 +42,108 @@ import BusinessIcon from '@mui/icons-material/Business';
 import PeopleIcon from '@mui/icons-material/People';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import Comment from '@mui/icons-material/Comment';
+import StarIcon from '@mui/icons-material/Star';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
 import logo from '../assets/logo.png';
 import userProfilePicture from '../assets/user.png';
 
-const Item = ({ title, to, icon, selected, setSelected, isCollapsed, privilegeCheck }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-
+const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme }) => {
+  const navigate = useNavigate();
+  
   if (privilegeCheck && !privilegeCheck()) {
     return null;
   }
 
+  const handleClick = () => {
+    console.log('Menu item clicked:', title, 'navigating to:', to);
+    setSelected(to);
+    navigate(to);
+  };
+
   return (
-    <Tooltip title={title} placement="right" disableHoverListener={!isCollapsed}>
-      <MenuItem
-        active={selected === title}
-        style={{ color: colors.grey[100] }}
-        onClick={() => setSelected(title)}
-        icon={icon}
+    <Box
+      onClick={handleClick}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '8px 12px',
+        margin: '2px 8px',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        backgroundColor: selected === to ? theme.palette.action.selected : 'transparent',
+        color: selected === to ? theme.palette.primary.main : theme.palette.text.primary,
+        '&:hover': {
+          backgroundColor: theme.palette.action.hover,
+          transform: 'translateX(2px)',
+          transition: 'all 0.2s ease-in-out',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}>
+        {icon}
+      </Box>
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          fontSize: '0.9rem', 
+          fontWeight: selected === to ? '600' : '500',
+          overflow: 'visible', 
+          whiteSpace: 'nowrap', 
+          textOverflow: 'unset' 
+        }}
       >
-        <Typography>{title}</Typography>
-        <Link to={to} />
-      </MenuItem>
-    </Tooltip>
+        {title}
+      </Typography>
+    </Box>
   );
 };
 
-const MenuGroup = ({ title, icon, children, isCollapsed, isOpen, onToggle }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+const MenuGroup = ({ title, icon, children, isOpen, onToggle, theme, colors }) => {
 
   return (
     <Box>
-      <MenuItem
+      <Box
         onClick={onToggle}
-        style={{ 
-          color: colors.grey[100],
-          fontWeight: 'bold',
-          backgroundColor: colors.primary[500]
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 12px',
+          margin: '4px 8px',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          backgroundColor: theme.palette.action.hover,
+          color: theme.palette.text.primary,
+          '&:hover': {
+            backgroundColor: theme.palette.action.selected,
+            transition: 'all 0.2s ease-in-out',
+          },
         }}
-        icon={icon}
       >
-        <Typography variant="h6">{title}</Typography>
-        {!isCollapsed && (isOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />)}
-      </MenuItem>
-      <Collapse in={isOpen && !isCollapsed} timeout="auto" unmountOnExit>
-        <Box sx={{ pl: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}>
+            {icon}
+          </Box>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              fontSize: '0.9rem', 
+              fontWeight: '600', 
+              overflow: 'visible', 
+              whiteSpace: 'nowrap', 
+              textOverflow: 'unset' 
+            }}
+          >
+            {title}
+          </Typography>
+        </Box>
+        {isOpen ? <ExpandLessIcon sx={{ fontSize: '18px' }} /> : <ExpandMoreIcon sx={{ fontSize: '18px' }} />}
+      </Box>
+      <Collapse in={isOpen} timeout="auto" unmountOnExit>
+        <Box sx={{ pl: 0.5 }}>
           {children}
         </Box>
       </Collapse>
@@ -97,18 +151,11 @@ const MenuGroup = ({ title, icon, children, isCollapsed, isOpen, onToggle }) => 
   );
 };
 
-const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm }) => {
-  const filteredItems = useMemo(() => {
-    if (!searchTerm) return items;
-    return items.filter(item => 
-      item.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [items, searchTerm]);
-
+const SearchableMenu = ({ items, selected, setSelected, theme }) => {
   return (
     <Fade in={true} timeout={300}>
       <Box>
-        {filteredItems.map((item, index) => (
+        {items.map((item, index) => (
           <Zoom in={true} timeout={300 + index * 50} key={index}>
             <Box>
               <Item
@@ -117,8 +164,8 @@ const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm 
                 icon={item.icon}
                 selected={selected}
                 setSelected={setSelected}
-                isCollapsed={isCollapsed}
                 privilegeCheck={item.privilege}
+                theme={theme}
               />
             </Box>
           </Zoom>
@@ -128,15 +175,37 @@ const SearchableMenu = ({ items, selected, setSelected, isCollapsed, searchTerm 
   );
 };
 
-const Sidebar = ({ collapsed, onCollapseChange }) => {
+const Sidebar = () => {
   const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
+  
+  // ✨ Compatibility layer for theme colors (simplified from old token system)
+  const colors = {
+    grey: theme.palette.grey,
+    primary: {
+      50: theme.palette.background.default,
+      100: theme.palette.background.paper,
+      300: theme.palette.action.selected,
+      400: theme.palette.background.paper,
+      500: theme.palette.primary.dark,
+      600: theme.palette.primary.main,
+    },
+    blueAccent: {
+      200: theme.palette.primary.light,
+      300: theme.palette.primary.light,
+      400: theme.palette.primary.main,
+      500: theme.palette.primary.main,
+      600: theme.palette.primary.dark,
+    },
+    greenAccent: {
+      400: theme.palette.success.light,
+      600: theme.palette.success.main,
+    }
+  };
+  
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  const [isCollapsed, setIsCollapsed] = useState(collapsed !== undefined ? collapsed : false);
   const [selected, setSelected] = useState(location.pathname);
-  const [searchTerm, setSearchTerm] = useState('');
   const [openGroups, setOpenGroups] = useState({
     dashboard: true,
     reporting: true,
@@ -147,16 +216,9 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
   const { user, hasPrivilege } = useAuth();
   
   // Update selected state when route changes
-  useState(() => {
+  useEffect(() => {
     setSelected(location.pathname);
   }, [location]);
-
-  // Sync internal state with prop
-  useEffect(() => {
-    if (collapsed !== undefined) {
-      setIsCollapsed(collapsed);
-    }
-  }, [collapsed]);
 
   // Handle group toggle with useCallback for performance
   const toggleGroup = useCallback((groupName) => {
@@ -165,20 +227,6 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
       [groupName]: !prev[groupName]
     }));
   }, []);
-
-  // Handle search with debouncing
-  const handleSearchChange = useCallback((e) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  // Auto-collapse on mobile
-  const handleCollapseToggle = useCallback(() => {
-    const newCollapsed = !isCollapsed;
-    setIsCollapsed(newCollapsed);
-    if (onCollapseChange) {
-      onCollapseChange(newCollapsed);
-    }
-  }, [isCollapsed, onCollapseChange]);
 
   // Organized menu groups
   const dashboardItems = [
@@ -234,38 +282,130 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
   return (
     <Box
       sx={{
+        backgroundColor: theme.palette.mode === 'dark' 
+          ? colors.primary[600] 
+          : '#f0f9ff',
+        borderRight: `none`,
+        boxShadow: theme.palette.mode === 'dark' 
+          ? '6px 0 20px rgba(0, 0, 0, 0.5), inset -3px 0 6px rgba(255, 255, 255, 0.1)'
+          : '6px 0 20px rgba(0, 0, 0, 0.2), inset -3px 0 6px rgba(0, 0, 0, 0.08)',
+        position: 'fixed',
+        top: '64px',
+        left: 0,
+        height: 'calc(100vh - 64px)',
+        width: '240px',
+        zIndex: 999,
+        display: 'block',
+        visibility: 'visible',
+        clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '12px',
+          height: '12px',
+          background: theme.palette.mode === 'dark' 
+            ? colors.primary[600] 
+            : colors.primary[100],
+          clipPath: 'polygon(100% 0, 0 0, 0 100%)',
+          zIndex: 2,
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: '12px',
+          height: '12px',
+          background: theme.palette.mode === 'dark' 
+            ? colors.primary[600] 
+            : colors.primary[100],
+          clipPath: 'polygon(100% 0, 100% 100%, 0 100%)',
+          zIndex: 2,
+        },
         "& .pro-sidebar-inner": {
           background: theme.palette.mode === 'dark' 
-            ? `${colors.primary[400]} !important` 
-            : `${colors.primary[50]} !important`,
+            ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%) !important` 
+            : `linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%) !important`,
           backgroundColor: theme.palette.mode === 'dark' 
             ? `${colors.primary[400]} !important` 
-            : `${colors.primary[50]} !important`,
+            : `#e0f2fe !important`,
+          borderRight: `1px solid ${theme.palette.mode === 'dark' 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(0, 0, 0, 0.08)'} !important`,
+          boxShadow: theme.palette.mode === 'dark' 
+            ? 'inset -1px 0 0 rgba(255, 255, 255, 0.05) !important'
+            : 'inset -1px 0 0 rgba(0, 0, 0, 0.04) !important',
         },
         "& .pro-icon-wrapper": {
           backgroundColor: "transparent !important",
+          marginRight: "6px !important",
+          minWidth: "16px !important",
+          display: "flex !important",
+          alignItems: "center !important",
+          justifyContent: "center !important",
+        },
+        "& .pro-item-content": {
+          paddingLeft: "4px !important",
+          overflow: "visible !important",
+          textOverflow: "unset !important",
+          whiteSpace: "nowrap !important",
+          flex: "1 !important",
+          display: "flex !important",
+          alignItems: "center !important",
+          minWidth: "0 !important",
+        },
+        "& .pro-item-content span": {
+          overflow: "visible !important",
+          textOverflow: "unset !important",
+          whiteSpace: "nowrap !important",
+          display: "block !important",
         },
         "& .pro-inner-item": {
-          padding: "5px 35px 5px 20px !important",
+          padding: "6px 10px 6px 6px !important",
           color: theme.palette.mode === 'dark' 
             ? `${colors.grey[100]} !important` 
-            : `${colors.grey[900]} !important`,
+            : `#1e3a8a !important`,
+          overflow: "visible !important",
+          minWidth: "auto !important",
+          display: "flex !important",
+          alignItems: "center !important",
+        },
+        "& .pro-menu-item": {
+          overflow: "visible !important",
+          minWidth: "auto !important",
+          display: "block !important",
+          padding: "3px 6px 3px 3px !important",
+        },
+        "& .pro-menu-item.pro-menu-item-header": {
+          padding: "6px 8px 6px 4px !important",
+        },
+        "& .pro-menu-item.pro-menu-item-header .pro-inner-item": {
+          padding: "6px 8px 6px 4px !important",
         },
         "& .pro-inner-item:hover": {
           color: theme.palette.mode === 'dark' 
             ? `${colors.blueAccent[400]} !important` 
-            : `${colors.blueAccent[600]} !important`,
+            : `#0284c7 !important`,
           backgroundColor: theme.palette.mode === 'dark' 
             ? `${colors.primary[500]} !important` 
-            : `${colors.primary[100]} !important`,
+            : `#e1f5fe !important`,
+          borderRadius: '6px !important',
+          transform: 'translateX(2px) !important',
+          transition: 'all 0.2s ease-in-out !important',
         },
         "& .pro-menu-item.active": {
           color: theme.palette.mode === 'dark' 
             ? `${colors.blueAccent[400]} !important` 
-            : `${colors.blueAccent[600]} !important`,
+            : `#ffffff !important`,
           backgroundColor: theme.palette.mode === 'dark' 
             ? `${colors.primary[500]} !important` 
-            : `${colors.primary[100]} !important`,
+            : `#0284c7 !important`,
+          borderRadius: '6px !important',
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 2px 8px rgba(0, 0, 0, 0.3) !important'
+            : '0 2px 8px rgba(2, 132, 199, 0.3) !important',
         },
         // Mobile optimizations
         ...(isMobile && {
@@ -279,266 +419,70 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
           zIndex: 1001,
           position: "relative",
         },
-        "& .pro-menu-item": {
-          zIndex: 1000,
-        },
         // Ensure sidebar stays above other content
         "& .pro-sidebar": {
           zIndex: 999,
-          position: "fixed",
-          top: "64px", // Start below the AppBar
-          left: 0,
-          height: "calc(100vh - 64px)", // Adjust height to account for AppBar
+          position: "fixed !important",
+          top: "64px !important", // Start below the AppBar
+          left: "0 !important",
+          height: "calc(100vh - 64px) !important", // Adjust height to account for AppBar
+          width: "240px !important",
+          display: "block !important",
+          visibility: "visible !important",
         },
       }}
     >
-      <ProSidebar collapsed={isCollapsed}>
-        {/* Collapse button for collapsed state */}
-        {isCollapsed && (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              padding: "15px 10px",
-              position: "relative",
-              zIndex: 1002,
-            }}
-          >
-            <Tooltip title="Expand Sidebar" placement="right">
-              <IconButton 
-                onClick={handleCollapseToggle}
-                sx={{
-                  backgroundColor: colors.blueAccent[500],
-                  color: colors.grey[100],
-                  border: `2px solid ${colors.blueAccent[300]}`,
-                  borderRadius: '12px',
-                  '&:hover': {
-                    backgroundColor: colors.blueAccent[400],
-                    color: colors.grey[100],
-                    transform: 'scale(1.15)',
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
-                  },
-                  '&:focus': {
-                    outline: `3px solid ${colors.blueAccent[200]}`,
-                    outlineOffset: '3px',
-                  },
-                  transition: 'all 0.3s ease-in-out',
-                  minWidth: '48px',
-                  minHeight: '48px',
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '1.8rem',
-                  }
-                }}
-              >
-                <MenuOutlinedIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
+      <ProSidebar 
+        style={{
+          position: 'fixed',
+          top: '64px',
+          left: 0,
+          height: 'calc(100vh - 64px)',
+          width: '240px',
+          zIndex: 999,
+          display: 'block',
+          visibility: 'visible'
+        }}
+      >
         <Menu iconShape="square">
-          {/* Clean Header - Logo and Collapse Button Only */}
+
+          {/* Simple Menu Header */}
           <Box
             sx={{
               display: "flex",
-              justifyContent: "space-between",
               alignItems: "center",
-              padding: "15px 20px",
-              margin: "10px 15px",
+              padding: "12px 16px",
               backgroundColor: theme.palette.mode === 'dark' 
                 ? colors.primary[600] 
-                : colors.primary[50],
-              // Force light theme override
-              ...(theme.palette.mode !== 'dark' && {
-                backgroundColor: `${colors.primary[50]} !important`,
-              }),
-              borderRadius: "12px",
-              position: "relative",
-              zIndex: 1005,
-              marginTop: "10px",
-              border: `2px solid ${theme.palette.mode === 'dark' 
+                : '#81d4fa',
+              borderRadius: "8px",
+              margin: "8px",
+              border: `1px solid ${theme.palette.mode === 'dark' 
                 ? colors.primary[400] 
-                : colors.primary[100]}`,
+                : '#4fc3f7'}`,
               boxShadow: theme.palette.mode === 'dark' 
-                ? "0 4px 12px rgba(0,0,0,0.15)" 
-                : "0 4px 12px rgba(0,0,0,0.1)",
+                ? "0 2px 6px rgba(0,0,0,0.1)" 
+                : "0 1px 4px rgba(0,0,0,0.08)",
             }}
           >
-            {/* Clean Title Only */}
-            <Box display="flex" alignItems="center">
-              <Typography 
-                variant="h4" 
-                color={theme.palette.mode === 'dark' 
-                  ? colors.grey[100] 
-                  : colors.grey[900]}
-                sx={{ fontWeight: 'bold' }}
-              >
-                Menu
-                </Typography>
-            </Box>
-            
-            {/* Collapse Button */}
-            <Tooltip title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} placement="left">
-              <IconButton 
-                onClick={handleCollapseToggle}
-                sx={{
-                  position: "relative",
-                  zIndex: 1006,
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? colors.blueAccent[600] 
-                    : colors.blueAccent[500],
-                  color: theme.palette.mode === 'dark' 
-                    ? colors.grey[100] 
-                    : colors.grey[100],
-                  border: `2px solid ${theme.palette.mode === 'dark' 
-                    ? colors.blueAccent[400] 
-                    : colors.blueAccent[600]}`,
-                  borderRadius: '10px',
-                  '&:hover': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? colors.blueAccent[500] 
-                      : colors.blueAccent[600],
-                    color: colors.grey[100],
-                    transform: 'scale(1.1)',
-                    boxShadow: theme.palette.mode === 'dark' 
-                      ? '0 6px 16px rgba(0,0,0,0.3)' 
-                      : '0 6px 16px rgba(0,0,0,0.2)',
-                  },
-                  '&:focus': {
-                    outline: `3px solid ${theme.palette.mode === 'dark' 
-                      ? colors.blueAccent[300] 
-                      : colors.blueAccent[400]}`,
-                    outlineOffset: '2px',
-                  },
-                  transition: 'all 0.2s ease-in-out',
-                  minWidth: '40px',
-                  minHeight: '40px',
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '1.4rem',
-                  }
-                }}
-              >
-                  <MenuOutlinedIcon />
-                </IconButton>
-            </Tooltip>
-              </Box>
-
-          {/* User Profile Section - Cleaner Design */}
-          {!isCollapsed && (
-            <Box 
+            <Typography 
+              variant="h6" 
+              color={theme.palette.mode === 'dark' 
+                ? colors.grey[100] 
+                : '#1e3a8a'}
               sx={{ 
-                margin: "20px 15px",
-                padding: "20px",
-                backgroundColor: theme.palette.mode === 'dark' 
-                  ? colors.primary[500] 
-                  : colors.primary[50],
-                borderRadius: "12px",
-                border: `1px solid ${theme.palette.mode === 'dark' 
-                  ? colors.primary[300] 
-                  : colors.primary[100]}`,
-                textAlign: "center"
+                fontWeight: '600', 
+                fontSize: '1.1rem',
               }}
             >
-              <Box display="flex" justifyContent="center" alignItems="center" mb={2}>
-                <img
-                  alt="Profile Picture"
-                  width="80px"
-                  height="80px"
-                  src={userProfilePicture}
-                  style={{ 
-                    cursor: "pointer", 
-                    borderRadius: "50%",
-                    border: `3px solid ${colors.blueAccent[500]}`
-                  }}
-                />
-              </Box>
-                <Typography
-                variant="h5"
-                color={theme.palette.mode === 'dark' 
-                  ? colors.grey[100] 
-                  : colors.grey[900]}
-                  fontWeight="bold"
-                sx={{ mb: 0.5 }}
-                >
-                  {user?.username}
-                </Typography>
-              <Typography 
-                variant="body2" 
-                color={theme.palette.mode === 'dark' 
-                  ? colors.greenAccent[400] 
-                  : colors.greenAccent[600]}
-                sx={{ 
-                  fontWeight: 'medium',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                  {user?.roleName}
-                </Typography>
-              </Box>
-          )}
+              Navigation Menu
+            </Typography>
+          </Box>
 
-          {/* Search functionality */}
-          {!isCollapsed && (
-            <Box sx={{ margin: "0 15px 15px 15px" }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search menu..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.mode === 'dark' 
-                      ? colors.primary[400] 
-                      : colors.grey[50],
-                    color: theme.palette.mode === 'dark' 
-                      ? colors.grey[100] 
-                      : colors.grey[900],
-                    borderRadius: '8px',
-                    '& fieldset': {
-                      borderColor: theme.palette.mode === 'dark' 
-                        ? colors.grey[300] 
-                        : colors.grey[400],
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.mode === 'dark' 
-                        ? colors.grey[200] 
-                        : colors.grey[500],
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.mode === 'dark' 
-                        ? colors.blueAccent[500] 
-                        : colors.blueAccent[600],
-                    },
-                  },
-                  '& .MuiInputBase-input::placeholder': {
-                    color: theme.palette.mode === 'dark' 
-                      ? colors.grey[300] 
-                      : colors.grey[600],
-                  },
-                }}
-              />
-            </Box>
-          )}
 
-          <Box paddingLeft={isCollapsed ? undefined : "10%"}>
-            {searchTerm ? (
-              // Show search results
-              <SearchableMenu
-                items={allItems}
-                selected={selected}
-                setSelected={setSelected}
-                isCollapsed={isCollapsed}
-                searchTerm={searchTerm}
-              />
-            ) : user?.roleName === 'contractor' ? (
+
+          <Box paddingLeft="4px">
+            {user?.roleName === 'contractor' ? (
               // Contractor menu (simple list)
               contractorItems.map((item, index) => (
               <Item
@@ -548,58 +492,58 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                 icon={item.icon}
                 selected={selected}
                 setSelected={setSelected}
-                isCollapsed={isCollapsed}
                 privilegeCheck={item.privilege}
+                theme={theme}
               />
               ))
             ) : (
-              // Organized menu groups for internal staff and admin
+              // Always show organized menu groups
               <>
                 <MenuGroup
                   title="Dashboard"
                   icon={<DashboardIcon />}
-                  isCollapsed={isCollapsed}
                   isOpen={openGroups.dashboard}
                   onToggle={() => toggleGroup('dashboard')}
+                  theme={theme}
+                  colors={colors}
                 >
                   <SearchableMenu
                     items={dashboardItems}
                     selected={selected}
                     setSelected={setSelected}
-                    isCollapsed={isCollapsed}
-                    searchTerm=""
+                    theme={theme}
                   />
                 </MenuGroup>
 
                 <MenuGroup
                   title="Reporting"
                   icon={<AssessmentIcon />}
-                  isCollapsed={isCollapsed}
                   isOpen={openGroups.reporting}
                   onToggle={() => toggleGroup('reporting')}
+                  theme={theme}
+                  colors={colors}
                 >
                   <SearchableMenu
                     items={reportingItems}
                     selected={selected}
                     setSelected={setSelected}
-                    isCollapsed={isCollapsed}
-                    searchTerm=""
+                    theme={theme}
                   />
                 </MenuGroup>
 
                 <MenuGroup
                   title="Management"
                   icon={<SettingsIcon />}
-                  isCollapsed={isCollapsed}
                   isOpen={openGroups.management}
                   onToggle={() => toggleGroup('management')}
+                  theme={theme}
+                  colors={colors}
                 >
                   <SearchableMenu
                     items={managementItems}
                     selected={selected}
                     setSelected={setSelected}
-                    isCollapsed={isCollapsed}
-                    searchTerm=""
+                    theme={theme}
                   />
                 </MenuGroup>
 
@@ -607,16 +551,16 @@ const Sidebar = ({ collapsed, onCollapseChange }) => {
                   <MenuGroup
                     title="Administration"
                     icon={<GroupIcon />}
-                    isCollapsed={isCollapsed}
                     isOpen={openGroups.admin}
                     onToggle={() => toggleGroup('admin')}
+                    theme={theme}
+                    colors={colors}
                   >
                     <SearchableMenu
                       items={adminItems}
                       selected={selected}
                       setSelected={setSelected}
-                      isCollapsed={isCollapsed}
-                      searchTerm=""
+                      theme={theme}
                     />
                   </MenuGroup>
                 )}

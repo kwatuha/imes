@@ -128,16 +128,21 @@ const RecentConversationsCard = ({ currentUser }) => {
   };
 
   return (
-    <Card sx={{ 
-      height: '100%',
-      borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
-    }}>
+      <Card sx={{ 
+        height: '100%',
+        borderRadius: 3, 
+        bgcolor: '#ffffff',
+        boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
+        border: `1px solid rgba(0,0,0,0.08)`,
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: `0 8px 30px rgba(0,0,0,0.08)`,
+        }
+      }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
+          <Typography variant="h6" fontWeight="bold" color="#000000">
             Recent Conversations
           </Typography>
           <Box display="flex" alignItems="center" gap={1}>
@@ -181,12 +186,12 @@ const RecentConversationsCard = ({ currentUser }) => {
               sx={{ 
                 p: 2,
                 borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
-                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`,
+                bgcolor: '#ffffff',
+                border: `1px solid rgba(0,0,0,0.08)`,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.primary[200],
+                  bgcolor: '#f8fafc',
                   transform: 'translateX(4px)',
                 }
               }}
@@ -210,7 +215,7 @@ const RecentConversationsCard = ({ currentUser }) => {
                         right: 0,
                         color: colors.greenAccent?.[500] || '#4caf50',
                         fontSize: 12,
-                        bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
+                        bgcolor: '#ffffff',
                         borderRadius: '50%',
                         p: 0.5
                       }} 
@@ -223,7 +228,7 @@ const RecentConversationsCard = ({ currentUser }) => {
                     <Typography 
                       variant="subtitle2" 
                       fontWeight="bold" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
+                      color="#000000"
                     >
                       {conversation.name}
                     </Typography>
@@ -258,7 +263,8 @@ const RecentConversationsCard = ({ currentUser }) => {
                   
                   <Typography 
                     variant="body2" 
-                    color={theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700]}
+                    color="#333333"
+                    fontWeight="500"
                     sx={{ 
                       mb: 1,
                       overflow: 'hidden',
@@ -272,16 +278,16 @@ const RecentConversationsCard = ({ currentUser }) => {
                   
                   <Box display="flex" alignItems="center" gap={2}>
                     <Box display="flex" alignItems="center" gap={0.5}>
-                      <ScheduleIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                      <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
+                      <ScheduleIcon sx={{ fontSize: 12, color: '#666666' }} />
+                      <Typography variant="caption" color="#555555" fontWeight="600">
                         {conversation.timestamp}
                       </Typography>
                     </Box>
                     
                     {conversation.type === 'group' && (
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <AttachFileIcon sx={{ fontSize: 12, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
-                        <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}>
+                        <AttachFileIcon sx={{ fontSize: 12, color: '#666666' }} />
+                        <Typography variant="caption" color="#555555" fontWeight="600">
                           Files shared
                         </Typography>
                       </Box>
@@ -296,7 +302,8 @@ const RecentConversationsCard = ({ currentUser }) => {
         <Box mt={2} pt={2} borderTop={`1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`}>
           <Typography 
             variant="caption" 
-            color={theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600]}
+            color="#666666"
+            fontWeight="500"
             sx={{ fontSize: '0.7rem' }}
           >
             Click on any conversation to continue chatting

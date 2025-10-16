@@ -162,7 +162,7 @@ const ProjectsGalleryPage = () => {
         <CardMedia
           component="img"
           height="200"
-          image={`http://localhost:3000/uploads/${project.thumbnail}`}
+          image={`http://165.22.227.234:3000/uploads/${project.thumbnail}`}
           alt={project.project_name || project.projectName}
           sx={{ objectFit: 'cover' }}
         />

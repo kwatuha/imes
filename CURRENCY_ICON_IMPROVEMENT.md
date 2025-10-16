@@ -311,14 +311,14 @@ Project Card:
 
 ### **Check These Pages:**
 
-1. **Projects Gallery** (http://localhost:5174/projects)
+1. **Projects Gallery** (http://165.22.227.234:5174/projects)
    ```
    ✅ Each project card shows 👛 icon
    ✅ Budget text: "Ksh 100,000,000"
    ✅ No dollar signs anywhere
    ```
 
-2. **Department Modal** (http://localhost:5174/dashboard)
+2. **Department Modal** (http://165.22.227.234:5174/dashboard)
    ```
    ✅ Budget cards show 📈 TrendingUp icon
    ✅ "Ksh" currency prefix only
@@ -330,7 +330,7 @@ Project Card:
    ✅ Consistent formatting
    ```
 
-4. **Feedback Page** (http://localhost:5174/public-feedback)
+4. **Feedback Page** (http://165.22.227.234:5174/public-feedback)
    ```
    ✅ All statistics cards clickable
    ✅ No currency icons (not needed there)
@@ -509,7 +509,7 @@ Budget displays:
 ### **Quick Test:**
 
 ```bash
-1. Visit: http://localhost:5174/projects
+1. Visit: http://165.22.227.234:5174/projects
 2. Look at any project card
 3. Find budget section
 4. Verify:
@@ -611,11 +611,12 @@ import { Receipt } from '@mui/icons-material';
 
 ---
 
-**Test it now:** http://localhost:5174/projects
+**Test it now:** http://165.22.227.234:5174/projects
 
 **Look for the green wallet icon (👛) next to budget amounts!** ✨
 
 ---
 
 *Currency formatting is now perfect across the entire public dashboard!* 💯
+
 

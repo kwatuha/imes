@@ -26,7 +26,7 @@ import DepartmentProjectsModal from './DepartmentProjectsModal';
 import { getDepartmentStats } from '../services/publicApi';
 import { formatCurrency } from '../utils/formatters';
 
-const DepartmentSummaryTable = ({ finYearId }) => {
+const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
   const theme = useTheme();
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,12 +36,12 @@ const DepartmentSummaryTable = ({ finYearId }) => {
 
   useEffect(() => {
     fetchDepartmentStats();
-  }, [finYearId]);
+  }, [finYearId, filters]);
 
   const fetchDepartmentStats = async () => {
     try {
       setLoading(true);
-      const data = await getDepartmentStats(finYearId);
+      const data = await getDepartmentStats(finYearId, filters);
       setDepartments(data || []);
       setError(null);
     } catch (err) {

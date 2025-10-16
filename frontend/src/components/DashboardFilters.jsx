@@ -182,61 +182,68 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
     console.log('DashboardFilters render - current subCounty filter:', filters.subCounty);
 
     return (
-        <Paper elevation={2} sx={{ mb: 4, p: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: open ? 2 : 0 }}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>FILTER YOUR REPORT BY:</Typography>
+        <Paper elevation={1} sx={{ mb: 2, p: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: open ? 1.5 : 0 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: '600', fontSize: '0.95rem' }}>FILTER YOUR REPORT BY:</Typography>
                 <Box>
                     <Button
                         variant="outlined"
+                        size="small"
                         startIcon={<ClearAllIcon />}
                         onClick={onClearFilters}
-                        sx={{ mr: 1 }}
+                        sx={{ 
+                            mr: 0.5,
+                            fontSize: '0.8rem',
+                            py: 0.5,
+                            px: 1.5,
+                            minWidth: 'auto'
+                        }}
                     >
-                        Clear All Filters
+                        Clear All
                     </Button>
-                    <IconButton onClick={handleToggleCollapse} size="small">
-                        {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+                    <IconButton onClick={handleToggleCollapse} size="small" sx={{ p: 0.5 }}>
+                        {open ? <KeyboardArrowUp fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
                     </IconButton>
                 </Box>
             </Box>
 
             <Collapse in={open}>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
                     {/* County Display */}
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="county-label">County</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="county-label">County</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="county-label"
                             id="county-select"
                             value={DEFAULT_COUNTY.name}
                             label="County"
                             disabled={true}
                         >
-                            <MenuItem value={DEFAULT_COUNTY.name}>
+                            <MenuItem value={DEFAULT_COUNTY.name} sx={{ fontSize: '0.875rem' }}>
                                 {DEFAULT_COUNTY.name}
                             </MenuItem>
                         </Select>
                     </FormControl>
 
                     {/* Row 1 */}
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="cidp-period-label">Filter by CIDP Period</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="cidp-period-label">Filter by CIDP Period</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="cidp-period-label"
                             id="cidp-period-select"
                             value={filters.cidpPeriod}
                             label="Filter by CIDP Period"
                             onChange={(e) => onFilterChange('cidpPeriod', e.target.value)}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             <MenuItem value="CIDP 2023-2027">CIDP 2023-2027</MenuItem>
                             <MenuItem value="CIDP 2018-2022">CIDP 2018-2022</MenuItem>
                         </Select>
                     </FormControl>
 
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="financial-year-label">Filter by ADP / Financial Year</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="financial-year-label">Filter by ADP / Financial Year</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="financial-year-label"
                             id="financial-year-select"
                             value={filters.financialYear}
@@ -244,7 +251,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => onFilterChange('financialYear', e.target.value)}
                             disabled={isLoadingOptions}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {filterOptions.financialYears.map((year) => (
                                 <MenuItem key={year.id} value={year.id}>
                                     {year.name}
@@ -277,9 +284,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                     />
 
                     {/* Row 2 */}
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="project-type-label">Filter by Project Type</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="project-type-label">Filter by Project Type</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="project-type-label"
                             id="project-type-select"
                             value={filters.projectType}
@@ -287,7 +294,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => onFilterChange('projectType', e.target.value)}
                             disabled={isLoadingOptions}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {filterOptions.projectTypes.map((type) => (
                                 <MenuItem key={type.name} value={type.name}>
                                     {type.name}
@@ -296,9 +303,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                         </Select>
                     </FormControl>
 
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="project-status-label">Filter by Project Status</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="project-status-label">Filter by Project Status</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="project-status-label"
                             id="project-status-select"
                             value={filters.projectStatus}
@@ -306,7 +313,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => onFilterChange('projectStatus', e.target.value)}
                             disabled={isLoadingOptions}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {filterOptions.projectStatuses.map((status) => (
                                 <MenuItem key={status.name} value={status.name}>
                                     {status.name}
@@ -315,9 +322,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                         </Select>
                     </FormControl>
 
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="department-label">Filter By Department</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="department-label">Filter By Department</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="department-label"
                             id="department-select"
                             value={filters.department}
@@ -325,7 +332,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => onFilterChange('department', e.target.value)}
                             disabled={isLoadingOptions}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {filterOptions.departments.map((dept) => (
                                 <MenuItem key={dept.name} value={dept.name}>
                                     {dept.name}
@@ -335,9 +342,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                     </FormControl>
 
                     {/* Row 3 */}
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="section-label">Filter By Section</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="section-label">Filter By Section</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="section-label"
                             id="section-select"
                             value={filters.section}
@@ -345,7 +352,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => onFilterChange('section', e.target.value)}
                             disabled={isLoadingOptions}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {filterOptions.sections.map((section) => (
                                 <MenuItem key={section.name} value={section.name}>
                                     {section.name}
@@ -354,9 +361,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                         </Select>
                     </FormControl>
 
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="sub-county-label">Filter By Sub-County</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="sub-county-label">Filter By Sub-County</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="sub-county-label"
                             id="sub-county-select"
                             value={filters.subCounty}
@@ -364,7 +371,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => handleSubCountyChange(e.target.value)}
                             disabled={isLoadingOptions}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {availableSubCounties.map((subCounty) => (
                                 <MenuItem key={subCounty.subcountyId} value={subCounty.subcountyName}>
                                     {subCounty.subcountyName}
@@ -373,9 +380,9 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                         </Select>
                     </FormControl>
 
-                    <FormControl sx={{ minWidth: 200 }}>
-                        <InputLabel id="ward-label">Filter By Ward</InputLabel>
-                        <Select
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
+                        <InputLabel sx={{ fontSize: '0.875rem' }} id="ward-label">Filter By Ward</InputLabel>
+                        <Select sx={{ fontSize: '0.875rem' }}
                             labelId="ward-label"
                             id="ward-select"
                             value={filters.ward}
@@ -383,7 +390,7 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
                             onChange={(e) => onFilterChange('ward', e.target.value)}
                             disabled={isLoadingOptions || availableWards.length === 0}
                         >
-                            <MenuItem value=""><em>All</em></MenuItem>
+                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
                             {availableWards.map((ward) => (
                                 <MenuItem key={ward.wardId} value={ward.wardName}>
                                     {ward.wardName}

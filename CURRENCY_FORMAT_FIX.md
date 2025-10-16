@@ -129,7 +129,7 @@ Mwingi Central |     6    | Ksh 231,000,000  ✅
 
 ## 🧪 Verification Steps
 
-1. **Visit:** http://localhost:5174/dashboard
+1. **Visit:** http://165.22.227.234:5174/dashboard
 
 2. **Check Department Table:**
    - Total Budget column should show: "Ksh 225,000,000" ✅
@@ -190,4 +190,5 @@ Ksh 1,021,500,000
 ---
 
 **Currency formatting is now consistent and uses only "Ksh" throughout!** ✨
+
 

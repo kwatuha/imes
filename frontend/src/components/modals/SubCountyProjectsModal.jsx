@@ -23,7 +23,8 @@ import reportsService from '../../api/reportsService';
 window.testSubCountyAPI = async (subCountyName) => {
     try {
         console.log('Testing API endpoint for subcounty:', subCountyName);
-        const response = await fetch(`http://localhost:8080/api/reports/project-list-detailed?subCounty=${encodeURIComponent(subCountyName)}`);
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/reports/project-list-detailed?subCounty=${encodeURIComponent(subCountyName)}`);
         const data = await response.json();
         console.log('API Response:', data);
         console.log('Response length:', data.length);
@@ -57,7 +58,8 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
             
             // Test the API endpoint directly
             console.log('=== API ENDPOINT TEST ===');
-            console.log('Testing URL: http://localhost:8080/api/reports/project-list-detailed?subCounty=' + encodeURIComponent(subCounty.subcounty));
+            const apiUrl = import.meta.env.VITE_API_URL || '/api';
+            console.log('Testing URL:', `${apiUrl}/reports/project-list-detailed?subCounty=${encodeURIComponent(subCounty.subcounty)}`);
             console.log('=== END API TEST ===');
             
             // Use the detailed project list API with subcounty filter

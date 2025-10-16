@@ -11,7 +11,7 @@ Your public dashboard now has **three levels of granularity**, inspired by Makue
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                  PUBLIC DASHBOARD                               │
-│                http://localhost:5174/dashboard                  │
+│                http://165.22.227.234:5174/dashboard                  │
 └────────────────────────────────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
@@ -162,7 +162,7 @@ Your public dashboard now has **three levels of granularity**, inspired by Makue
 ### **Journey 1: Citizen Finding Local Projects**
 
 ```
-Start: http://localhost:5174/dashboard
+Start: http://165.22.227.234:5174/dashboard
   ↓
 Select: FY 2024/2025 (if needed)
   ↓
@@ -643,7 +643,7 @@ Frontend Render:
 
 ```
 1. Dashboard Overview (30s)
-   http://localhost:5174/dashboard
+   http://165.22.227.234:5174/dashboard
    ✓ Quick stats display
    ✓ Financial year tabs work
 
@@ -673,14 +673,14 @@ Frontend Render:
    ✓ Close modal → Back to accordions
 
 5. Projects Gallery (60s)
-   http://localhost:5174/projects
+   http://165.22.227.234:5174/projects
    ✓ Projects display with wallet icon
    ✓ Dates show (not N/A)
    ✓ Locations show (not N/A)
    ✓ Feedback buttons work
 
 6. Public Feedback (30s)
-   http://localhost:5174/public-feedback
+   http://165.22.227.234:5174/public-feedback
    ✓ All feedback displays
    ✓ Click status card → Modal filters
    ✓ County responses visible
@@ -702,7 +702,7 @@ Frontend Render:
 
 ---
 
-**Test the ward tab now:** http://localhost:5174/dashboard
+**Test the ward tab now:** http://165.22.227.234:5174/dashboard
 
 **Click the 3rd tab: "By Ward"** 🏘️
 
@@ -711,4 +711,5 @@ Frontend Render:
 ---
 
 *Three tiers = Complete transparency from high-level to grassroots!* 🎉
+
 

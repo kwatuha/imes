@@ -10,7 +10,7 @@
 
 1. **Open Dashboard:**
    ```
-   Visit: http://localhost:5174/dashboard
+   Visit: http://165.22.227.234:5174/dashboard
    ```
 
 2. **Click Department:**
@@ -53,7 +53,7 @@
 
 7. **Check Submission:**
    ```
-   Visit: http://localhost:5174/public-feedback
+   Visit: http://165.22.227.234:5174/public-feedback
    ✅ Your feedback should appear in the list
    ```
 
@@ -132,7 +132,7 @@ After tests:  4 feedback items (2 new)
 
 **Admin Dashboard:**
 ```
-Visit: http://localhost:5173/feedback-management
+Visit: http://165.22.227.234:5173/feedback-management
 Should see 4 items (2 new pending review)
 ```
 
@@ -179,7 +179,7 @@ Cmd+Shift+R (Mac)
 Look for: Error messages
 
 # API endpoint
-curl http://localhost:3000/api/public/feedback
+curl http://165.22.227.234:3000/api/public/feedback
 ```
 
 ### **Issue 3: Project Data Missing**
@@ -240,7 +240,7 @@ project.project_name || project.projectName || 'Project'
 docker compose ps | grep -E "public-dashboard|node_api"
 
 # Test feedback endpoint
-curl -s "http://localhost:3000/api/public/feedback" | jq '.feedbacks | length'
+curl -s "http://165.22.227.234:3000/api/public/feedback" | jq '.feedbacks | length'
 
 # Expected: 2 or more feedback items
 ```
@@ -272,7 +272,8 @@ curl -s "http://localhost:3000/api/public/feedback" | jq '.feedbacks | length'
 
 ---
 
-**Test it now at:** http://localhost:5174/dashboard
+**Test it now at:** http://165.22.227.234:5174/dashboard
 
 **Look for the 💬 icons next to projects!** ✨
+
 

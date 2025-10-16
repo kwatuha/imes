@@ -91,7 +91,7 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
             <Typography variant="h4" fontWeight="bold" color={color}>
               {value}%
             </Typography>
-            <Typography variant="body2" color={colors.grey[300]}>
+            <Typography variant="body2" color="#555555" fontWeight="500">
               {title}
             </Typography>
           </Box>
@@ -103,21 +103,21 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
           variant="determinate" 
           value={value} 
           sx={{ 
-            bgcolor: colors.primary[300],
+            bgcolor: '#e5e7eb',
             '& .MuiLinearProgress-bar': { bgcolor: color }
           }}
         />
         <Box display="flex" alignItems="center" justifyContent="space-between" mt={1}>
-          <Typography variant="caption" color={colors.grey[400]}>
+          <Typography variant="caption" color="#666666" fontWeight="500">
             {subtitle}
           </Typography>
           {trend && (
             <Box display="flex" alignItems="center" gap={0.5}>
               {trend === 'up' ? 
-                <TrendingUpIcon sx={{ fontSize: 16, color: colors.greenAccent[500] }} /> :
-                <TrendingDownIcon sx={{ fontSize: 16, color: colors.redAccent[500] }} />
+                <TrendingUpIcon sx={{ fontSize: 16, color: colors.greenAccent?.[500] || '#4caf50' }} /> :
+                <TrendingDownIcon sx={{ fontSize: 16, color: colors.redAccent?.[500] || '#f44336' }} />
               }
-              <Typography variant="caption" color={trend === 'up' ? colors.greenAccent[500] : colors.redAccent[500]}>
+              <Typography variant="caption" color={trend === 'up' ? colors.greenAccent?.[500] || '#4caf50' : colors.redAccent?.[500] || '#f44336'} fontWeight="600">
                 {trend === 'up' ? '+' : '-'}{Math.abs(value - 80)}%
               </Typography>
             </Box>
@@ -129,20 +129,21 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
 
   return (
     <Card sx={{ 
-      bgcolor: colors.primary[400], 
+      bgcolor: '#ffffff', 
       borderRadius: 3,
-      border: `1px solid ${colors.primary[300]}`,
+      border: `1px solid rgba(0,0,0,0.08)`,
       transition: 'all 0.3s ease',
+      boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: `0 8px 25px ${colors.primary[300]}20`,
+        boxShadow: `0 8px 25px rgba(0,0,0,0.08)`,
       }
     }}>
       <CardContent>
         {/* Header */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box>
-            <Typography variant="h6" fontWeight="bold" color={colors.grey[100]} mb={1}>
+            <Typography variant="h6" fontWeight="bold" color="#000000" mb={1}>
               {title}
             </Typography>
             <Box display="flex" alignItems="center" gap={1}>
@@ -155,7 +156,7 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
                   fontWeight: 'bold'
                 }}
               />
-              <Typography variant="body2" color={colors.grey[300]}>
+              <Typography variant="body2" color="#555555" fontWeight="500">
                 Overall Score: {performanceData.overallScore}%
               </Typography>
             </Box>
@@ -165,8 +166,11 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
               <IconButton 
                 size="small" 
                 sx={{ 
-                  color: colors.blueAccent[500],
-                  '&:hover': { bgcolor: colors.blueAccent[500] + '20' }
+                  color: colors.blueAccent?.[500] || '#6870fa',
+                  '&:hover': { 
+                    bgcolor: 'rgba(104, 112, 250, 0.08)',
+                    transform: 'scale(1.1)'
+                  }
                 }}
               >
                 <RefreshIcon />
@@ -176,8 +180,11 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
               <IconButton 
                 size="small" 
                 sx={{ 
-                  color: colors.greenAccent[500],
-                  '&:hover': { bgcolor: colors.greenAccent[500] + '20' }
+                  color: colors.greenAccent?.[500] || '#4caf50',
+                  '&:hover': { 
+                    bgcolor: 'rgba(76, 175, 80, 0.08)',
+                    transform: 'scale(1.1)'
+                  }
                 }}
               >
                 <DownloadIcon />
@@ -194,7 +201,7 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
               value={performanceData.productivity}
               subtitle="Task completion rate"
               icon={<SpeedIcon />}
-              color={colors.greenAccent[500]}
+              color={colors.greenAccent?.[500] || '#4caf50'}
               trend="up"
             />
           </Grid>
@@ -204,7 +211,7 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
               value={performanceData.efficiency}
               subtitle="Resource utilization"
               icon={<TimerIcon />}
-              color={colors.blueAccent[500]}
+              color={colors.blueAccent?.[500] || '#6870fa'}
               trend="up"
             />
           </Grid>
@@ -214,7 +221,7 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
               value={performanceData.quality}
               subtitle="Output quality score"
               icon={<CheckCircleIcon />}
-              color={colors.yellowAccent[500]}
+              color={colors.yellowAccent?.[500] || '#ff9800'}
               trend="down"
             />
           </Grid>
@@ -222,16 +229,16 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
 
         {/* Trends Section */}
         <Box mb={3}>
-          <Typography variant="subtitle1" fontWeight="bold" color={colors.grey[900]} mb={2}>
+          <Typography variant="subtitle1" fontWeight="bold" color="#000000" mb={2}>
             Performance Trends
           </Typography>
-          <List sx={{ bgcolor: colors.primary[500], borderRadius: 2, p: 1 }}>
+          <List sx={{ bgcolor: '#ffffff', borderRadius: 2, p: 1, border: `1px solid rgba(0,0,0,0.08)` }}>
             {performanceData.trends.map((trend, index) => (
               <React.Fragment key={trend.metric}>
                 <ListItem sx={{ py: 1 }}>
                   <ListItemIcon>
                     <Avatar sx={{ 
-                      bgcolor: trend.trend === 'up' ? colors.greenAccent[500] : colors.redAccent[500],
+                      bgcolor: trend.trend === 'up' ? colors.greenAccent?.[500] || '#4caf50' : colors.redAccent?.[500] || '#f44336',
                       width: 32, 
                       height: 32 
                     }}>
@@ -244,8 +251,8 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
                   <ListItemText
                     primary={trend.metric}
                     secondary={`${trend.current}% (${trend.trend === 'up' ? '+' : '-'}${Math.abs(trend.current - trend.previous)}% from last period)`}
-                    primaryTypographyProps={{ color: colors.grey[100], fontWeight: 'medium' }}
-                    secondaryTypographyProps={{ color: colors.grey[300] }}
+                    primaryTypographyProps={{ color: '#000000', fontWeight: 'medium' }}
+                    secondaryTypographyProps={{ color: '#555555', fontWeight: '500' }}
                   />
                   <Box>
                     <LinearProgress 
@@ -253,16 +260,16 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
                       value={trend.current} 
                       sx={{ 
                         width: 100,
-                        bgcolor: colors.primary[300],
+                        bgcolor: '#e5e7eb',
                         '& .MuiLinearProgress-bar': { 
-                          bgcolor: trend.trend === 'up' ? colors.greenAccent[500] : colors.redAccent[500]
+                          bgcolor: trend.trend === 'up' ? colors.greenAccent?.[500] || '#4caf50' : colors.redAccent?.[500] || '#f44336'
                         }
                       }}
                     />
                   </Box>
                 </ListItem>
                 {index < performanceData.trends.length - 1 && (
-                  <Divider sx={{ bgcolor: colors.primary[300] }} />
+                  <Divider sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
                 )}
               </React.Fragment>
             ))}
@@ -271,16 +278,16 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
 
         {/* Top Performers */}
         <Box mb={3}>
-          <Typography variant="subtitle1" fontWeight="bold" color={colors.grey[900]} mb={2}>
+          <Typography variant="subtitle1" fontWeight="bold" color="#000000" mb={2}>
             Top Performers
           </Typography>
-          <List sx={{ bgcolor: colors.primary[500], borderRadius: 2, p: 1 }}>
+          <List sx={{ bgcolor: '#ffffff', borderRadius: 2, p: 1, border: `1px solid rgba(0,0,0,0.08)` }}>
             {performanceData.topPerformers.map((performer, index) => (
               <React.Fragment key={performer.name}>
                 <ListItem sx={{ py: 1 }}>
                   <ListItemIcon>
                     <Avatar sx={{ 
-                      bgcolor: colors.blueAccent[500],
+                      bgcolor: colors.blueAccent?.[500] || '#6870fa',
                       width: 32, 
                       height: 32 
                     }}>
@@ -290,8 +297,8 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
                   <ListItemText
                     primary={performer.name}
                     secondary={performer.role}
-                    primaryTypographyProps={{ color: colors.grey[100], fontWeight: 'medium' }}
-                    secondaryTypographyProps={{ color: colors.grey[300] }}
+                    primaryTypographyProps={{ color: '#000000', fontWeight: 'medium' }}
+                    secondaryTypographyProps={{ color: '#555555', fontWeight: '500' }}
                   />
                   <Chip 
                     label={`${performer.score}%`}
@@ -304,7 +311,7 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
                   />
                 </ListItem>
                 {index < performanceData.topPerformers.length - 1 && (
-                  <Divider sx={{ bgcolor: colors.primary[300] }} />
+                  <Divider sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
                 )}
               </React.Fragment>
             ))}
@@ -313,16 +320,16 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
 
         {/* Recent Achievements */}
         <Box>
-          <Typography variant="subtitle1" fontWeight="bold" color={colors.grey[100]} mb={2}>
+          <Typography variant="subtitle1" fontWeight="bold" color="#000000" mb={2}>
             Recent Achievements
           </Typography>
-          <List sx={{ bgcolor: colors.primary[500], borderRadius: 2, p: 1 }}>
+          <List sx={{ bgcolor: '#ffffff', borderRadius: 2, p: 1, border: `1px solid rgba(0,0,0,0.08)` }}>
             {performanceData.recentAchievements.map((achievement, index) => (
               <React.Fragment key={achievement.title}>
                 <ListItem sx={{ py: 1 }}>
                   <ListItemIcon>
                     <Avatar sx={{ 
-                      bgcolor: colors.greenAccent[500],
+                      bgcolor: colors.greenAccent?.[500] || '#4caf50',
                       width: 32, 
                       height: 32 
                     }}>
@@ -332,21 +339,21 @@ const PerformanceMetricsChart = ({ title = "Performance Metrics", data }) => {
                   <ListItemText
                     primary={achievement.title}
                     secondary={achievement.date}
-                    primaryTypographyProps={{ color: colors.grey[100], fontWeight: 'medium' }}
-                    secondaryTypographyProps={{ color: colors.grey[300] }}
+                    primaryTypographyProps={{ color: '#000000', fontWeight: 'medium' }}
+                    secondaryTypographyProps={{ color: '#555555', fontWeight: '500' }}
                   />
                   <Chip 
                     label={achievement.type}
                     size="small"
                     sx={{ 
-                      bgcolor: colors.blueAccent[500],
+                      bgcolor: colors.blueAccent?.[500] || '#6870fa',
                       color: 'white',
                       textTransform: 'capitalize'
                     }}
                   />
                 </ListItem>
                 {index < performanceData.recentAchievements.length - 1 && (
-                  <Divider sx={{ bgcolor: colors.primary[300] }} />
+                  <Divider sx={{ bgcolor: 'rgba(0,0,0,0.08)' }} />
                 )}
               </React.Fragment>
             ))}

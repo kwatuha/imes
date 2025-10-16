@@ -10,9 +10,9 @@ docker-compose up -d
 ```
 
 ### 2. Access Your Application
-- **Frontend**: http://localhost/impes/
-- **API**: http://localhost/api/
-- **Uploads**: http://localhost/uploads/
+- **Frontend**: http://165.22.227.234/impes/
+- **API**: http://165.22.227.234/api/
+- **Uploads**: http://165.22.227.234/uploads/
 
 ## 📦 Production Deployment
 

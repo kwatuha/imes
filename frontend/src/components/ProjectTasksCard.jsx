@@ -182,18 +182,18 @@ const ProjectTasksCard = ({ currentUser }) => {
     <Card sx={{ 
       height: '100%',
       borderRadius: 3, 
-      bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.primary[50],
-      boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}15`,
-      border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}30`,
+      bgcolor: '#ffffff',
+      boxShadow: `0 4px 20px rgba(0,0,0,0.04)`,
+      border: `1px solid rgba(0,0,0,0.08)`,
       transition: 'all 0.3s ease',
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: `0 8px 30px ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}25`,
+        boxShadow: `0 8px 30px rgba(0,0,0,0.08)`,
       }
     }}>
       <CardContent sx={{ p: { xs: 2, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold" color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}>
+          <Typography variant="h6" fontWeight="bold" color="#000000">
             My Project Tasks
           </Typography>
           <Box display="flex" alignItems="center" gap={1}>
@@ -227,11 +227,11 @@ const ProjectTasksCard = ({ currentUser }) => {
               sx={{ 
                 p: 2,
                 borderRadius: 2,
-                bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.primary[100],
-                border: `1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`,
+                bgcolor: '#ffffff',
+                border: `1px solid rgba(0,0,0,0.08)`,
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.primary[200],
+                  bgcolor: '#f8fafc',
                   transform: 'translateX(4px)',
                 }
               }}
@@ -253,7 +253,7 @@ const ProjectTasksCard = ({ currentUser }) => {
                     <Typography 
                       variant="subtitle2" 
                       fontWeight="bold" 
-                      color={theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900]}
+                      color="#000000"
                       sx={{ fontSize: '0.9rem' }}
                     >
                       {task.title}
@@ -282,7 +282,8 @@ const ProjectTasksCard = ({ currentUser }) => {
                   
                   <Typography 
                     variant="caption" 
-                    color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}
+                    color="#444444"
+                    fontWeight="600"
                     sx={{ fontSize: '0.75rem', display: 'block', mb: 1 }}
                   >
                     {task.project} • Assigned by {task.assignedBy}
@@ -290,7 +291,8 @@ const ProjectTasksCard = ({ currentUser }) => {
                   
                   <Typography 
                     variant="body2" 
-                    color={theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700]}
+                    color="#333333"
+                    fontWeight="500"
                     sx={{ fontSize: '0.8rem', mb: 2 }}
                   >
                     {task.description}
@@ -298,11 +300,12 @@ const ProjectTasksCard = ({ currentUser }) => {
                   
                   <Box display="flex" alignItems="center" gap={2} mb={1}>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <ScheduleIcon sx={{ fontSize: 14, color: theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600] }} />
+                      <ScheduleIcon sx={{ fontSize: 14, color: '#666666' }} />
                       <Typography 
                         variant="caption" 
-                        color={isOverdue(task.dueDate) ? colors.redAccent?.[500] : theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]}
-                        sx={{ fontSize: '0.7rem', fontWeight: isOverdue(task.dueDate) ? 'bold' : 'normal' }}
+                        color={isOverdue(task.dueDate) ? colors.redAccent?.[500] : '#555555'}
+                        fontWeight="600"
+                        sx={{ fontSize: '0.7rem' }}
                       >
                         Due: {new Date(task.dueDate).toLocaleDateString()}
                         {!isOverdue(task.dueDate) && ` (${getDaysUntilDue(task.dueDate)} days left)`}
@@ -325,7 +328,7 @@ const ProjectTasksCard = ({ currentUser }) => {
                   {task.progress > 0 && (
                     <Box>
                       <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-                        <Typography variant="caption" color={theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600]} sx={{ fontSize: '0.7rem' }}>
+                        <Typography variant="caption" color="#555555" fontWeight="600" sx={{ fontSize: '0.7rem' }}>
                           Progress
                         </Typography>
                         <Typography variant="caption" color={colors.blueAccent?.[500] || '#2196f3'} fontWeight="bold" sx={{ fontSize: '0.7rem' }}>
@@ -338,7 +341,7 @@ const ProjectTasksCard = ({ currentUser }) => {
                         sx={{
                           height: 4,
                           borderRadius: 2,
-                          bgcolor: theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200],
+                          bgcolor: '#e5e7eb',
                           '& .MuiLinearProgress-bar': {
                             bgcolor: colors.blueAccent?.[500] || '#2196f3',
                             borderRadius: 2,
@@ -383,7 +386,8 @@ const ProjectTasksCard = ({ currentUser }) => {
         <Box mt={2} pt={2} borderTop={`1px solid ${theme.palette.mode === 'dark' ? colors.primary[300] : colors.primary[200]}`}>
           <Typography 
             variant="caption" 
-            color={theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600]}
+            color="#666666"
+            fontWeight="500"
             sx={{ fontSize: '0.7rem' }}
           >
             Click on any task to view details and take action

@@ -8,7 +8,7 @@ DB_CONTAINER="db"
 DB_NAME="imbesdb"
 DB_USER="root"
 DB_PASS="root_password"
-API_URL="http://localhost:3000"
+API_URL="http://165.22.227.234:3000"
 
 # Test user (we'll use akwatuha - user ID 2)
 TEST_USER_ID=2

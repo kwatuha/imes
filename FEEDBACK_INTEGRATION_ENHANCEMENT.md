@@ -35,7 +35,7 @@ Citizens can now submit feedback on projects from **multiple access points**, no
 
 ```
 Step 1: Visit Dashboard
-http://localhost:5174/dashboard
+http://165.22.227.234:5174/dashboard
     ↓
 Step 2: Click Department Row
 "Ministry of Water & Irrigation" → Modal Opens
@@ -230,7 +230,7 @@ const handleCloseFeedback = () => {
 ### **Test 1: Feedback via Department Modal**
 
 ```bash
-1. Visit: http://localhost:5174/dashboard
+1. Visit: http://165.22.227.234:5174/dashboard
 2. Click "By Department" tab (if not already selected)
 3. Click on "Ministry of Water & Irrigation" row
 4. Modal opens with 6 projects
@@ -244,13 +244,13 @@ const handleCloseFeedback = () => {
    - Message: This project is beneficial
 9. Click "Submit Feedback"
 10. Success message appears
-11. Verify in: http://localhost:5174/public-feedback
+11. Verify in: http://165.22.227.234:5174/public-feedback
 ```
 
 ### **Test 2: Feedback via Sub-County Modal**
 
 ```bash
-1. Visit: http://localhost:5174/dashboard
+1. Visit: http://165.22.227.234:5174/dashboard
 2. Click "By Sub-County" tab
 3. Click on "County-Wide" row (19 projects)
 4. Modal opens
@@ -636,9 +636,9 @@ INSERT INTO public_feedback (
 ```
 Submission Complete
     ↓
-Appears on: http://localhost:5174/public-feedback
+Appears on: http://165.22.227.234:5174/public-feedback
     ↓
-County staff sees in: http://localhost:5173/feedback-management
+County staff sees in: http://165.22.227.234:5173/feedback-management
     ↓
 Staff responds
     ↓
@@ -867,17 +867,18 @@ After:
 ## 📞 Quick Reference
 
 **Access Points:**
-1. http://localhost:5174/projects → Click project → Feedback button
-2. http://localhost:5174/dashboard → Dept → 💬 icon
-3. http://localhost:5174/dashboard → SubCounty → 💬 icon
+1. http://165.22.227.234:5174/projects → Click project → Feedback button
+2. http://165.22.227.234:5174/dashboard → Dept → 💬 icon
+3. http://165.22.227.234:5174/dashboard → SubCounty → 💬 icon
 
 **View Feedback:**
-- http://localhost:5174/public-feedback
+- http://165.22.227.234:5174/public-feedback
 
 **Manage Feedback (Staff):**
-- http://localhost:5173/feedback-management
+- http://165.22.227.234:5173/feedback-management
 
 ---
 
 **🎉 Universal feedback capability now live across the entire public dashboard!** ✨
+
 

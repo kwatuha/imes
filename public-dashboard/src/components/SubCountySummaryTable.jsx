@@ -27,7 +27,7 @@ import SubCountyProjectsModal from './SubCountyProjectsModal';
 import { getSubCountyStats } from '../services/publicApi';
 import { formatCurrency } from '../utils/formatters';
 
-const SubCountySummaryTable = ({ finYearId }) => {
+const SubCountySummaryTable = ({ finYearId, filters = {} }) => {
   const theme = useTheme();
   const [subCounties, setSubCounties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,12 +37,12 @@ const SubCountySummaryTable = ({ finYearId }) => {
 
   useEffect(() => {
     fetchSubCountyStats();
-  }, [finYearId]);
+  }, [finYearId, filters]);
 
   const fetchSubCountyStats = async () => {
     try {
       setLoading(true);
-      const data = await getSubCountyStats(finYearId);
+      const data = await getSubCountyStats(finYearId, filters);
       // Sort by number of projects descending
       const sorted = (data || []).sort((a, b) => (b.project_count || 0) - (a.project_count || 0));
       setSubCounties(sorted);

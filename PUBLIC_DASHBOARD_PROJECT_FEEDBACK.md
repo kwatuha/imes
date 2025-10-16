@@ -212,7 +212,7 @@ public_feedback table:
 ## 🧪 Testing Guide
 
 ### Test Project Gallery:
-1. ✅ Go to `http://localhost:5174/projects`
+1. ✅ Go to `http://165.22.227.234:5174/projects`
 2. ✅ See project cards in grid layout
 3. ✅ Try search: "water"
 4. ✅ Try filters: Status, Department, Year
@@ -402,7 +402,7 @@ Your public dashboard now features:
 
 ## 🚀 **Try It Now!**
 
-**Refresh your browser** and navigate to `http://localhost:5174/projects`
+**Refresh your browser** and navigate to `http://165.22.227.234:5174/projects`
 
 Then:
 1. Browse the beautiful project cards
@@ -416,5 +416,6 @@ Then:
 ---
 
 **Built for maximum citizen engagement and transparency** ✨
+
 
 

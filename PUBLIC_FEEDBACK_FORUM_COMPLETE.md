@@ -231,7 +231,7 @@ Your database currently has **2 feedback entries**:
 
 ## 🚀 **Access the Feedback Forum**
 
-**URL**: `http://localhost:5174/public-feedback` or `http://10.221.96.53:5174/public-feedback`
+**URL**: `http://165.22.227.234:5174/public-feedback` or `http://10.221.96.53:5174/public-feedback`
 
 Or click **"View Feedback"** in the navigation bar!
 
@@ -344,7 +344,7 @@ For the **Admin Dashboard** (private), you can add:
 ## 📝 **Testing Guide**
 
 ### Test the Feedback Forum:
-1. ✅ Go to `http://localhost:5174/public-feedback`
+1. ✅ Go to `http://165.22.227.234:5174/public-feedback`
 2. ✅ See 4 statistics cards at top
 3. ✅ See your 2 feedback entries
 4. ✅ Click to expand an accordion
@@ -415,7 +415,7 @@ Your feedback forum is showing **real data** from your database:
 
 ## 🚀 **Access Now**
 
-**URL**: `http://localhost:5174/public-feedback` or `http://10.221.96.53:5174/public-feedback`
+**URL**: `http://165.22.227.234:5174/public-feedback` or `http://10.221.96.53:5174/public-feedback`
 
 Or click **"View Feedback"** in the navigation bar!
 
@@ -469,7 +469,7 @@ You can later add an **Admin Feedback Management Page** in your admin dashboard 
 
 Your public dashboard is now **feature-complete** and **better than Makueni PMTS**!
 
-**Refresh your browser and visit**: `http://localhost:5174/public-feedback`
+**Refresh your browser and visit**: `http://165.22.227.234:5174/public-feedback`
 
 You'll see:
 - ✅ Beautiful statistics cards
@@ -483,5 +483,6 @@ You'll see:
 ---
 
 **Built with citizen engagement and government transparency in mind** 💙
+
 
 

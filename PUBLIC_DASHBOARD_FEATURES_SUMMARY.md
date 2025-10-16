@@ -285,5 +285,6 @@ Before deploying to production:
 
 **🎉 Congratulations! Your public dashboard is ready to serve citizens!** 🎊
 
-*Access it now at: http://localhost:5174/dashboard*
+*Access it now at: http://165.22.227.234:5174/dashboard*
+
 

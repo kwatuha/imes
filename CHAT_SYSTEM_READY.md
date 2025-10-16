@@ -9,7 +9,7 @@ The internal chat/communication system has been **successfully implemented** and
 ## 🚀 **SYSTEM STATUS:**
 
 ### **✅ Backend (Socket.IO + Node.js)**
-- **API Server**: Running on `http://localhost:3000`
+- **API Server**: Running on `http://165.22.227.234:3000`
 - **Socket.IO**: Real-time communication initialized
 - **Database**: Chat tables created and populated
 - **Authentication**: JWT-based security active
@@ -17,7 +17,7 @@ The internal chat/communication system has been **successfully implemented** and
 - **Permissions**: Role-based access configured
 
 ### **✅ Frontend (React + Material-UI)**
-- **Vite Server**: Running on `http://localhost:5173`
+- **Vite Server**: Running on `http://165.22.227.234:5173`
 - **Socket.IO Client**: Successfully connected
 - **Chat Components**: All UI components loaded
 - **Integration**: Dashboard and layout updated
@@ -34,7 +34,7 @@ The internal chat/communication system has been **successfully implemented** and
 ## 🎯 **HOW TO ACCESS THE CHAT SYSTEM:**
 
 ### **1. Login to the Dashboard**
-- Navigate to: `http://localhost:5173/impes/`
+- Navigate to: `http://165.22.227.234:5173/impes/`
 - Login with your existing credentials
 
 ### **2. Access Chat Features**
@@ -229,6 +229,7 @@ Your IMES dashboard now includes a **state-of-the-art internal communication sys
 ---
 
 *For technical documentation, see `CHAT_IMPLEMENTATION_PLAN.md` and `CHAT_IMPLEMENTATION_STATUS.md`*
+
 
 
 

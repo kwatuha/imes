@@ -11,7 +11,7 @@ The page was using raw `axios` instead of the configured `axiosInstance`, which 
 **Incorrect URL Construction:**
 ```javascript
 // Before (WRONG):
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://165.22.227.234:3000';
 // When VITE_API_BASE_URL=/api, this becomes:
 axios.get(`${API_BASE_URL}/api/public/feedback`) 
 // Results in: /api/api/public/feedback ❌ (404 error)
@@ -35,7 +35,7 @@ axiosInstance.get(`/public/feedback`)
    ```javascript
    // Before:
    import axios from 'axios';
-   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://165.22.227.234:3000';
    
    // After:
    import axiosInstance from '../api/axiosInstance';
@@ -99,13 +99,13 @@ axiosInstance.get(`/public/feedback`)
 
 1. **Check API endpoint directly:**
    ```bash
-   curl http://localhost:3000/api/public/feedback?limit=5
+   curl http://165.22.227.234:3000/api/public/feedback?limit=5
    ```
    Expected: Returns feedback list ✅
 
 2. **Access Feedback Management Page:**
    ```
-   1. Login to admin dashboard: http://localhost:5173
+   1. Login to admin dashboard: http://165.22.227.234:5173
    2. Navigate to: Administration > Feedback Management
    3. Page should load with feedback statistics
    4. Feedback list should display (2 items currently)
@@ -156,7 +156,7 @@ Look for these patterns in your code:
 ### ❌ Anti-pattern (Wrong):
 ```javascript
 import axios from 'axios';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://165.22.227.234:3000';
 axios.get(`${API_BASE_URL}/api/...`)
 ```
 
@@ -196,4 +196,5 @@ axiosInstance.get(`/...`) // No /api prefix needed
    - ✅ Update statuses
 
 The page should now work correctly! 🎉
+
 

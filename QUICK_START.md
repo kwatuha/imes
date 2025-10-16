@@ -3,7 +3,7 @@
 ## Access Your Dashboards
 
 ### Public Dashboard (NEW! 🎉)
-**URL**: http://localhost:5174
+**URL**: http://165.22.227.234:5174
 
 **Features**:
 - Home page with quick stats
@@ -12,7 +12,7 @@
 - No login required!
 
 ### Admin Dashboard (Existing)
-**URL**: http://localhost:5173/impes/login
+**URL**: http://165.22.227.234:5173/impes/login
 
 **Features**:
 - Full project management
@@ -21,7 +21,7 @@
 - Chat system
 
 ### API
-**URL**: http://localhost:3000
+**URL**: http://165.22.227.234:3000
 
 ---
 
@@ -85,13 +85,13 @@ docker compose up -d public-dashboard
 
 ```bash
 # Get overview statistics
-curl http://localhost:3000/api/public/stats/overview | json_pp
+curl http://165.22.227.234:3000/api/public/stats/overview | json_pp
 
 # Get financial years
-curl http://localhost:3000/api/public/financial-years | json_pp
+curl http://165.22.227.234:3000/api/public/financial-years | json_pp
 
 # Get department stats
-curl http://localhost:3000/api/public/stats/by-department | json_pp
+curl http://165.22.227.234:3000/api/public/stats/by-department | json_pp
 ```
 
 ---
@@ -104,7 +104,7 @@ curl http://localhost:3000/api/public/stats/by-department | json_pp
 3. Restart: `docker compose restart public-dashboard`
 
 ### No data showing?
-1. Check API is running: `curl http://localhost:3000/api/public/stats/overview`
+1. Check API is running: `curl http://165.22.227.234:3000/api/public/stats/overview`
 2. Check database connection
 3. Verify data exists in database
 
@@ -138,7 +138,7 @@ public-dashboard:
 
 ## Next Steps
 
-1. ✅ **Test the dashboard** - Visit http://localhost:5174
+1. ✅ **Test the dashboard** - Visit http://165.22.227.234:5174
 2. ✅ **Explore all pages** - Home, Dashboard, Feedback
 3. ✅ **Submit test feedback** - Try the feedback form
 4. ✅ **Check the charts** - View interactive visualizations
@@ -182,6 +182,7 @@ Edit `public-dashboard/src/pages/FeedbackPage.jsx` line 140:
 
 ---
 
-**🎉 Your public dashboard is ready! Visit http://localhost:5174 now!**
+**🎉 Your public dashboard is ready! Visit http://165.22.227.234:5174 now!**
+
 
 

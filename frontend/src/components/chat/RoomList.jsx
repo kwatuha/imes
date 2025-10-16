@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { useChat } from '../../context/ChatContext';
 import { tokens } from '../../pages/dashboard/theme';
+import ActiveUsersCard from '../ActiveUsersCard';
 
 const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
   const theme = useTheme();
@@ -115,27 +116,30 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
+        backgroundColor: '#ffffff'
       }}
     >
       {/* Header */}
       <Box
         sx={{
-          p: 2,
-          borderBottom: `1px solid ${isDarkMode ? colors.primary[400] : colors.primary[200]}`,
-          backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
+          p: 2.5,
+          borderBottom: `1px solid ${colors.primary[200]}`,
+          backgroundColor: colors.primary[50],
+          background: `linear-gradient(90deg, ${colors.primary[50]} 0%, ${colors.primary[100]} 100%)`
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: isDarkMode ? colors.grey[100] : colors.grey[900] }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#000000' }}>
             Chat Rooms
           </Typography>
           <IconButton 
             onClick={onCreateRoom} 
             sx={{ 
-              color: colors.greenAccent[500],
+              color: colors.greenAccent?.[500] || '#4caf50',
+              backgroundColor: 'rgba(76, 175, 80, 0.1)',
               '&:hover': {
-                backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200]
+                backgroundColor: colors.greenAccent[200],
+                transform: 'scale(1.05)'
               }
             }}
           >
@@ -153,22 +157,25 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: isDarkMode ? colors.grey[400] : colors.grey[600] }} />
+                <SearchIcon sx={{ color: '#666666' }} />
               </InputAdornment>
             ),
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50],
+              backgroundColor: '#ffffff',
+              border: `1px solid ${colors.primary[300]}`,
               '&:hover': {
-                backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
+                backgroundColor: '#ffffff',
+                border: `1px solid ${colors.primary[400]}`
               },
               '&.Mui-focused': {
-                backgroundColor: isDarkMode ? colors.primary[500] : colors.primary[50]
+                backgroundColor: '#ffffff',
+                border: `2px solid ${colors.greenAccent[500]}`
               }
             },
             '& .MuiOutlinedInput-input': {
-              color: isDarkMode ? colors.grey[100] : colors.grey[900]
+              color: '#333333'
             }
           }}
         />
@@ -189,17 +196,72 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
               onClick={() => setFilter(filterOption.key)}
               variant={filter === filterOption.key ? 'filled' : 'outlined'}
               sx={{
-                backgroundColor: filter === filterOption.key ? colors.greenAccent[500] : 'transparent',
-                color: filter === filterOption.key ? colors.grey[100] : (isDarkMode ? colors.grey[400] : colors.grey[600]),
-                borderColor: filter === filterOption.key ? colors.greenAccent[500] : (isDarkMode ? colors.primary[300] : colors.primary[300]),
+                backgroundColor: filter === filterOption.key ? colors.greenAccent?.[500] || '#4caf50' : '#ffffff',
+                color: filter === filterOption.key ? '#ffffff' : '#555555',
+                borderColor: filter === filterOption.key ? colors.greenAccent?.[500] || '#4caf50' : 'rgba(0,0,0,0.08)',
                 '&:hover': {
-                  backgroundColor: filter === filterOption.key ? colors.greenAccent[600] : (isDarkMode ? colors.primary[300] : colors.primary[200])
+                  backgroundColor: filter === filterOption.key ? colors.greenAccent?.[600] || '#388e3c' : '#f8fafc',
+                  borderColor: filter === filterOption.key ? colors.greenAccent?.[600] || '#388e3c' : 'rgba(0,0,0,0.12)'
                 }
               }}
             />
           ))}
         </Box>
       </Box>
+
+      {/* Active Users Section - Only show when Direct filter is selected */}
+      {filter === 'direct' && (
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: `2px solid ${colors.greenAccent?.[500] || '#4caf50'}`,
+            backgroundColor: 'rgba(76, 175, 80, 0.05)',
+            background: `linear-gradient(90deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.08) 100%)`,
+            position: 'relative',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: `linear-gradient(90deg, ${colors.greenAccent?.[500] || '#4caf50'} 0%, ${colors.greenAccent?.[400] || '#66bb6a'} 100%)`,
+              borderRadius: '2px 2px 0 0'
+            }
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ 
+            fontWeight: '700', 
+            color: '#000000',
+            mb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            fontSize: '0.9rem'
+          }}>
+            <OnlineIcon sx={{ color: colors.greenAccent?.[500] || '#4caf50', fontSize: 16 }} />
+            Start Direct Message
+          </Typography>
+          <Box sx={{ height: '200px', overflow: 'hidden', borderRadius: 2, border: `1px solid rgba(76, 175, 80, 0.2)`, backgroundColor: '#ffffff' }}>
+            <ActiveUsersCard 
+              compact={false} 
+              onUserSelect={(user) => {
+                console.log('User selected for direct message:', user);
+                // Create a mock room object for direct message
+                const directRoom = {
+                  room_id: `direct_${user.id}`,
+                  room_name: user.name,
+                  room_type: 'direct',
+                  participant_count: 2,
+                  last_message: null,
+                  last_message_time: null
+                };
+                onRoomSelect(directRoom);
+              }}
+            />
+          </Box>
+        </Box>
+      )}
 
       {/* Room List */}
       <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
@@ -223,8 +285,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                 startIcon={<AddIcon />}
                 onClick={onCreateRoom}
                 sx={{
-                  borderColor: colors.greenAccent[500],
-                  color: colors.greenAccent[500]
+                  borderColor: colors.greenAccent?.[500] || '#4caf50',
+                  color: colors.greenAccent?.[500] || '#4caf50'
                 }}
               >
                 Create Room
@@ -243,29 +305,56 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                     <ListItemButton
                       onClick={() => onRoomSelect(room)}
                       selected={isSelected}
-                          sx={{
-                            py: 1.5,
-                            px: 2,
-                            backgroundColor: isSelected ? (isDarkMode ? colors.primary[300] : colors.primary[200]) : 'transparent',
-                            '&:hover': {
-                              backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[100]
-                            },
-                            '&.Mui-selected': {
-                              backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
-                              '&:hover': {
-                                backgroundColor: isDarkMode ? colors.primary[200] : colors.primary[100]
-                              }
-                            }
-                          }}
+                      sx={{
+                        py: 1.5,
+                        px: 2,
+                        backgroundColor: isSelected ? 'rgba(76, 175, 80, 0.12)' : 'transparent',
+                        borderRadius: 2,
+                        margin: '2px 8px',
+                        border: isSelected ? `2px solid ${colors.greenAccent?.[500] || '#4caf50'}` : '2px solid transparent',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: isSelected ? '4px' : '0px',
+                          backgroundColor: colors.greenAccent?.[500] || '#4caf50',
+                          transition: 'width 0.3s ease'
+                        },
+                        '&:hover': {
+                          backgroundColor: isSelected ? 'rgba(76, 175, 80, 0.18)' : 'rgba(104, 112, 250, 0.08)',
+                          transform: 'translateX(4px)',
+                          borderColor: isSelected ? colors.greenAccent?.[500] || '#4caf50' : 'rgba(104, 112, 250, 0.3)',
+                          boxShadow: isSelected 
+                            ? '0 4px 12px rgba(76, 175, 80, 0.2)' 
+                            : '0 2px 8px rgba(104, 112, 250, 0.15)',
+                          '&::before': {
+                            width: '4px'
+                          }
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: 'rgba(76, 175, 80, 0.12)',
+                          borderColor: colors.greenAccent?.[500] || '#4caf50',
+                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)',
+                          '&:hover': {
+                            backgroundColor: 'rgba(76, 175, 80, 0.18)',
+                            boxShadow: '0 6px 16px rgba(76, 175, 80, 0.25)'
+                          }
+                        }
+                      }}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>
                         <Avatar
                           sx={{
                             width: 32,
                             height: 32,
-                            bgcolor: colors.greenAccent[500],
+                            bgcolor: colors.greenAccent?.[500] || '#4caf50',
                             fontSize: '0.875rem',
-                            color: colors.grey[100]
+                            color: '#ffffff'
                           }}
                         >
                           {getRoomIcon(room.room_type)}
@@ -283,7 +372,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
                                   flex: 1,
-                                  color: isDarkMode ? colors.grey[100] : colors.grey[900]
+                                  color: '#000000'
                                 }}
                             >
                               {room.room_name}
@@ -292,7 +381,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                               {room.last_message_time && (
                                 <Typography
                                   variant="caption"
-                                  sx={{ color: isDarkMode ? colors.grey[400] : colors.grey[600] }}
+                                  sx={{ color: '#555555', fontWeight: '500' }}
                                 >
                                   {formatLastMessageTime(room.last_message_time)}
                                 </Typography>
@@ -302,8 +391,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   badgeContent={unreadCount}
                                   sx={{
                                     '& .MuiBadge-badge': {
-                                      backgroundColor: colors.greenAccent[500],
-                                      color: colors.grey[100],
+                                      backgroundColor: colors.greenAccent?.[500] || '#4caf50',
+                                      color: '#ffffff',
                                       fontSize: '0.75rem',
                                       minWidth: '18px',
                                       height: '18px'
@@ -320,7 +409,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   <Box
                                     component="span"
                                     sx={{ 
-                                      color: isDarkMode ? colors.grey[400] : colors.grey[600],
+                                      color: '#555555',
                                       fontSize: '0.75rem',
                                       display: 'block'
                                     }}
@@ -334,8 +423,8 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                   label={`Role: ${room.role_name}`} 
                                   size="small" 
                                   sx={{ 
-                                    backgroundColor: colors.orange[500], 
-                                    color: colors.grey[100],
+                                    backgroundColor: colors.orange?.[500] || '#ff9800', 
+                                    color: '#ffffff',
                                     fontSize: '0.65rem',
                                     height: '18px'
                                   }} 
@@ -343,7 +432,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                                 <Box
                                   component="span"
                                   sx={{ 
-                                    color: isDarkMode ? colors.grey[400] : colors.grey[600],
+                                    color: '#555555',
                                     fontSize: '0.75rem'
                                   }}
                                 >
@@ -355,7 +444,7 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                               <Box
                                 component="span"
                                 sx={{
-                                  color: isDarkMode ? colors.grey[400] : colors.grey[600],
+                                  color: '#555555',
                                   fontSize: '0.875rem',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
@@ -373,7 +462,10 @@ const RoomList = ({ onRoomSelect, selectedRoom, onCreateRoom }) => {
                     </ListItemButton>
                   </ListItem>
                       {index < sortedRooms.length - 1 && (
-                        <Divider sx={{ borderColor: isDarkMode ? colors.primary[400] : colors.primary[200] }} />
+                        <Divider sx={{ 
+                          borderColor: 'rgba(0,0,0,0.06)',
+                          mx: 2
+                        }} />
                       )}
                 </React.Fragment>
               );

@@ -117,7 +117,7 @@ app.use((err, req, res, next) => {
 require('./socket/chatSocket')(io);
 
 server.listen(port, () => {
-    console.log(`IMPES API listening at http://localhost:${port}`);
+    console.log(`IMPES API listening at http://165.22.227.234:${port}`);
     console.log(`Socket.IO server initialized`);
     console.log(`CORS enabled for all origins during development.`);
 });

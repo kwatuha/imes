@@ -71,7 +71,7 @@ const EnhancedYearlyTrendsTab = ({
             type: 'number',
             flex: 1,
             valueFormatter: (params) => {
-                if (params.value == null) {
+                if (!params || params.value == null) {
                     return '';
                 }
                 return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -84,7 +84,7 @@ const EnhancedYearlyTrendsTab = ({
             type: 'number',
             flex: 1,
             valueFormatter: (params) => {
-                if (params.value == null) {
+                if (!params || params.value == null) {
                     return '';
                 }
                 return `KES ${parseFloat(params.value).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -97,7 +97,7 @@ const EnhancedYearlyTrendsTab = ({
             type: 'number',
             flex: 0.8,
             valueFormatter: (params) => {
-                if (params.value == null) {
+                if (!params || params.value == null) {
                     return '';
                 }
                 return `${parseFloat(params.value).toFixed(1)}%`;
@@ -262,14 +262,38 @@ const EnhancedYearlyTrendsTab = ({
                                 <DataGrid
                                     rows={reportData}
                                     columns={yearlyTrendsTableColumns}
-                                    pageSizeOptions={[5, 10, 25]}
+                                    pageSizeOptions={[10, 15, 25, 50]}
                                     disableRowSelectionOnClick
                                     getRowId={getRowId}
+                                    density="compact"
                                     initialState={{
                                         pagination: {
                                             paginationModel: {
-                                                pageSize: 10,
+                                                pageSize: 15,
                                             },
+                                        },
+                                    }}
+                                    sx={{
+                                        '& .MuiDataGrid-cell': {
+                                            fontSize: '0.875rem',
+                                            padding: '6px 12px',
+                                            minHeight: '36px !important',
+                                        },
+                                        '& .MuiDataGrid-columnHeaders': {
+                                            fontSize: '0.875rem',
+                                            fontWeight: 600,
+                                            minHeight: '40px !important',
+                                            padding: '8px 12px',
+                                        },
+                                        '& .MuiDataGrid-row': {
+                                            minHeight: '36px !important',
+                                        },
+                                        '& .MuiDataGrid-footerContainer': {
+                                            minHeight: '40px !important',
+                                            fontSize: '0.875rem',
+                                        },
+                                        '& .MuiTablePagination-root': {
+                                            fontSize: '0.875rem',
                                         },
                                     }}
                                 />

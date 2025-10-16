@@ -16,13 +16,17 @@ import {
   Business,
   LocationOn,
   LocationCity,
-  Dashboard as DashboardIcon
+  Dashboard as DashboardIcon,
+  TrendingUp
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import StatCard from '../components/StatCard';
 import DepartmentSummaryTable from '../components/DepartmentSummaryTable';
 import SubCountySummaryTable from '../components/SubCountySummaryTable';
 import WardSummaryTable from '../components/WardSummaryTable';
+import YearlyTrendsTable from '../components/YearlyTrendsTable';
+import FilterBar from '../components/FilterBar';
+import ProjectsModal from '../components/ProjectsModal';
 import { getOverviewStats, getFinancialYears } from '../services/publicApi';
 import { formatCurrency } from '../utils/formatters';
 
@@ -36,6 +40,18 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [filters, setFilters] = useState({
+    department: '',
+    subcounty: '',
+    ward: '',
+    projectSearch: ''
+  });
+
+  // Modal states for clickable stats
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalFilterType, setModalFilterType] = useState('');
+  const [modalFilterValue, setModalFilterValue] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
 
   useEffect(() => {
     fetchFinancialYears();
@@ -45,7 +61,7 @@ const DashboardPage = () => {
     if (selectedFinYear) {
       fetchStats();
     }
-  }, [selectedFinYear]);
+  }, [selectedFinYear, filters]);
 
   const fetchFinancialYears = async () => {
     try {
@@ -68,7 +84,7 @@ const DashboardPage = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const data = await getOverviewStats(selectedFinYear?.id);
+      const data = await getOverviewStats(selectedFinYear?.id, filters);
       setStats(data);
       setError(null);
     } catch (err) {
@@ -85,6 +101,26 @@ const DashboardPage = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  // Handle clicking on statistics cards
+  const handleStatClick = (filterType, filterValue, title) => {
+    setModalFilterType(filterType);
+    setModalFilterValue(filterValue);
+    setModalTitle(title);
+    setModalOpen(true);
+  };
+
+  // Handle closing the modal
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalFilterType('');
+    setModalFilterValue('');
+    setModalTitle('');
   };
 
   if (loading && !stats) {
@@ -109,28 +145,32 @@ const DashboardPage = () => {
       count: stats?.total_projects || 0,
       budget: stats?.total_budget || 0,
       color: '#1976d2',
-      icon: Assessment
+      icon: Assessment,
+      onClick: () => handleStatClick('finYearId', selectedFinYear?.id, 'All Projects')
     },
     {
       title: 'Completed Projects',
       count: stats?.completed_projects || 0,
       budget: stats?.completed_budget || 0,
       color: '#4caf50',
-      icon: Assessment
+      icon: Assessment,
+      onClick: () => handleStatClick('status', 'Completed', 'Completed Projects')
     },
     {
       title: 'Ongoing Projects',
       count: stats?.ongoing_projects || 0,
       budget: stats?.ongoing_budget || 0,
       color: '#2196f3',
-      icon: Assessment
+      icon: Assessment,
+      onClick: () => handleStatClick('status', 'Ongoing', 'Ongoing Projects')
     },
     {
       title: 'Under Procurement',
       count: stats?.under_procurement_projects || 0,
       budget: stats?.under_procurement_budget || 0,
       color: '#9c27b0',
-      icon: Assessment
+      icon: Assessment,
+      onClick: () => handleStatClick('status', 'Under Procurement', 'Under Procurement')
     }
   ];
 
@@ -140,41 +180,23 @@ const DashboardPage = () => {
       <Box sx={{ mb: 4 }}>
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <DashboardIcon sx={{ fontSize: 40, color: 'primary.main' }} />
-          <Typography variant="h4" fontWeight="bold">
-            Public Dashboard
-          </Typography>
+        <Typography variant="h4" fontWeight="bold">
+          Kisumu County Public Dashboard
+        </Typography>
         </Box>
         <Typography variant="body1" color="text.secondary">
           Transparency in project monitoring and implementation
         </Typography>
       </Box>
 
-      {/* Financial Year Selector */}
-      {financialYears.length > 0 && (
-        <Paper sx={{ mb: 4, borderRadius: 2 }} elevation={2}>
-          <Tabs
-            value={financialYears.findIndex(fy => fy.id === selectedFinYear?.id)}
-            onChange={handleFinYearChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              '& .MuiTab-root': {
-                fontWeight: 600,
-                fontSize: '1rem'
-              }
-            }}
-          >
-            {financialYears.map((fy) => (
-              <Tab
-                key={fy.id}
-                label={`FY ${fy.name}`}
-                icon={<Assessment />}
-                iconPosition="start"
-              />
-            ))}
-          </Tabs>
-        </Paper>
-      )}
+      {/* Enhanced Filter Bar */}
+      <FilterBar
+        financialYears={financialYears}
+        selectedFinYear={selectedFinYear}
+        onFinYearChange={setSelectedFinYear}
+        onFiltersChange={handleFiltersChange}
+        finYearId={selectedFinYear?.id}
+      />
 
       {/* Selected Financial Year Title */}
       <Box sx={{ mb: 3 }}>
@@ -187,6 +209,9 @@ const DashboardPage = () => {
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
           Quick Stats
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Click on any statistic card below to view detailed project information
         </Typography>
         <Grid container spacing={3}>
           {statsCards.map((card, index) => (
@@ -216,17 +241,21 @@ const DashboardPage = () => {
           <Tab icon={<Business />} label="By Department" iconPosition="start" />
           <Tab icon={<LocationOn />} label="By Sub-County" iconPosition="start" />
           <Tab icon={<LocationCity />} label="By Ward" iconPosition="start" />
+          <Tab icon={<TrendingUp />} label="Yearly Trends" iconPosition="start" />
         </Tabs>
 
         <Box sx={{ p: 4 }}>
           {activeTab === 0 && (
-            <DepartmentSummaryTable finYearId={selectedFinYear?.id} />
+            <DepartmentSummaryTable finYearId={selectedFinYear?.id} filters={filters} />
           )}
           {activeTab === 1 && (
-            <SubCountySummaryTable finYearId={selectedFinYear?.id} />
+            <SubCountySummaryTable finYearId={selectedFinYear?.id} filters={filters} />
           )}
           {activeTab === 2 && (
-            <WardSummaryTable finYearId={selectedFinYear?.id} />
+            <WardSummaryTable finYearId={selectedFinYear?.id} filters={filters} />
+          )}
+          {activeTab === 3 && (
+            <YearlyTrendsTable filters={filters} />
           )}
         </Box>
       </Paper>
@@ -246,6 +275,15 @@ const DashboardPage = () => {
           <strong>Projects Gallery</strong>
         </Typography>
       </Paper>
+
+      {/* Projects Modal */}
+      <ProjectsModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        filterType={modalFilterType}
+        filterValue={modalFilterValue}
+        title={modalTitle}
+      />
     </Container>
   );
 };

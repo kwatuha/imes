@@ -241,9 +241,9 @@ docker-compose ps</code></pre>
             <strong>Access Application</strong>
         </div>
         <ul>
-            <li><strong>Frontend</strong>: <a href="http://localhost/impes/">http://localhost/impes/</a></li>
-            <li><strong>API</strong>: <a href="http://localhost/api/">http://localhost/api/</a></li>
-            <li><strong>Uploads</strong>: <a href="http://localhost/uploads/">http://localhost/uploads/</a></li>
+            <li><strong>Frontend</strong>: <a href="http://165.22.227.234/impes/">http://165.22.227.234/impes/</a></li>
+            <li><strong>API</strong>: <a href="http://165.22.227.234/api/">http://165.22.227.234/api/</a></li>
+            <li><strong>Uploads</strong>: <a href="http://165.22.227.234/uploads/">http://165.22.227.234/uploads/</a></li>
         </ul>
 
         <h2 id="deployment">4. Deployment to New Machine</h2>
@@ -301,10 +301,10 @@ docker-compose ps</code></pre>
             <strong>Verify Deployment</strong>
         </div>
         <pre><code># Test frontend
-curl http://localhost/impes/
+curl http://165.22.227.234/impes/
 
 # Test API
-curl http://localhost/api/auth/login
+curl http://165.22.227.234/api/auth/login
 
 # Check logs
 docker-compose logs</code></pre>
@@ -483,10 +483,10 @@ git clone &lt;repo&gt; && cd impes && docker-compose up -d</code></pre>
 
         <h3>Health Check Endpoints</h3>
         <pre><code># Frontend health check
-curl http://localhost/impes/
+curl http://165.22.227.234/impes/
 
 # API health check
-curl http://localhost/api/
+curl http://165.22.227.234/api/
 
 # Database connection test
 docker-compose exec api node -e "console.log('API running')"</code></pre>

@@ -81,7 +81,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
     if (!message.file_url || !message.file_name) return;
     
     // Use the correct environment variable name and construct the proper URL
-    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
     const baseUrl = apiBaseUrl.replace('/api', ''); // Remove /api suffix for static files
     const fileUrl = `${baseUrl}${message.file_url}`;
     
@@ -153,8 +153,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
               label={formatDate(message.created_at)}
               size="small"
               sx={{
-                backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
-                color: colors.grey[100]
+                backgroundColor: '#ffffff',
+                color: '#333333'
               }}
             />
           </Box>
@@ -211,8 +211,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                 variant="caption"
                 sx={{
                   color: isCurrentUser 
-                    ? (isDarkMode ? colors.blueAccent[400] : colors.blueAccent[600])
-                    : (isDarkMode ? colors.grey[300] : colors.grey[600]),
+                    ? colors.blueAccent?.[600] || '#535ac8'
+                    : '#555555',
                   mb: 0.5,
                   ml: showAvatar ? 1 : 0,
                   fontWeight: isCurrentUser ? 600 : 500,
@@ -230,7 +230,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                 sx={{
                   p: 1,
                   mb: 0.5,
-                  backgroundColor: isDarkMode ? colors.primary[300] : colors.primary[200],
+                  backgroundColor: colors.primary[100],
                   borderLeft: `3px solid ${colors.greenAccent[500]}`,
                   maxWidth: '100%'
                 }}
@@ -257,21 +257,19 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
               sx={{
                 p: 1.5,
                 backgroundColor: isCurrentUser 
-                  ? (isDarkMode ? colors.blueAccent[600] : colors.blueAccent[100])
-                  : (isDarkMode ? colors.grey[700] : colors.grey[50]),
+                  ? colors.blueAccent?.[100] || '#e3f2fd'
+                  : '#f8fafc',
                 color: isCurrentUser 
-                  ? (isDarkMode ? colors.grey[100] : colors.blueAccent[700])
-                  : (isDarkMode ? colors.grey[100] : colors.grey[700]),
+                  ? colors.blueAccent?.[700] || '#1976d2'
+                  : '#333333',
                 borderRadius: 2,
                 borderTopLeftRadius: isCurrentUser ? 2 : (showAvatar ? 2 : 0.5),
                 borderTopRightRadius: isCurrentUser ? (showAvatar ? 2 : 0.5) : 2,
                 position: 'relative',
-                boxShadow: isDarkMode 
-                  ? '0 2px 8px rgba(0, 0, 0, 0.3)' 
-                  : isCurrentUser 
-                    ? `0 4px 16px ${colors.blueAccent[100]}40, 0 2px 8px ${colors.blueAccent[100]}20`
-                    : `0 2px 8px ${colors.grey[100]}60, 0 1px 4px ${colors.grey[100]}40`,
-                border: !isDarkMode ? `1px solid ${isCurrentUser ? colors.blueAccent[200] : colors.grey[200]}` : 'none',
+                boxShadow: isCurrentUser 
+                  ? `0 4px 16px rgba(25, 118, 210, 0.15), 0 2px 8px rgba(25, 118, 210, 0.1)`
+                  : `0 2px 8px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)`,
+                border: `1px solid ${isCurrentUser ? colors.blueAccent?.[200] || '#bbdefb' : 'rgba(0,0,0,0.08)'}`,
                 '&:hover .message-actions': {
                   opacity: 1
                 }
@@ -287,8 +285,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                       sx={{ 
                         fontWeight: 600,
                         color: isCurrentUser 
-                          ? (isDarkMode ? colors.grey[100] : colors.blueAccent[700])
-                          : (isDarkMode ? colors.grey[100] : colors.grey[700])
+                          ? colors.blueAccent?.[700] || '#1976d2'
+                          : '#333333'
                       }}
                     >
                       {message.file_name}
@@ -297,8 +295,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                       variant="caption" 
                       sx={{
                         color: isCurrentUser 
-                          ? (isDarkMode ? colors.grey[200] : colors.blueAccent[600])
-                          : (isDarkMode ? colors.grey[300] : colors.grey[600]),
+                          ? colors.blueAccent[600]
+                          : colors.grey[600],
                         fontWeight: 500
                       }}
                     >
@@ -309,10 +307,10 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                     size="small" 
                     onClick={() => handleDownload(message)}
                     sx={{ 
-                      color: colors.grey[300],
+                      color: '#666666',
                       '&:hover': {
-                        backgroundColor: colors.primary[200],
-                        color: colors.greenAccent[500]
+                        backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                        color: colors.greenAccent?.[500] || '#4caf50'
                       }
                     }}
                     title="Download file"
@@ -326,7 +324,7 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                 <Box>
                   <Box sx={{ position: 'relative', display: 'inline-block' }}>
                     <img
-                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '')}${message.file_url}`}
+                      src={`${(import.meta.env.VITE_API_URL || '/api').replace('/api', '')}${message.file_url}`}
                       alt={message.file_name}
                       style={{
                         maxWidth: '200px',
@@ -359,8 +357,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                       sx={{ 
                         mt: 0.5,
                         color: isCurrentUser 
-                          ? (isDarkMode ? colors.grey[200] : colors.blueAccent[600])
-                          : (isDarkMode ? colors.grey[300] : colors.grey[600]),
+                          ? colors.blueAccent[600]
+                          : colors.grey[600],
                         fontWeight: 500
                       }}
                     >
@@ -378,8 +376,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                     color: isCurrentUser 
-                      ? (isDarkMode ? colors.grey[100] : colors.blueAccent[700])
-                      : (isDarkMode ? colors.grey[100] : colors.grey[700]),
+                      ? colors.blueAccent?.[700] || '#1976d2'
+                      : '#333333',
                     fontWeight: 500,
                     lineHeight: 1.5
                   }}
@@ -394,7 +392,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                   variant="body2"
                   sx={{
                     fontStyle: 'italic',
-                    color: colors.grey[300]
+                    color: '#666666',
+                    fontWeight: '500'
                   }}
                 >
                   {message.message_text}
@@ -419,13 +418,13 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                   size="small"
                   onClick={() => onReply(message)}
                   sx={{
-                    backgroundColor: isDarkMode ? colors.grey[600] : colors.blueAccent[100],
-                    color: isDarkMode ? colors.grey[100] : colors.blueAccent[600],
-                    border: !isDarkMode ? `1px solid ${colors.blueAccent[200]}` : 'none',
+                    backgroundColor: colors.blueAccent[100],
+                    color: colors.blueAccent[600],
+                    border: `1px solid ${colors.blueAccent[200]}`,
                     '&:hover': {
-                      backgroundColor: isDarkMode ? colors.grey[500] : colors.blueAccent[200],
+                      backgroundColor: colors.blueAccent[200],
                       transform: 'translateY(-1px)',
-                      boxShadow: !isDarkMode ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                      boxShadow: `0 2px 8px ${colors.blueAccent[100]}40`
                     },
                     transition: 'all 0.2s ease-in-out'
                   }}
@@ -435,13 +434,13 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
                 <IconButton
                   size="small"
                   sx={{
-                    backgroundColor: isDarkMode ? colors.grey[600] : colors.blueAccent[100],
-                    color: isDarkMode ? colors.grey[100] : colors.blueAccent[600],
-                    border: !isDarkMode ? `1px solid ${colors.blueAccent[200]}` : 'none',
+                    backgroundColor: colors.blueAccent[100],
+                    color: colors.blueAccent[600],
+                    border: `1px solid ${colors.blueAccent[200]}`,
                     '&:hover': {
-                      backgroundColor: isDarkMode ? colors.grey[500] : colors.blueAccent[200],
+                      backgroundColor: colors.blueAccent[200],
                       transform: 'translateY(-1px)',
-                      boxShadow: !isDarkMode ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                      boxShadow: `0 2px 8px ${colors.blueAccent[100]}40`
                     },
                     transition: 'all 0.2s ease-in-out'
                   }}
@@ -455,7 +454,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
             <Typography
               variant="caption"
               sx={{
-                color: isDarkMode ? colors.grey[400] : colors.grey[600],
+                color: '#555555',
+                fontWeight: '500',
                 mt: 0.5,
                 mx: 1,
                 opacity: 0.9,
@@ -479,7 +479,8 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
               flexGrow: 1,
               overflowY: 'auto',
               py: 1,
-              backgroundColor: isDarkMode ? colors.primary[400] : colors.primary[50]
+              backgroundColor: '#ffffff',
+              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
             }}
     >
       {messages.length === 0 ? (
@@ -493,10 +494,10 @@ const MessageList = ({ messages, currentUser, onReply, room }) => {
             gap: 2
           }}
         >
-          <Typography variant="h6" color="textSecondary">
+          <Typography variant="h6" sx={{ color: '#555555', fontWeight: '500' }}>
             No messages yet
           </Typography>
-          <Typography variant="body2" color="textSecondary">
+          <Typography variant="body2" sx={{ color: '#666666', fontWeight: '500' }}>
             Start the conversation by sending a message
           </Typography>
         </Box>

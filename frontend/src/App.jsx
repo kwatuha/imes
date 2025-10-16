@@ -15,7 +15,6 @@ import ProjectManagementPage from './pages/ProjectManagementPage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import ProjectGanttChartPage from './pages/ProjectGanttChartPage';
 import ReportsPage from './pages/ReportsPage';
-import MapsPage from './pages/MapsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import Login from './components/Login';
 
@@ -59,7 +58,8 @@ import RegionalDashboard from './components/RegionalDashboard';
 
 import ProjectDashboardPage from './pages/ProjectsDashboardPage';
 import DashboardConfigManager from './components/DashboardConfigManager';
-import { ColorModeContext, useMode} from "./pages/dashboard/theme";
+// NEW: Import the simplified modern theme
+import { modernTheme } from './theme/modernTheme';
 
 // Define your routes with basename for /impes path
 const router = createBrowserRouter([
@@ -198,10 +198,9 @@ const router = createBrowserRouter([
 });
 
 function App() {
-   const [theme, colorMode] = useMode();
+  // ✨ Using the new simplified modern theme - no more mode switching!
   return (
-    <ColorModeContext.Provider value={colorMode}>
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={modernTheme}>
       <CssBaseline />
       <AuthProvider>
         <ChatProvider>
@@ -209,7 +208,6 @@ function App() {
         </ChatProvider>
       </AuthProvider>
     </ThemeProvider>
-      </ColorModeContext.Provider>
   );
 }
 

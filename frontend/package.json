@@ -11,8 +11,6 @@
   },
   "homepage": "/impes",
   "dependencies": {
-    "@arcgis/core": "^4.33.9",
-    "@arcgis/map-components-react": "^4.33.10",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hello-pangea/dnd": "^18.0.1",
@@ -28,7 +26,6 @@
     "@react-google-maps/api": "^2.20.7",
     "axios": "^1.10.0",
     "chart.js": "^4.5.0",
-    "esri-loader": "^3.7.0",
     "jspdf-autotable": "^5.0.2",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
@@ -39,7 +36,7 @@
     "react-pro-sidebar": "^0.7.1",
     "react-router-dom": "^6.30.1",
     "react-to-pdf": "^2.0.1",
-    "recharts": "^3.1.2",
+    "recharts": "^3.2.1",
     "socket.io-client": "^4.8.1",
     "sweetalert2": "^11.22.2",
     "xlsx": "^0.18.5"

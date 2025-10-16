@@ -10,7 +10,7 @@ You now have the most detailed level of project analytics - **ward-level distrib
 
 ### **Third Tab Added: "By Ward"**
 
-On http://localhost:5174/dashboard, you now have **three analytics tabs**:
+On http://165.22.227.234:5174/dashboard, you now have **three analytics tabs**:
 
 ```
 ┌─────────────────┬─────────────────┬─────────────────┐
@@ -268,7 +268,7 @@ Ward Modal → Project List → Click 💬 → Feedback Form
 
 ```
 Step 1: Open Dashboard
-http://localhost:5174/dashboard
+http://165.22.227.234:5174/dashboard
     ↓
 Step 2: Click "By Ward" Tab (3rd tab)
     ↓
@@ -570,7 +570,7 @@ Grand Total: 31+ projects across 10+ wards
 ### **Quick Test (2 Minutes):**
 
 ```bash
-1. Visit: http://localhost:5174/dashboard
+1. Visit: http://165.22.227.234:5174/dashboard
 
 2. Click "By Ward" tab (3rd tab)
    ✅ Grand total card appears at top
@@ -835,7 +835,7 @@ totalBudget = sum of all ward budgets
 
 ## 🚀 Test It Now!
 
-### **Access:** http://localhost:5174/dashboard
+### **Access:** http://165.22.227.234:5174/dashboard
 
 ### **What to Do:**
 
@@ -976,9 +976,10 @@ Click to see individual project budgets
 
 **Most detailed public project monitoring system!** 🏆
 
-**Test now:** http://localhost:5174/dashboard → Click "By Ward" tab! 🏘️
+**Test now:** http://165.22.227.234:5174/dashboard → Click "By Ward" tab! 🏘️
 
 ---
 
 *Ward-level transparency = Maximum accountability at the grassroots level!* ✨
+
 
