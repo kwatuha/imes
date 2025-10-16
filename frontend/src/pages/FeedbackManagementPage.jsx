@@ -239,26 +239,58 @@ const FeedbackManagementPage = () => {
       </Box>
 
       {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
+      <Paper sx={{ 
+        mb: 3, 
+        backgroundColor: '#f8f9fa',
+        borderRadius: 2,
+        border: '1px solid #e0e0e0',
+        overflow: 'hidden'
+      }}>
         <Tabs 
           value={activeTab} 
           onChange={(e, newValue) => setActiveTab(newValue)}
           variant="fullWidth"
-          indicatorColor="primary"
-          textColor="primary"
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              minHeight: 56,
+              py: 2,
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                transform: 'translateY(-1px)'
+              },
+              '& .MuiTab-iconWrapper': {
+                marginBottom: '4px !important',
+                marginRight: '8px !important'
+              }
+            },
+            '& .Mui-selected': {
+              backgroundColor: 'white',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              color: 'primary.main',
+              fontWeight: 700
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+              backgroundColor: 'primary.main'
+            }
+          }}
         >
           <Tab 
-            icon={<Forum />} 
+            icon={<Forum sx={{ fontSize: '1.3rem' }} />} 
             label="Feedback Management" 
             iconPosition="start"
           />
           <Tab 
-            icon={<Assessment />} 
+            icon={<Assessment sx={{ fontSize: '1.3rem' }} />} 
             label="Ratings Analytics" 
             iconPosition="start"
           />
           <Tab 
-            icon={<Gavel />} 
+            icon={<Gavel sx={{ fontSize: '1.3rem' }} />} 
             label="Moderation" 
             iconPosition="start"
           />

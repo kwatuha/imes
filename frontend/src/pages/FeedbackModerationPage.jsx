@@ -296,20 +296,82 @@ const FeedbackModerationPage = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Feedback Moderation
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
+      <Box sx={{ 
+        mb: 4,
+        p: 3,
+        backgroundColor: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        borderRadius: 2,
+        border: '1px solid #e0e0e0'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Gavel sx={{ fontSize: '2rem', color: 'primary.main', mr: 2 }} />
+          <Typography variant="h4" fontWeight="bold" color="text.primary">
+            Feedback Moderation
+          </Typography>
+        </Box>
+        <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1rem', lineHeight: 1.6 }}>
           Review and moderate citizen feedback before public display
         </Typography>
       </Box>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
-          <Tab label="Moderation Queue" />
-          <Tab label="Analytics" />
+      <Box sx={{ 
+        borderBottom: 1, 
+        borderColor: 'divider', 
+        mb: 3,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 2,
+        px: 2,
+        py: 1
+      }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              minHeight: 48,
+              px: 3,
+              py: 1.5,
+              borderRadius: 1,
+              margin: '0 4px',
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                transform: 'translateY(-1px)'
+              }
+            },
+            '& .Mui-selected': {
+              backgroundColor: 'white',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              color: 'primary.main',
+              fontWeight: 700
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '2px 2px 0 0',
+              backgroundColor: 'primary.main'
+            }
+          }}
+        >
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Schedule sx={{ fontSize: '1.2rem' }} />
+                Moderation Queue
+              </Box>
+            } 
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Assessment sx={{ fontSize: '1.2rem' }} />
+                Analytics
+              </Box>
+            } 
+          />
         </Tabs>
       </Box>
 

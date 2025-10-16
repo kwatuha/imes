@@ -21,7 +21,12 @@ import {
   ListItemText,
   ListItemIcon,
   Avatar,
-  LinearProgress
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton
 } from '@mui/material';
 import {
   TrendingUp,
@@ -36,7 +41,8 @@ import {
   BarChart,
   PieChart,
   AccessTime,
-  Warning
+  Warning,
+  Close
 } from '@mui/icons-material';
 import axiosInstance from '../api/axiosInstance';
 
@@ -44,6 +50,9 @@ const ModerationAnalytics = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reasonModalOpen, setReasonModalOpen] = useState(false);
+  const [reasonFeedbacks, setReasonFeedbacks] = useState([]);
+  const [reasonTitle, setReasonTitle] = useState('');
 
   useEffect(() => {
     fetchAnalytics();
@@ -60,6 +69,40 @@ const ModerationAnalytics = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReasonClick = async (reason) => {
+    try {
+      setLoading(true);
+      console.log('Fetching feedback for reason:', reason);
+      const url = `/moderate/queue?moderation_reason=${reason}&limit=100`;
+      console.log('API URL:', url);
+      const response = await axiosInstance.get(url);
+      console.log('API response:', response.data);
+      console.log('Response items:', response.data.items);
+      console.log('Items length:', response.data.items ? response.data.items.length : 'undefined');
+      
+      if (response.data.success) {
+        setReasonFeedbacks(response.data.items || []);
+        setReasonTitle(`${getReasonLabel(reason)} Feedback`);
+        setReasonModalOpen(true);
+      } else {
+        console.error('API returned success: false');
+        setError('API returned an error');
+      }
+    } catch (err) {
+      console.error('Error fetching feedback by reason:', err);
+      console.error('Error response:', err.response?.data);
+      setError(`Failed to load feedback for this reason: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseReasonModal = () => {
+    setReasonModalOpen(false);
+    setReasonFeedbacks([]);
+    setReasonTitle('');
   };
 
   const formatDate = (dateString) => {
@@ -199,7 +242,16 @@ const ModerationAnalytics = () => {
                 </TableHead>
                 <TableBody>
                   {analytics.reasonBreakdown.map((reason, index) => (
-                    <TableRow key={reason.moderation_reason}>
+                    <TableRow 
+                      key={reason.moderation_reason}
+                      sx={{ 
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                        }
+                      }}
+                      onClick={() => handleReasonClick(reason.moderation_reason)}
+                    >
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
                           {getReasonLabel(reason.moderation_reason)}
@@ -429,6 +481,113 @@ const ModerationAnalytics = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Reason Feedback Modal */}
+      <Dialog 
+        open={reasonModalOpen} 
+        onClose={handleCloseReasonModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" fontWeight="bold">
+              {reasonTitle}
+            </Typography>
+            <IconButton onClick={handleCloseReasonModal} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent dividers>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : reasonFeedbacks.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body1" color="text.secondary">
+                No feedback found for this moderation reason.
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Debug: reasonFeedbacks length = {reasonFeedbacks.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Debug: reasonTitle = {reasonTitle}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Debug: reasonFeedbacks = {JSON.stringify(reasonFeedbacks)}
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {reasonFeedbacks.map((feedback) => (
+                <ListItem key={feedback.id} sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 2 }}>
+                  <Box sx={{ width: '100%', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Avatar sx={{ mr: 2 }}>
+                        <Person />
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {feedback.name || 'Anonymous'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {feedback.subject || 'No Subject'}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={getStatusColor(feedback.moderation_status).label}
+                        color={getStatusColor(feedback.moderation_status).color}
+                        size="small"
+                      />
+                    </Box>
+                    
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {feedback.message}
+                    </Typography>
+                    
+                    {feedback.project_name && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Related Project: {feedback.project_name}
+                      </Typography>
+                    )}
+                    
+                    <Typography variant="caption" color="text.secondary">
+                      Submitted: {formatDate(feedback.created_at)}
+                    </Typography>
+                    
+                    {feedback.moderation_reason && (
+                      <Box sx={{ mt: 2, p: 2, backgroundColor: '#fff3e0', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Moderation Reason: {getReasonLabel(feedback.moderation_reason)}
+                        </Typography>
+                        {feedback.custom_reason && (
+                          <Typography variant="body2">
+                            Custom Reason: {feedback.custom_reason}
+                          </Typography>
+                        )}
+                        {feedback.moderator_notes && (
+                          <Typography variant="body2">
+                            Moderator Notes: {feedback.moderator_notes}
+                          </Typography>
+                        )}
+                        {feedback.moderated_at && (
+                          <Typography variant="caption" color="text.secondary">
+                            Moderated: {formatDate(feedback.moderated_at)}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                  <Divider sx={{ width: '100%', mt: 1 }} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

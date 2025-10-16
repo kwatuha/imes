@@ -12,12 +12,36 @@ const auth = require('../middleware/authenticate');
  */
 router.get('/queue', auth, async (req, res) => {
     try {
-        const { page = 1, limit = 10, moderation_status = 'pending' } = req.query;
+        const { page = 1, limit = 10, moderation_status, moderation_reason } = req.query;
         const offset = (page - 1) * limit;
 
-        // Build where condition based on moderation_status parameter
-        let whereCondition = 'WHERE moderation_status = ?';
-        const queryParams = [moderation_status];
+        // Build where condition based on parameters
+        let whereCondition = '';
+        const queryParams = [];
+
+        console.log('API Debug - moderation_status:', moderation_status);
+        console.log('API Debug - moderation_reason:', moderation_reason);
+
+        // If only moderation_reason is provided, get all statuses for that reason
+        if (moderation_reason && !moderation_status) {
+            whereCondition = 'WHERE moderation_reason = ?';
+            queryParams.push(moderation_reason);
+        } else if (moderation_reason && moderation_status) {
+            // Both parameters provided
+            whereCondition = 'WHERE moderation_status = ? AND moderation_reason = ?';
+            queryParams.push(moderation_status, moderation_reason);
+        } else if (moderation_status) {
+            // Only moderation_status provided (default behavior)
+            whereCondition = 'WHERE moderation_status = ?';
+            queryParams.push(moderation_status);
+        } else {
+            // Default to pending if no parameters provided
+            whereCondition = 'WHERE moderation_status = ?';
+            queryParams.push('pending');
+        }
+
+        console.log('API Debug - whereCondition:', whereCondition);
+        console.log('API Debug - queryParams:', queryParams);
 
         // Get total count of feedback with specified moderation status
         const countQuery = `
