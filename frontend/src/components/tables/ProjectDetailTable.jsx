@@ -152,6 +152,11 @@ const ProjectDetailTable = ({
     const renderCellContent = (row, column) => {
         const value = row[column.id];
         
+        // Use custom format function if provided
+        if (column.format && typeof column.format === 'function') {
+            return column.format(value);
+        }
+        
         switch (column.type) {
             case 'status':
                 return renderStatusChip(value);

@@ -116,11 +116,15 @@ const RegionalDashboard = () => {
 
     const fetchRegionalData = async (filters) => {
         try {
+            console.log('Fetching regional data with filters:', filters);
             // Fetch both sub-counties and wards data
             const [subCountyResponse, wardResponse] = await Promise.all([
                 regionalService.getSubCountiesData(filters),
                 regionalService.getWardsData(filters)
             ]);
+            
+            console.log('Sub-county response:', subCountyResponse);
+            console.log('Ward response:', wardResponse);
             
             return {
                 subCounties: subCountyResponse.subCounties || [],
@@ -855,20 +859,6 @@ const RegionalDashboard = () => {
                         }}
                     />
                     <Tab 
-                        label="Financial" 
-                        icon={<AttachMoney sx={{ fontSize: '1.2rem' }} />} 
-                        iconPosition="start"
-                        sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
-                            '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
-                            }
-                        }}
-                    />
-                    <Tab 
                         label="Sub-County" 
                         icon={<Business sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
@@ -885,34 +875,6 @@ const RegionalDashboard = () => {
                     <Tab 
                         label="Wards" 
                         icon={<TrendingUp sx={{ fontSize: '1.2rem' }} />} 
-                        iconPosition="start"
-                        sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
-                            '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
-                            }
-                        }}
-                    />
-                    <Tab 
-                        label="Yearly Trends" 
-                        icon={<ShowChart sx={{ fontSize: '1.2rem' }} />} 
-                        iconPosition="start"
-                        sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
-                            '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
-                            }
-                        }}
-                    />
-                    <Tab 
-                        label="Budget Utilization" 
-                        icon={<Analytics sx={{ fontSize: '1.2rem' }} />} 
                         iconPosition="start"
                         sx={{ 
                             display: 'flex', 
@@ -951,26 +913,11 @@ const RegionalDashboard = () => {
                     )}
 
                     {activeTab === 1 && (
-                        <EnhancedYearlyTrendsTab 
-                            dashboardData={dashboardData}
-                            totalProjects={totalProjects}
-                            completedProjects={completedProjects}
-                            totalSubCounties={totalSubCounties}
-                            totalSubCountyBudget={totalSubCountyBudget}
-                            healthScore={healthScore}
-                            formatCurrency={formatCurrency}
-                        />
-                    )}
-
-                    {activeTab === 2 && (
                         <Grid container spacing={3}>
-                            {/* Enhanced Analytics Overview */}
-                            
-                            {/* Project Status Summary */}
-                            <Grid item xs={12} md={6}>
+                            {/* Sub-County Performance Overview */}
+                            <Grid item xs={12}>
                                 <Fade in timeout={1200}>
                                 <Card sx={{ 
-                                    height: '350px',
                                     borderRadius: '12px',
                                     background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                     boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -999,9 +946,9 @@ const RegionalDashboard = () => {
                                     <CardHeader
                                         title={
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <PieChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
+                                                    <Business sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
                                                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                    Project Status Overview
+                                                        Sub-County Performance Summary
                                                 </Typography>
                                             </Box>
                                         }
@@ -1009,496 +956,10 @@ const RegionalDashboard = () => {
                                     />
                                     <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
                                         <Box sx={{ 
-                                            height: '320px', 
+                                                height: '400px', 
                                             minWidth: { xs: '280px', sm: '300px' },
                                             overflow: 'visible'
                                         }}>
-                                        {dashboardData.projectStatus.length > 0 ? (
-                                            <CircularChart
-                                                title=""
-                                                data={dashboardData.projectStatus}
-                                                type="donut"
-                                            />
-                                        ) : (
-                                            renderNoDataCard("Project Status")
-                                        )}
-                                    </Box>
-                                </CardContent>
-                            </Card>
-                            </Fade>
-                        </Grid>
-
-                        {/* Key Performance Indicators */}
-                        <Grid item xs={12} md={6}>
-                            <Fade in timeout={1400}>
-                                <Box sx={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
-                                    gap: 1.2, 
-                                    height: '370px',
-                                    justifyContent: 'flex-start'
-                                }}>
-                                    <KPICard
-                                        title="Total Departments"
-                                        value={dashboardData.projectProgress.length}
-                                        icon={<Business />}
-                                        color="#1976d2"
-                                        subtitle="Departments with active projects"
-                                    />
-                                    <KPICard
-                                        title="Budget Utilization"
-                                        value={`${financialSummary.absorptionRate.toFixed(2)}%`}
-                                        icon={<AttachMoney />}
-                                        color="#4caf50"
-                                        subtitle="Total budget utilized"
-                                        progress={financialSummary.absorptionRate}
-                                    />
-                                    <KPICard
-                                        title="Avg Projects/Dept"
-                                        value={Math.round(totalProjects / dashboardData.projectProgress.length)}
-                                        icon={<TrendingUp />}
-                                        color="#ff9800"
-                                        subtitle="Projects per department"
-                                    />
-                                </Box>
-                            </Fade>
-                        </Grid>
-
-                        {/* Project Performance Metrics */}
-                        <Grid item xs={12} md={6}>
-                            <Fade in timeout={1600}>
-                                <Card sx={{ 
-                                    height: '350px',
-                                    borderRadius: '12px',
-                                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    '&:hover': {
-                                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                        border: '1px solid rgba(33, 150, 243, 0.2)'
-                                    },
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '3px',
-                                        background: 'linear-gradient(90deg, #2196f3, #42a5f5, #64b5f6)',
-                                        borderRadius: '12px 12px 0 0'
-                                    }
-                                }}>
-                                    <CardHeader
-                                        title={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Speed sx={{ color: 'info.main', fontSize: '1.2rem' }} />
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                    Performance Metrics
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        sx={{ pb: 0.5, px: 2, pt: 1.5 }}
-                                    />
-                                    <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                            {/* Completion Rate */}
-                                            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px' }}>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50', mb: 0.5 }}>
-                                                    {completionRate}%
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                    Completion Rate
-                                                </Typography>
-                                                <LinearProgress 
-                                                    variant="determinate" 
-                                                    value={completionRate} 
-                                                    sx={{ 
-                                                        height: 4, 
-                                                        borderRadius: 2,
-                                                        backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            backgroundColor: '#4caf50',
-                                                            borderRadius: 2
-                                                        }
-                                                    }} 
-                                                />
-                                            </Box>
-
-                                            {/* Health Score */}
-                                            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(33, 150, 243, 0.1)', borderRadius: '8px' }}>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3', mb: 0.5 }}>
-                                                    {healthScore}%
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                    Health Score
-                                                </Typography>
-                                                <LinearProgress 
-                                                    variant="determinate" 
-                                                    value={healthScore} 
-                                                    sx={{ 
-                                                        height: 4, 
-                                                        borderRadius: 2,
-                                                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            backgroundColor: '#2196f3',
-                                                            borderRadius: 2
-                                                        }
-                                                    }} 
-                                                />
-                                            </Box>
-
-                                            {/* Average Progress */}
-                                            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px' }}>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800', mb: 0.5 }}>
-                                                    {averageProgress}%
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                    Average Progress
-                                                </Typography>
-                                                <LinearProgress 
-                                                    variant="determinate" 
-                                                    value={averageProgress} 
-                                                    sx={{ 
-                                                        height: 4, 
-                                                        borderRadius: 2,
-                                                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            backgroundColor: '#ff9800',
-                                                            borderRadius: 2
-                                                        }
-                                                    }} 
-                                                />
-                                            </Box>
-                                    </Box>
-                                </CardContent>
-                            </Card>
-                            </Fade>
-                        </Grid>
-
-                        {/* Issues Summary */}
-                        <Grid item xs={12} md={6}>
-                            <Fade in timeout={1800}>
-                                <Card sx={{ 
-                                    height: '350px',
-                                    borderRadius: '12px',
-                                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    '&:hover': {
-                                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                        border: '1px solid rgba(255, 152, 0, 0.2)'
-                                    },
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '3px',
-                                        background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                        borderRadius: '12px 12px 0 0'
-                                    }
-                                }}>
-                                    <CardHeader
-                                        title={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <TrendingDown sx={{ color: 'warning.main', fontSize: '1.2rem' }} />
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                    Issues Summary
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        sx={{ pb: 0.5, px: 2, pt: 1.5 }}
-                                    />
-                                    <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
-                                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
-                                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(244, 67, 54, 0.1)', borderRadius: '8px' }}>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#f44336', mb: 0.5 }}>
-                                                        {delayedProjects}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                        Delayed
-                                                    </Typography>
-                                                </Box>
-                                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px' }}>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800', mb: 0.5 }}>
-                                                        {stalledProjects}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                        Stalled
-                                                    </Typography>
-                                                </Box>
-                                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(233, 30, 99, 0.1)', borderRadius: '8px' }}>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#e91e63', mb: 0.5 }}>
-                                                        {atRiskProjects}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                        At Risk
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                    </CardContent>
-                                </Card>
-                            </Fade>
-                        </Grid>
-                        
-                        {/* Overview Detail Table */}
-                        <Grid item xs={12}>
-                            <Box sx={{ mt: 3 }}>
-                                <ProjectDetailTable
-                                    data={transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
-                                        id: dept.departmentId || dept.department,
-                                        department: dept.departmentName || dept.department,
-                                        departmentAlias: dept.departmentAlias || dept.department,
-                                        percentCompleted: dept.percentCompleted || 0,
-                                        healthScore: dept.healthScore || 0,
-                                        numProjects: dept.numProjects || 0,
-                                        allocatedBudget: dept.allocatedBudget || 0,
-                                        amountPaid: dept.amountPaid || 0
-                                    })))}
-                                    columns={overviewTableColumns}
-                                    title="Department Overview Details"
-                                    onRowClick={(row) => handleDepartmentClick(row)}
-                                />
-                            </Box>
-                        </Grid>
-                    </Grid>
-                    )}
-
-                    {activeTab === 1 && (
-                        <Grid container spacing={2}>
-                            {/* Financial Tab Content */}
-                            
-                            {/* Financial Summary Cards */}
-                            <Grid item xs={12} md={4}>
-                                <Fade in timeout={1200}>
-                                    <Box sx={{ 
-                                        display: 'flex', 
-                                        flexDirection: 'column', 
-                                        gap: 1.5, 
-                                        height: '400px',
-                                        justifyContent: 'space-between'
-                                    }}>
-                                        <KPICard
-                                            title="Total Contracted"
-                                            value={formatCurrency(financialSummary.totalContracted)}
-                                            icon={<Business />}
-                                            color="#1976d2"
-                                            subtitle="Contract sum across all departments"
-                                        />
-                                        <KPICard
-                                            title="Total Paid"
-                                            value={formatCurrency(financialSummary.totalPaid)}
-                                            icon={<CheckCircle />}
-                                            color="#4caf50"
-                                            subtitle="Amount disbursed to date"
-                                        />
-                                        <KPICard
-                                            title="Absorption Rate"
-                                            value={`${financialSummary.absorptionRate.toFixed(2)}%`}
-                                            icon={<TrendingUp />}
-                                            color="#ff9800"
-                                            subtitle="Paid vs contracted ratio"
-                                            progress={financialSummary.absorptionRate}
-                                        />
-                                    </Box>
-                                </Fade>
-                            </Grid>
-
-                            {/* Budget Allocation by Status */}
-                            <Grid item xs={12} md={8}>
-                                <Fade in timeout={1600}>
-                                    <Card sx={{ 
-                                        height: '380px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(255, 152, 0, 0.15)',
-                                            border: '1px solid rgba(255, 152, 0, 0.4)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardHeader
-                                            title={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <BarChart sx={{ color: 'warning.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Budget Allocation by Status
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
-                                        />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '300px', minWidth: '500px' }}>
-                                                {dashboardData.budgetAllocation.length > 0 ? (
-                                                    <BudgetAllocationChart
-                                                        title=""
-                                                        data={dashboardData.budgetAllocation}
-                                                    />
-                                                ) : (
-                                                    renderNoDataCard("Budget Allocation")
-                                                )}
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-                                <Fade in timeout={1800}>
-                                    <Card sx={{ 
-                                        height: '380px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 12px 40px rgba(76, 175, 80, 0.15)',
-                                            border: '1px solid rgba(76, 175, 80, 0.4)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #f44336, #e57373, #ef5350)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardHeader
-                                            title={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Budget Performance by Department
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
-                                        />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '300px', minWidth: '300px' }}>
-                                                {dashboardData.projectProgress.length > 0 ? (
-                                                    <BudgetAllocationChart
-                                                        title=""
-                                                        data={dashboardData.projectProgress.map(dept => ({
-                                                            name: dept.department,
-                                                            contracted: dept.contractSum || 0,
-                                                            paid: dept.amountPaid || 0,
-                                                            color: '#4caf50',
-                                                            count: dept.numProjects || 0
-                                                        }))}
-                                                    />
-                                                ) : (
-                                                    renderNoDataCard("Budget Performance")
-                                                )}
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-                            
-                            {/* Financial Detail Table */}
-                            <Grid item xs={12}>
-                                <Box sx={{ mt: 3 }}>
-                                    <ProjectDetailTable
-                                        data={dashboardData.projectProgress.map((dept, index) => ({ 
-                                            id: dept.departmentId || dept.department || `dept-${index}`,
-                                            rowNumber: index + 1,
-                                            department: dept.departmentName || dept.department,
-                                            departmentAlias: dept.departmentAlias || dept.department,
-                                            allocatedBudget: parseFloat(dept.allocatedBudget) || 0,
-                                            contractSum: parseFloat(dept.contractSum) || 0,
-                                            amountPaid: parseFloat(dept.amountPaid) || 0,
-                                            absorptionRate: parseFloat(dept.percentAbsorptionRate) || 0,
-                                            remainingBudget: (parseFloat(dept.allocatedBudget) || 0) - (parseFloat(dept.amountPaid) || 0)
-                                        }))}
-                                        columns={financialTableColumns}
-                                        title="Financial Details by Department"
-                                        onRowClick={(row) => handleDepartmentClick(row)}
-                                    />
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    )}
-
-                    {activeTab === 2 && (
-                        <Grid container spacing={2}>
-                            {/* Sub-County Tab Content */}
-                            
-                            {/* Project Progress (Line/Bar Combo Chart) */}
-                            <Grid item xs={12} md={9}>
-                                <Fade in timeout={2000}>
-                                    <Card sx={{ 
-                                        height: '460px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(0, 150, 136, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #009688, #26a69a, #4db6ac)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardHeader
-                                            title={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <Timeline sx={{ color: 'info.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Budget vs Paid by Sub-County
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
-                                        />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '380px', minWidth: '700px' }}>
                                                 {dashboardData.subCounties && dashboardData.subCounties.length > 0 ? (
                                                     <LineBarComboChart
                                                         title=""
@@ -1508,547 +969,105 @@ const RegionalDashboard = () => {
                                                             totalPaid: parseFloat(subCounty.totalPaid) || 0,
                                                             absorptionRate: parseFloat(subCounty.absorptionRate) || 0
                                                         }))}
-                                                        barKeys={['totalBudget', 'totalPaid']}
                                                         xAxisKey="subCounty"
-                                                        yAxisLabelLeft="Budget Amount (KSh)"
+                                                        barKeys={["totalBudget"]}
+                                                        lineKeys={["absorptionRate"]}
+                                                        yAxisLabelLeft="Total Budget"
+                                                        yAxisLabelRight="Absorption Rate %"
+                                                        onBarClick={handleSubcountyClick}
                                                     />
-                                                ) : (
-                                                    renderNoDataCard("Sub-County Budget Analysis")
-                                                )}
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-
-                            <Grid item xs={12} md={3}>
-                                <Fade in timeout={2200}>
-                                    <Box sx={{ 
-                                        display: 'flex', 
-                                        flexDirection: 'column', 
-                                        gap: 1.5, 
-                                        height: '400px',
-                                        justifyContent: 'space-between'
-                                    }}>
-                                        {/* Budget Efficiency */}
-                                        <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
-                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            backdropFilter: 'blur(10px)',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            '&:hover': {
-                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(76, 175, 80, 0.2)'
-                                            },
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: '3px',
-                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                                borderRadius: '12px 12px 0 0'
-                                            }
-                                        }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Sub-County Budget Efficiency
-                                                    </Typography>
-                                                    <AttachMoney sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                        {avgSubCountyAbsorptionRate.toFixed(2)}%
-                                                    </Typography>
-                                                    <LinearProgress 
-                                                        variant="determinate" 
-                                                        value={avgSubCountyAbsorptionRate} 
-                                                        sx={{ 
-                                                            height: 6, 
-                                                            borderRadius: 3,
-                                                            backgroundColor: 'rgba(0,0,0,0.1)',
-                                                            '& .MuiLinearProgress-bar': {
-                                                                backgroundColor: avgSubCountyAbsorptionRate >= 80 ? '#4caf50' : avgSubCountyAbsorptionRate >= 60 ? '#ff9800' : '#f44336',
-                                                                borderRadius: 3
-                                                            }
-                                                        }} 
-                                                    />
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mt: 0.5, display: 'block' }}>
-                                                        {avgSubCountyAbsorptionRate >= 80 ? 'Excellent' : avgSubCountyAbsorptionRate >= 60 ? 'Good' : 'Needs Attention'}
-                                                    </Typography>
-                                                </Box>
-                                            </CardContent>
-                                        </Card>
-
-                                        {/* Project Timeline Metrics */}
-                            <Card sx={{ 
-                                            height: '120px',
-                                borderRadius: '12px',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                backdropFilter: 'blur(10px)',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                '&:hover': {
-                                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(76, 175, 80, 0.2)'
-                                },
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                    borderRadius: '12px 12px 0 0'
-                                }
-                            }}>
-                                <CardContent sx={{ p: 2, height: '100%' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Sub-County Performance Metrics
-                                        </Typography>
-                                                    <Schedule sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
-                                    </Box>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#4caf50', fontSize: '1.1rem' }}>
-                                                            {totalSubCounties}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Total Sub-Counties
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ff9800', fontSize: '1.1rem' }}>
-                                                            {totalSubCountyProjects}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Sub-County Projects
-                                            </Typography>
-                                        </Box>
+                                        ) : (
+                                                    renderNoDataCard("Sub-County Data")
+                                        )}
                                     </Box>
                                 </CardContent>
                             </Card>
+                            </Fade>
+                        </Grid>
 
-                            {/* Issues Summary */}
-                            <Card sx={{ 
-                                            height: '120px',
-                                borderRadius: '12px',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                backdropFilter: 'blur(10px)',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                '&:hover': {
-                                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                    border: '1px solid rgba(255, 152, 0, 0.2)'
-                                },
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                    background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                    borderRadius: '12px 12px 0 0'
-                                }
-                            }}>
-                                <CardContent sx={{ p: 2, height: '100%' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                            Sub-County Budget Summary
-                                        </Typography>
-                                        <TrendingDown sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
-                                    </Box>
-                                                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2', fontSize: '1.1rem' }}>
-                                                {formatCurrency(totalSubCountyBudget)}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                Total Budget
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#4caf50', fontSize: '1.1rem' }}>
-                                                {formatCurrency(totalSubCountyPaid)}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                Total Paid
-                                            </Typography>
-                                        </Box>
-                                                    <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ff9800', fontSize: '1.1rem' }}>
-                                                            {topPerformingSubCounty.subcountyName}
-                                                        </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Top Sub-County
-                                                        </Typography>
-                                                    </Box>
-                                    </Box>
-                                </CardContent>
-                            </Card>
-                        </Box>
-                    </Fade>
-                </Grid>
-                
-                {/* Sub-County Detail Table */}
-                <Grid item xs={12}>
-                    <Box sx={{ mt: 3 }}>
-                        <ProjectDetailTable
-                            data={dashboardData.subCounties?.map((subCounty, index) => ({
-                                id: subCounty.subcountyId || `subcounty-${index}`,
-                                rowNumber: index + 1,
-                                subcountyName: subCounty.subcountyName || 'N/A',
-                                subcounty: subCounty.subcountyName || 'N/A',
-                                subcountyId: subCounty.subcountyId || `subcounty-${index}`,
-                                totalWards: parseInt(subCounty.totalWards) || 0,
-                                totalProjects: parseInt(subCounty.totalProjects) || 0,
-                                totalBudget: parseFloat(subCounty.totalBudget) || 0,
-                                totalPaid: parseFloat(subCounty.totalPaid) || 0,
-                                absorptionRate: parseFloat(subCounty.absorptionRate) || 0,
-                                avgProgress: parseFloat(subCounty.avgProgress) || 0
-                            })) || []}
-                            columns={[
-                                { id: 'rowNumber', label: '#', minWidth: 60, type: 'number' },
-                                { id: 'subcountyName', label: 'Sub-County Name', minWidth: 200, type: 'text' },
-                                { id: 'totalWards', label: 'Wards', minWidth: 100, type: 'number' },
-                                { id: 'totalProjects', label: 'Projects', minWidth: 100, type: 'number' },
-                                { id: 'totalBudget', label: 'Budget (KSh)', minWidth: 150, type: 'currency' },
-                                { id: 'totalPaid', label: 'Paid (KSh)', minWidth: 150, type: 'currency' },
-                                { id: 'absorptionRate', label: 'Absorption %', minWidth: 120, type: 'percentage' },
-                                { id: 'avgProgress', label: 'Progress %', minWidth: 120, type: 'percentage' }
-                            ]}
-                            title="Sub-County Analytics Details"
-                            onRowClick={(row) => handleSubcountyClick(row)}
-                        />
-                    </Box>
-                </Grid>
-            </Grid>
-                    )}
-
-                    {activeTab === 3 && (
-                        <Grid container spacing={2}>
-                            {/* Wards Tab Content */}
-                            
-                            {/* Project Progress (Line/Bar Combo Chart) */}
-                            <Grid item xs={12} md={9}>
-                                <Fade in timeout={2000}>
-                                    <Card sx={{ 
-                                        height: '400px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(0, 150, 136, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #009688, #26a69a, #4db6ac)',
-                                            borderRadius: '12px 12px 0 0'
+                            {/* Sub-County Statistics Cards */}
+                            <Grid item xs={12} md={4}>
+                            <Fade in timeout={1400}>
+                                <Card sx={{ 
+                                    borderRadius: '12px',
+                                        background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                                        color: 'white',
+                                        boxShadow: '0 4px 20px rgba(25, 118, 210, 0.3)',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                            boxShadow: '0 8px 30px rgba(25, 118, 210, 0.4)',
+                                            transform: 'translateY(-2px)'
                                         }
                                     }}>
-                                        <CardHeader
-                                            title={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <Timeline sx={{ color: 'info.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Budget vs Paid by Ward - {filters.subCounty || 'All Sub-Counties'}
+                                        <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                                            <Business sx={{ fontSize: '2.5rem', mb: 1 }} />
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                                {totalSubCounties}
+                                                </Typography>
+                                            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                                Total Sub-Counties
+                                                </Typography>
+                                </CardContent>
+                            </Card>
+                            </Fade>
+                        </Grid>
+
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={1600}>
+                                    <Card sx={{ 
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                                        color: 'white',
+                                        boxShadow: '0 4px 20px rgba(76, 175, 80, 0.3)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 30px rgba(76, 175, 80, 0.4)',
+                                            transform: 'translateY(-2px)'
+                                        }
+                                    }}>
+                                        <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                                            <Assessment sx={{ fontSize: '2.5rem', mb: 1 }} />
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                                {totalSubCountyProjects}
                                                     </Typography>
-                                                </Box>
-                                            }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
-                                        />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '320px', minWidth: '700px' }}>
-                                                {dashboardData.wards && dashboardData.wards.length > 0 ? (
-                                                    <LineBarComboChart
-                                                        title=""
-                                                        data={dashboardData.wards
-                                                            .filter(ward => {
-                                                                // If no sub-county is selected, show all wards
-                                                                if (!filters.subCounty) return true;
-                                                                // Filter wards by selected sub-county
-                                                                return ward.subcountyName === filters.subCounty;
-                                                            })
-                                                            .map(ward => ({
-                                                                ward: ward.wardName || 'N/A',
-                                                                totalBudget: parseFloat(ward.totalBudget) || 0,
-                                                                totalPaid: parseFloat(ward.totalPaid) || 0,
-                                                                absorptionRate: parseFloat(ward.absorptionRate) || 0
-                                                            }))}
-                                                        barKeys={['totalBudget', 'totalPaid']}
-                                                        xAxisKey="ward"
-                                                        yAxisLabelLeft="Budget Amount (KSh)"
-                                                    />
-                                                ) : (
-                                                    renderNoDataCard("Ward Budget Analysis")
-                                                )}
-                                            </Box>
+                                            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                                Total Projects
+                                            </Typography>
                                         </CardContent>
                                     </Card>
                                 </Fade>
                             </Grid>
 
-                            <Grid item xs={12} md={3}>
-                                <Fade in timeout={2200}>
-                                    <Box sx={{ 
-                                        display: 'flex', 
-                                        flexDirection: 'column', 
-                                        gap: 1.5, 
-                                        height: '400px',
-                                        justifyContent: 'space-between'
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={1800}>
+                                    <Card sx={{ 
+                                        borderRadius: '12px',
+                                        background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
+                                        color: 'white',
+                                        boxShadow: '0 4px 20px rgba(255, 152, 0, 0.3)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 30px rgba(255, 152, 0, 0.4)',
+                                            transform: 'translateY(-2px)'
+                                        }
                                     }}>
-                                        {/* Budget Efficiency */}
-                                        <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
-                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            backdropFilter: 'blur(10px)',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            '&:hover': {
-                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(76, 175, 80, 0.2)'
-                                            },
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: '3px',
-                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                                borderRadius: '12px 12px 0 0'
-                                            }
-                                        }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Ward Budget Efficiency
+                                        <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                                            <AttachMoney sx={{ fontSize: '2.5rem', mb: 1 }} />
+                                            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                                {formatCurrency(totalSubCountyBudget)}
                                                     </Typography>
-                                                    <AttachMoney sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                        {avgWardAbsorptionRate.toFixed(2)}%
-                                                    </Typography>
-                                                    <LinearProgress 
-                                                        variant="determinate" 
-                                                        value={avgWardAbsorptionRate} 
-                                                        sx={{ 
-                                                            height: 6, 
-                                                            borderRadius: 3,
-                                                            backgroundColor: 'rgba(0,0,0,0.1)',
-                                                            '& .MuiLinearProgress-bar': {
-                                                                backgroundColor: avgWardAbsorptionRate >= 80 ? '#4caf50' : avgWardAbsorptionRate >= 60 ? '#ff9800' : '#f44336',
-                                                                borderRadius: 3
-                                                            }
-                                                        }} 
-                                                    />
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mt: 0.5, display: 'block' }}>
-                                                        {avgWardAbsorptionRate >= 80 ? 'Excellent' : avgWardAbsorptionRate >= 60 ? 'Good' : 'Needs Attention'}
-                                                    </Typography>
-                                                </Box>
-                                            </CardContent>
-                                        </Card>
-
-                                        {/* Project Timeline Metrics */}
-                            <Card sx={{ 
-                                            height: '120px',
-                                borderRadius: '12px',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                backdropFilter: 'blur(10px)',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                '&:hover': {
-                                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(76, 175, 80, 0.2)'
-                                },
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                    borderRadius: '12px 12px 0 0'
-                                }
-                            }}>
-                                <CardContent sx={{ p: 2, height: '100%' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Ward Performance Metrics
-                                        </Typography>
-                                                    <Schedule sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
-                                    </Box>
-                                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#4caf50', fontSize: '1.1rem' }}>
-                                                            {totalWards}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Total Wards
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ff9800', fontSize: '1.1rem' }}>
-                                                            {totalWardProjects}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Ward Projects
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                </CardContent>
-                            </Card>
-
-                            {/* Issues Summary */}
-                            <Card sx={{ 
-                                            height: '120px',
-                                borderRadius: '12px',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                border: '1px solid rgba(255,255,255,0.2)',
-                                backdropFilter: 'blur(10px)',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                '&:hover': {
-                                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                    border: '1px solid rgba(255, 152, 0, 0.2)'
-                                },
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                    background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                    borderRadius: '12px 12px 0 0'
-                                }
-                            }}>
-                                <CardContent sx={{ p: 2, height: '100%' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                            Ward Budget Summary
-                                        </Typography>
-                                        <TrendingDown sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
-                                    </Box>
-                                                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2', fontSize: '1.1rem' }}>
-                                                {formatCurrency(totalWardBudget)}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                                            <Typography variant="body2" sx={{ opacity: 0.9 }}>
                                                 Total Budget
                                             </Typography>
-                                        </Box>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#4caf50', fontSize: '1.1rem' }}>
-                                                {formatCurrency(totalWardPaid)}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                Total Paid
-                                            </Typography>
-                                        </Box>
-                                                    <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ff9800', fontSize: '1.1rem' }}>
-                                                            {topPerformingWard.wardName}
-                                                        </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Top Ward
-                                                        </Typography>
-                                                    </Box>
-                                    </Box>
-                                </CardContent>
-                            </Card>
-                        </Box>
-                    </Fade>
-                </Grid>
-                
-                {/* Ward Detail Table */}
-                <Grid item xs={12}>
-                    <Box sx={{ mt: 3 }}>
-                        <ProjectDetailTable
-                            data={dashboardData.wards
-                                ?.filter(ward => {
-                                    // If no sub-county is selected, include all wards
-                                    if (!filters.subCounty) return true;
-                                    // Filter wards by selected sub-county
-                                    return ward.subcountyName === filters.subCounty;
-                                })
-                                ?.map((ward, index) => ({
-                                    id: ward.wardId || `ward-${index}`,
-                                    rowNumber: index + 1,
-                                    wardName: ward.wardName || 'N/A',
-                                    subcountyName: ward.subcountyName || 'N/A',
-                                    totalProjects: parseInt(ward.totalProjects) || 0,
-                                    totalBudget: parseFloat(ward.totalBudget) || 0,
-                                    totalPaid: parseFloat(ward.totalPaid) || 0,
-                                    absorptionRate: parseFloat(ward.absorptionRate) || 0,
-                                    avgProgress: parseFloat(ward.avgProgress) || 0
-                                })) || []}
-                            columns={[
-                                { id: 'rowNumber', label: '#', minWidth: 60, type: 'number' },
-                                { id: 'wardName', label: 'Ward Name', minWidth: 200, type: 'text' },
-                                { id: 'subcountyName', label: 'Sub-County', minWidth: 150, type: 'text' },
-                                { id: 'totalProjects', label: 'Projects', minWidth: 100, type: 'number' },
-                                { id: 'totalBudget', label: 'Budget (KSh)', minWidth: 150, type: 'currency' },
-                                { id: 'totalPaid', label: 'Paid (KSh)', minWidth: 150, type: 'currency' },
-                                { id: 'absorptionRate', label: 'Absorption %', minWidth: 120, type: 'percentage' },
-                                { id: 'avgProgress', label: 'Progress %', minWidth: 120, type: 'percentage' }
-                            ]}
-                            title="Ward Analytics Details"
-                            onRowClick={(row) => handleWardClick(row)}
-                        />
-                    </Box>
-                </Grid>
-            </Grid>
-                    )}
-
-                    {activeTab === 4 && (
-                        <Grid container spacing={2}>
-                            {/* Annual Trends Tab Content */}
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
                             
-                            {/* Project Performance Overview */}
+                            {/* Sub-County Details Table */}
                             <Grid item xs={12}>
                                 <Fade in timeout={2000}>
                                     <Card sx={{ 
-                                        height: '500px',
                                         borderRadius: '12px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -2056,10 +1075,12 @@ const RegionalDashboard = () => {
                                         backdropFilter: 'blur(10px)',
                                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative',
-                                        overflow: 'hidden',
+                                        overflow: 'visible',
                                         '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(25, 118, 210, 0.2)'
+                                            boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
+                                            transform: 'translateY(-2px)',
+                                            border: '1px solid rgba(25, 118, 210, 0.3)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                                         },
                                         '&::before': {
                                             content: '""',
@@ -2075,40 +1096,58 @@ const RegionalDashboard = () => {
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <ShowChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
+                                                    <Assessment sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
                                                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Project Performance Trends ({trendsData.yearRange.start}-{trendsData.yearRange.end})
+                                                        Sub-County Performance Details
                                                     </Typography>
                                                 </Box>
                                             }
                                             sx={{ pb: 0.5, px: 2, pt: 1.5 }}
                                         />
                                         <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '420px', minWidth: '900px' }}>
-                                                {trendsData.projectPerformance.length > 0 ? (
-                                                    <LineBarComboChart
-                                                        title=""
-                                                        data={trendsData.projectPerformance}
-                                                        barKeys={['totalProjects', 'completedProjects']}
-                                                        lineKeys={['completionRate']}
-                                                        xAxisKey="year"
-                                                        yAxisLabelLeft="Project Count"
-                                                        yAxisLabelRight="Completion Rate (%)"
-                                                    />
-                                                ) : (
-                                                    renderNoDataCard("Project Performance Trends")
-                                                )}
-                                            </Box>
+                        <ProjectDetailTable
+                            data={dashboardData.subCounties?.map((subCounty, index) => ({
+                                id: subCounty.subcountyId || `subcounty-${index}`,
+                                                    name: subCounty.subcountyName || 'N/A',
+                                subcountyName: subCounty.subcountyName || 'N/A',
+                                subcountyId: subCounty.subcountyId || `subcounty-${index}`,
+                                totalWards: parseInt(subCounty.totalWards) || 0,
+                                totalProjects: parseInt(subCounty.totalProjects) || 0,
+                                totalBudget: parseFloat(subCounty.totalBudget) || 0,
+                                totalPaid: parseFloat(subCounty.totalPaid) || 0,
+                                absorptionRate: parseFloat(subCounty.absorptionRate) || 0,
+                                avgProgress: parseFloat(subCounty.avgProgress) || 0
+                            })) || []}
+                            columns={[
+                                { id: 'subcountyName', label: 'Sub-County', sortable: true },
+                                { id: 'totalWards', label: 'Wards', sortable: true },
+                                { id: 'totalProjects', label: 'Projects', sortable: true },
+                                { id: 'totalBudget', label: 'Budget', sortable: true, format: formatCurrency },
+                                { id: 'totalPaid', label: 'Paid', sortable: true, format: formatCurrency },
+                                { id: 'absorptionRate', label: 'Absorption %', sortable: true, format: (val) => `${val.toFixed(1)}%` },
+                                { id: 'avgProgress', label: 'Avg Progress %', sortable: true, format: (val) => `${val.toFixed(1)}%` }
+                            ]}
+                                                onRowClick={handleSubcountyClick}
+                                                title="Sub-County Performance"
+                                                searchPlaceholder="Search sub-counties..."
+                                                emptyMessage="No sub-county data available"
+                                            />
                                         </CardContent>
                                     </Card>
                                 </Fade>
-                            </Grid>
+                </Grid>
+            </Grid>
+                    )}
 
-                            {/* Financial Performance Trends */}
-                            <Grid item xs={12} md={8}>
-                                <Fade in timeout={2200}>
+                    {activeTab === 2 && (
+                        <Grid container spacing={2}>
+                            {/* Wards Tab Content */}
+                            
+                            {/* Project Progress (Line/Bar Combo Chart) */}
+                            <Grid item xs={12} md={9}>
+                                <Fade in timeout={2000}>
                                     <Card sx={{ 
-                                        height: '500px',
+                                        height: '400px',
                                         borderRadius: '12px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -2116,10 +1155,12 @@ const RegionalDashboard = () => {
                                         backdropFilter: 'blur(10px)',
                                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative',
-                                        overflow: 'hidden',
+                                        overflow: 'visible',
                                         '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(76, 175, 80, 0.2)'
+                                            boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
+                                            transform: 'translateY(-2px)',
+                                            border: '1px solid rgba(25, 118, 210, 0.3)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                                         },
                                         '&::before': {
                                             content: '""',
@@ -2128,35 +1169,49 @@ const RegionalDashboard = () => {
                                             left: 0,
                                             right: 0,
                                             height: '3px',
-                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
                                             borderRadius: '12px 12px 0 0'
                                         }
                                     }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
+                                                    <TrendingUp sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
                                                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Financial Performance Trends
+                                                        Budget vs Paid by Ward - {filters.subCounty || 'All Sub-Counties'}
                                                     </Typography>
                                                 </Box>
                                             }
                                             sx={{ pb: 0.5, px: 2, pt: 1.5 }}
                                         />
                                         <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '420px', minWidth: '700px' }}>
-                                                {trendsData.financialTrends.length > 0 ? (
+                                            <Box sx={{ 
+                                                height: '350px', 
+                                                minWidth: { xs: '280px', sm: '300px' },
+                                                overflow: 'visible'
+                                            }}>
+                                                {dashboardData.wards && dashboardData.wards.length > 0 ? (
                                                     <LineBarComboChart
                                                         title=""
-                                                        data={trendsData.financialTrends}
-                                                        barKeys={['totalBudget', 'totalExpenditure']}
-                                                        lineKeys={['absorptionRate']}
-                                                        xAxisKey="year"
-                                                        yAxisLabelLeft="Budget Amount (KSh)"
-                                                        yAxisLabelRight="Absorption Rate (%)"
+                                                        data={dashboardData.wards
+                                                            .filter(ward => {
+                                                                if (!filters.subCounty) return true;
+                                                                return ward.subcountyName === filters.subCounty;
+                                                            })
+                                                            .map(ward => ({
+                                                                ward: ward.wardName || 'N/A',
+                                                                totalBudget: parseFloat(ward.totalBudget) || 0,
+                                                                totalPaid: parseFloat(ward.totalPaid) || 0,
+                                                                absorptionRate: parseFloat(ward.absorptionRate) || 0
+                                                            }))}
+                                                        xAxisKey="ward"
+                                                        barKeys={["totalBudget"]}
+                                                        lineKeys={["absorptionRate"]}
+                                                        yAxisLabelLeft="Total Budget"
+                                                        yAxisLabelRight="Absorption Rate %"
                                                     />
                                                 ) : (
-                                                    renderNoDataCard("Financial Trends")
+                                                    renderNoDataCard("Ward Data")
                                                 )}
                                             </Box>
                                         </CardContent>
@@ -2164,608 +1219,127 @@ const RegionalDashboard = () => {
                                 </Fade>
                             </Grid>
 
-                            {/* Department Performance Summary */}
-                            <Grid item xs={12} md={4}>
-                                <Fade in timeout={2400}>
+                            {/* Ward Statistics Cards */}
+                            <Grid item xs={12} md={3}>
+                                <Fade in timeout={2200}>
                                     <Box sx={{ 
                                         display: 'flex', 
                                         flexDirection: 'column', 
                                         gap: 1.5, 
                                         height: '400px',
-                                        justifyContent: 'space-between'
+                                        justifyContent: 'flex-start'
                                     }}>
-                                        {/* Total Projects Over Time */}
-                                        <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
-                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            backdropFilter: 'blur(10px)',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            '&:hover': {
-                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(25, 118, 210, 0.2)'
-                                            },
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: '3px',
-                                                background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                                borderRadius: '12px 12px 0 0'
-                                            }
-                                        }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Total Projects
-                                                    </Typography>
-                                                    <Business sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                        {trendsData.projectPerformance.reduce((sum, item) => sum + (item.totalProjects || 0), 0)}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                        Over 5 years
-                                                    </Typography>
-                                                </Box>
-                                            </CardContent>
-                                        </Card>
-
-                                        {/* Average Completion Rate */}
-                                        <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
-                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            backdropFilter: 'blur(10px)',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            '&:hover': {
-                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(76, 175, 80, 0.2)'
-                                            },
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: '3px',
-                                                background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                                borderRadius: '12px 12px 0 0'
-                                            }
-                                        }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Avg Completion Rate
-                                                    </Typography>
-                                                    <CheckCircle sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                        {trendsData.projectPerformance.length > 0 ? 
-                                                            (trendsData.projectPerformance.reduce((sum, item) => sum + parseFloat(item.completionRate || 0), 0) / trendsData.projectPerformance.length).toFixed(1) + '%' 
-                                                            : '0%'
-                                                        }
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                        Over 5 years
-                                                    </Typography>
-                                                </Box>
-                                            </CardContent>
-                                        </Card>
-
-                                        {/* Total Budget Over Time */}
-                                        <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
-                                            background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.2)',
-                                            backdropFilter: 'blur(10px)',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            '&:hover': {
-                                                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(255, 152, 0, 0.2)'
-                                            },
-                                            '&::before': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: '3px',
-                                                background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                                borderRadius: '12px 12px 0 0'
-                                            }
-                                        }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                        Total Budget
-                                                    </Typography>
-                                                    <AttachMoney sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
-                                                </Box>
-                                                <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                        KSh {(trendsData.financialTrends.reduce((sum, item) => sum + (item.totalBudget || 0), 0) / 1000000).toFixed(1)}M
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                        Over 5 years
-                                                    </Typography>
-                                                </Box>
-                                            </CardContent>
-                                        </Card>
-                                    </Box>
-                                </Fade>
-                            </Grid>
-
-                            {/* Yearly Trends Detail Report */}
-                            <Grid item xs={12}>
-                                <Box sx={{ mt: 3 }}>
-                                    <ProjectDetailTable
-                                        data={trendsData.projectPerformance.map((year, index) => ({
-                                            id: year.year,
-                                            rowNumber: index + 1,
-                                            year: year.year,
-                                            totalProjects: year.totalProjects,
-                                            completedProjects: year.completedProjects,
-                                            completionRate: year.completionRate + '%',
-                                            avgDuration: Math.round(year.avgDuration) + ' days',
-                                            growthRate: year.growthRate + '%',
-                                            totalBudget: 'KSh ' + (trendsData.financialTrends[index]?.totalBudget ? 
-                                                (parseFloat(trendsData.financialTrends[index].totalBudget) / 1000000).toFixed(1) + 'M' : '0M'),
-                                            absorptionRate: trendsData.financialTrends[index]?.absorptionRate ? 
-                                                parseFloat(trendsData.financialTrends[index].absorptionRate).toFixed(1) + '%' : '0%'
-                                        }))}
-                                        columns={[
-                                            {
-                                                id: 'rowNumber',
-                                                label: '#',
-                                                minWidth: 60,
-                                                type: 'number'
-                                            },
-                                            {
-                                                id: 'year',
-                                                label: 'Year',
-                                                minWidth: 80,
-                                                type: 'text'
-                                            },
-                                            {
-                                                id: 'totalProjects',
-                                                label: 'Total Projects',
-                                                minWidth: 120,
-                                                type: 'number'
-                                            },
-                                            {
-                                                id: 'completedProjects',
-                                                label: 'Completed',
-                                                minWidth: 100,
-                                                type: 'number'
-                                            },
-                                            {
-                                                id: 'completionRate',
-                                                label: 'Completion Rate',
-                                                minWidth: 130,
-                                                type: 'text'
-                                            },
-                                            {
-                                                id: 'avgDuration',
-                                                label: 'Avg Duration',
-                                                minWidth: 120,
-                                                type: 'text'
-                                            },
-                                            {
-                                                id: 'growthRate',
-                                                label: 'Growth Rate',
-                                                minWidth: 100,
-                                                type: 'text'
-                                            },
-                                            {
-                                                id: 'totalBudget',
-                                                label: 'Total Budget',
-                                                minWidth: 140,
-                                                type: 'text'
-                                            },
-                                            {
-                                                id: 'absorptionRate',
-                                                label: 'Absorption Rate',
-                                                minWidth: 130,
-                                                type: 'text'
-                                            }
-                                        ]}
-                                        title="Yearly Performance Details"
-                                        onRowClick={(row) => handleYearClick(row)}
-                                    />
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    )}
-
-                    {activeTab === 5 && (
-                        <Grid container spacing={3}>
-                            {/* Budget Utilization Header */}
-                            <Grid item xs={12}>
-                                <Fade in timeout={1200}>
-                                    <Card sx={{ 
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(76, 175, 80, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardHeader
-                                            title={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <Analytics sx={{ color: '#4caf50', fontSize: '1.5rem' }} />
-                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                                                        Budget Utilization Trends (5 Years)
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                            subheader={
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Track budget allocation and utilization patterns over the past 5 years
-                                                </Typography>
-                                            }
-                                            sx={{ pb: 1 }}
+                                        <KPICard
+                                            title="Total Wards"
+                                            value={dashboardData.wards?.length || 0}
+                                            icon={<Business />}
+                                            color="#1976d2"
+                                            subtitle="Wards with projects"
                                         />
-                                    </Card>
+                                        <KPICard
+                                            title="Avg Budget/Ward"
+                                            value={formatCurrency(
+                                                dashboardData.wards?.length > 0 
+                                                    ? dashboardData.wards.reduce((sum, ward) => sum + (parseFloat(ward.totalBudget) || 0), 0) / dashboardData.wards.length
+                                                    : 0
+                                            )}
+                                            icon={<AttachMoney />}
+                                            color="#4caf50"
+                                            subtitle="Average budget per ward"
+                                        />
+                                        <KPICard
+                                            title="Top Performing Ward"
+                                            value={dashboardData.wards?.reduce((max, ward) => 
+                                                parseFloat(ward.absorptionRate) > parseFloat(max.absorptionRate) ? ward : max, 
+                                                { wardName: 'N/A', absorptionRate: 0 }
+                                            )?.wardName || 'N/A'}
+                                            icon={<TrendingUp />}
+                                            color="#ff9800"
+                                            subtitle="Highest absorption rate"
+                                        />
+                                                </Box>
                                 </Fade>
                             </Grid>
 
-                            {/* Budget Utilization Line Chart */}
+                            {/* Ward Details Table */}
                             <Grid item xs={12}>
-                                <Fade in timeout={1400}>
-                                    <Card sx={{ 
-                                        height: '500px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(33, 150, 243, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #2196f3, #42a5f5, #64b5f6)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
+                                <Fade in timeout={2400}>
+                            <Card sx={{ 
+                                borderRadius: '12px',
+                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                backdropFilter: 'blur(10px)',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                        overflow: 'visible',
+                                '&:hover': {
+                                            boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
+                                            transform: 'translateY(-2px)',
+                                            border: '1px solid rgba(25, 118, 210, 0.3)',
+                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                },
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: '3px',
+                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                    borderRadius: '12px 12px 0 0'
+                                }
+                            }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <ShowChart sx={{ color: 'info.main', fontSize: '1.2rem' }} />
+                                                    <Assessment sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
                                                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                                        Budget Utilization Over Time
-                                                    </Typography>
-                                                </Box>
+                                                        Ward Performance Details
+                                        </Typography>
+                                    </Box>
                                             }
                                             sx={{ pb: 0.5, px: 2, pt: 1.5 }}
                                         />
                                         <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '400px', display: 'flex', flexDirection: 'column' }}>
-                                                {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? (
-                                                    <LineBarComboChart
-                                                        title=""
-                                                        data={trendsData.financialTrends.map((item, index) => ({
-                                                            year: item.year || (new Date().getFullYear() - 4 + index).toString(),
-                                                            totalBudget: parseFloat(item.totalBudget) || 0,
-                                                            amountPaid: parseFloat(item.amountPaid) || 0,
-                                                            absorptionRate: parseFloat(item.absorptionRate) || 0,
-                                                            utilizationRate: parseFloat(item.utilizationRate) || 0
-                                                        }))}
-                                                        barKeys={['totalBudget', 'amountPaid']}
-                                                        lineKeys={['absorptionRate']}
-                                                        xAxisKey="year"
-                                                        yAxisLabelLeft="Budget Amount (KES)"
-                                                        yAxisLabelRight="Absorption Rate (%)"
-                                                    />
-                                                ) : (
-                                                    <Box sx={{ 
-                                                        display: 'flex', 
-                                                        flexDirection: 'column', 
-                                                        alignItems: 'center', 
-                                                        justifyContent: 'center', 
-                                                        height: '100%',
-                                                        textAlign: 'center',
-                                                        p: 3
-                                                    }}>
-                                                        <AttachMoney sx={{ fontSize: '3rem', color: 'text.secondary', mb: 2, opacity: 0.5 }} />
-                                                        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                                                            No Budget Data Available
-                                                        </Typography>
-                                                        <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
-                                                            Budget utilization data will appear here once available
-                                                        </Typography>
-                                                    </Box>
-                                                )}
-                                            </Box>
+                        <ProjectDetailTable
+                                                data={dashboardData.wards?.map((ward, index) => ({
+                                    id: ward.wardId || `ward-${index}`,
+                                                    name: ward.wardName || 'N/A',
+                                    wardName: ward.wardName || 'N/A',
+                                                    wardId: ward.wardId || `ward-${index}`,
+                                    subcountyName: ward.subcountyName || 'N/A',
+                                    totalProjects: parseInt(ward.totalProjects) || 0,
+                                    totalBudget: parseFloat(ward.totalBudget) || 0,
+                                    totalPaid: parseFloat(ward.totalPaid) || 0,
+                                    absorptionRate: parseFloat(ward.absorptionRate) || 0,
+                                    avgProgress: parseFloat(ward.avgProgress) || 0
+                                })) || []}
+                            columns={[
+                                { id: 'wardName', label: 'Ward', sortable: true },
+                                { id: 'subcountyName', label: 'Sub-County', sortable: true },
+                                { id: 'totalProjects', label: 'Projects', sortable: true },
+                                { id: 'totalBudget', label: 'Budget', sortable: true, format: formatCurrency },
+                                { id: 'totalPaid', label: 'Paid', sortable: true, format: formatCurrency },
+                                { id: 'absorptionRate', label: 'Absorption %', sortable: true, format: (val) => `${val.toFixed(1)}%` },
+                                { id: 'avgProgress', label: 'Avg Progress %', sortable: true, format: (val) => `${val.toFixed(1)}%` }
+                            ]}
+                                                onRowClick={handleWardClick}
+                                                title="Ward Performance"
+                                                searchPlaceholder="Search wards..."
+                                                emptyMessage="No ward data available"
+                                            />
                                         </CardContent>
                                     </Card>
                                 </Fade>
-                            </Grid>
-
-                            {/* Budget Summary Cards */}
-                            <Grid item xs={12} md={4}>
-                                <Fade in timeout={1600}>
-                                    <Card sx={{ 
-                                        height: '150px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(76, 175, 80, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                    Total Budget (5 Years)
-                                                </Typography>
-                                                <AttachMoney sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                    {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
-                                                        formatCurrency(trendsData.financialTrends.reduce((sum, item) => sum + (parseFloat(item.totalBudget) || 0), 0))
-                                                        : 'KSh 0'
-                                                    }
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                    Cumulative allocation
-                                                </Typography>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-                                <Fade in timeout={1800}>
-                                    <Card sx={{ 
-                                        height: '150px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(255, 152, 0, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                    Total Utilized
-                                                </Typography>
-                                                <TrendingUp sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                    {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
-                                                        formatCurrency(trendsData.financialTrends.reduce((sum, item) => sum + (parseFloat(item.amountPaid) || 0), 0))
-                                                        : 'KSh 0'
-                                                    }
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                    Amount disbursed
-                                                </Typography>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-
-                            <Grid item xs={12} md={4}>
-                                <Fade in timeout={2000}>
-                                    <Card sx={{ 
-                                        height: '150px',
-                                        borderRadius: '12px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(156, 39, 176, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #9c27b0, #ba68c8, #ce93d8)',
-                                            borderRadius: '12px 12px 0 0'
-                                        }
-                                    }}>
-                                        <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
-                                                    Avg Absorption Rate
-                                                </Typography>
-                                                <Analytics sx={{ color: '#9c27b0', fontSize: '1.2rem' }} />
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
-                                                    {trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
-                                                        (trendsData.financialTrends.reduce((sum, item) => sum + (parseFloat(item.absorptionRate) || 0), 0) / trendsData.financialTrends.length).toFixed(1) + '%'
-                                                        : '0%'
-                                                    }
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
-                                                    Over 5 years
-                                                </Typography>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-
-                            {/* Detailed Budget Report by Year */}
-                            <Grid item xs={12}>
-                                <Fade in timeout={2200}>
-                                    <Box sx={{ mt: 3 }}>
-                                        <ProjectDetailTable
-                                            data={trendsData.financialTrends && trendsData.financialTrends.length > 0 ? 
-                                                trendsData.financialTrends.map((item, index) => ({
-                                                    id: item.year || (new Date().getFullYear() - 4 + index).toString(),
-                                                    rowNumber: index + 1,
-                                                    year: item.year || (new Date().getFullYear() - 4 + index).toString(),
-                                                    totalBudget: formatCurrency(parseFloat(item.totalBudget) || 0),
-                                                    amountPaid: formatCurrency(parseFloat(item.amountPaid) || 0),
-                                                    absorptionRate: (parseFloat(item.absorptionRate) || 0).toFixed(1) + '%',
-                                                    utilizationRate: (parseFloat(item.utilizationRate) || 0).toFixed(1) + '%',
-                                                    remainingBudget: formatCurrency((parseFloat(item.totalBudget) || 0) - (parseFloat(item.amountPaid) || 0)),
-                                                    efficiency: ((parseFloat(item.amountPaid) || 0) / (parseFloat(item.totalBudget) || 1) * 100).toFixed(1) + '%'
-                                                })) : []
-                                            }
-                                            columns={[
-                                                {
-                                                    id: 'rowNumber',
-                                                    label: '#',
-                                                    minWidth: 60,
-                                                    type: 'number'
-                                                },
-                                                {
-                                                    id: 'year',
-                                                    label: 'Year',
-                                                    minWidth: 80,
-                                                    type: 'text'
-                                                },
-                                                {
-                                                    id: 'totalBudget',
-                                                    label: 'Total Budget',
-                                                    minWidth: 140,
-                                                    type: 'text'
-                                                },
-                                                {
-                                                    id: 'amountPaid',
-                                                    label: 'Amount Paid',
-                                                    minWidth: 140,
-                                                    type: 'text'
-                                                },
-                                                {
-                                                    id: 'remainingBudget',
-                                                    label: 'Remaining',
-                                                    minWidth: 140,
-                                                    type: 'text'
-                                                },
-                                                {
-                                                    id: 'absorptionRate',
-                                                    label: 'Absorption Rate',
-                                                    minWidth: 130,
-                                                    type: 'text'
-                                                },
-                                                {
-                                                    id: 'utilizationRate',
-                                                    label: 'Utilization Rate',
-                                                    minWidth: 130,
-                                                    type: 'text'
-                                                },
-                                                {
-                                                    id: 'efficiency',
-                                                    label: 'Efficiency',
-                                                    minWidth: 100,
-                                                    type: 'text'
-                                                }
-                                            ]}
-                                            title="Budget Utilization by Year"
-                                            onRowClick={(row) => handleYearBudgetClick(row)}
-                                        />
-                                    </Box>
-                                </Fade>
-                            </Grid>
-                        </Grid>
+                </Grid>
+            </Grid>
                     )}
                     </>
                 </Box>
             </Box>
-            
-            {/* Footer with additional info */}
-            <Fade in timeout={2200}>
-                <Box sx={{ mt: 6, textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.6 }}>
-                        Last updated: {new Date().toLocaleString()}
-                    </Typography>
-                </Box>
-            </Fade>
-            
-            {/* Department Projects Modal */}
+
+            {/* Modals */}
             <DepartmentProjectsModal
                 open={modalOpen}
                 onClose={handleCloseModal}

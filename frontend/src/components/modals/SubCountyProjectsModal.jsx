@@ -64,10 +64,10 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
             
             // Use the detailed project list API with subcounty filter
             const filters = {
-                subCounty: subCounty.subcounty
+                subCounty: subCounty.subcountyName || subCounty.subcounty || subCounty.name
             };
             console.log('Using filters:', filters);
-            console.log('SubCounty data being filtered:', subCounty.subcounty);
+            console.log('SubCounty data being filtered:', subCounty.subcountyName || subCounty.subcounty || subCounty.name);
             console.log('Available subCounty fields:', Object.keys(subCounty));
             
             let response = await reportsService.getDetailedProjectList(filters);
@@ -114,16 +114,17 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
                     subcounty_id: response[0].subcounty_id,
                     subcountyId: response[0].subcountyId
                 });
-                console.log('Target subcounty to match:', subCounty.subcounty);
+                console.log('Target subcounty to match:', subCounty.subcountyName || subCounty.subcounty || subCounty.name);
                 console.log('=== END DEBUG ===');
                 
                 // Apply client-side filtering since backend doesn't filter by subcounty
                 const filteredProjects = response.filter(project => {
                     // Use the correct field name from the API response
                     const projectSubcounty = project.subCountyName;
+                    const targetSubcounty = subCounty.subcountyName || subCounty.subcounty || subCounty.name;
                     
-                    const matches = projectSubcounty === subCounty.subcounty;
-                    console.log(`Project: ${project.projectName}, Subcounty: ${projectSubcounty}, Target: ${subCounty.subcounty}, Matches: ${matches}`);
+                    const matches = projectSubcounty === targetSubcounty;
+                    console.log(`Project: ${project.projectName}, Subcounty: ${projectSubcounty}, Target: ${targetSubcounty}, Matches: ${matches}`);
                     return matches;
                 });
                 
@@ -154,7 +155,7 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
                 config: error.config
             });
             
-            let errorMessage = `Failed to load projects for ${subCounty.subcounty}`;
+            let errorMessage = `Failed to load projects for ${subCounty.subcountyName || subCounty.subcounty || subCounty.name}`;
             if (error.response?.status === 500) {
                 errorMessage += ': Server error (500) - The backend may not have this endpoint implemented yet';
             } else {
@@ -258,7 +259,7 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <LocationOn sx={{ fontSize: '1.5rem' }} />
                     <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                        {subCounty?.subcounty || 'Sub-County'} Projects
+                        {subCounty?.subcountyName || subCounty?.subcounty || subCounty?.name || 'Sub-County'} Projects
                     </Typography>
                 </Box>
                 <Button
@@ -386,7 +387,7 @@ const SubCountyProjectsModal = ({ open, onClose, subCounty }) => {
                             No Projects Found
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            No projects are currently assigned to {subCounty?.subcounty || 'this subcounty'}.
+                            No projects are currently assigned to {subCounty?.subcountyName || subCounty?.subcounty || subCounty?.name || 'this subcounty'}.
                         </Typography>
                     </Box>
                 ) : (

@@ -1310,7 +1310,7 @@ router.get('/sub-counties', async (req, res) => {
             LEFT JOIN kemri_wards w ON s.subcountyId = w.subcountyId AND w.voided = 0
             LEFT JOIN kemri_project_subcounties ps ON s.subcountyId = ps.subcountyId AND ps.voided = 0
             LEFT JOIN kemri_projects p ON ps.projectId = p.id AND p.voided = 0
-            WHERE s.countyId = 15 AND s.voided = 0
+            WHERE s.countyId = 1 AND s.voided = 0
             GROUP BY s.subcountyId, s.name, s.geoLat, s.geoLon
             ORDER BY s.name
         `);
@@ -1357,7 +1357,7 @@ router.get('/wards', async (req, res) => {
             INNER JOIN kemri_subcounties s ON w.subcountyId = s.subcountyId
             LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
             LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
-            WHERE s.countyId = 15 AND w.voided = 0
+            WHERE s.countyId = 1 AND w.voided = 0
             GROUP BY w.wardId, w.name, s.name, w.geoLat, w.geoLon
             ORDER BY s.name, w.name
         `);
@@ -1406,7 +1406,7 @@ router.get('/villages', async (req, res) => {
             INNER JOIN kemri_subcounties s ON w.subcountyId = s.subcountyId
             LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
             LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
-            WHERE s.countyId = 15 AND w.voided = 0
+            WHERE s.countyId = 1 AND w.voided = 0
             GROUP BY w.wardId, w.name, s.name, w.geoLat, w.geoLon
             ORDER BY s.name, w.name
         `);
