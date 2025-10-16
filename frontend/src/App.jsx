@@ -51,7 +51,6 @@ import AdminPage from './pages/AdminPage';
 // ✨ NEW: Import the FeedbackManagementPage component
 import FeedbackManagementPage from './pages/FeedbackManagementPage';
  
-import ReportingPage from './pages/ReportingPage';
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
 import RegionalDashboard from './components/RegionalDashboard';
@@ -114,10 +113,6 @@ const router = createBrowserRouter([
       {
         path: 'reports',
         element: <ReportsPage />,
-      },
-      {
-        path: 'reporting',
-        element: <ReportingPage />,
       },
       {
         path: 'view-reports',

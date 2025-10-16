@@ -9,7 +9,6 @@ const routeTitles = {
   '/projects': { title: 'Project Management', subtitle: 'Projects & Tasks' },
   '/contractor-dashboard': { title: 'Contractor Dashboard', subtitle: 'My Projects' },
   '/reports': { title: 'Reports', subtitle: 'Analytics & Insights' },
-  '/reporting': { title: 'Comprehensive Reporting', subtitle: 'Advanced Analytics' },
   '/reporting-overview': { title: 'Project Dashboards', subtitle: 'Project Analytics' },
   '/regional-dashboard': { title: 'Regional Reports', subtitle: 'Regional Analytics' },
   '/regional-reporting': { title: 'Regional Dashboards', subtitle: 'Regional Overview' },

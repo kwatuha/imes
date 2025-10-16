@@ -238,7 +238,6 @@ const Sidebar = () => {
 
   const reportingItems = [
     { title: "Reports", to: ROUTES.REPORTS, icon: <AssessmentIcon /> },
-    { title: "Comprehensive Reporting", to: ROUTES.REPORTING, icon: <AssessmentIcon /> },
     { title: "Project Dashboards", to: ROUTES.REPORTING_OVERVIEW, icon: <AssessmentIcon /> },
     { title: "Regional Rpts", to: ROUTES.REGIONAL_DASHBOARD, icon: <AssessmentIcon /> },
     { title: "Regional Dashboards", to: ROUTES.REGIONAL_REPORTING, icon: <AssessmentIcon /> },

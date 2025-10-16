@@ -38,7 +38,6 @@ const ApprovalLevelsManagementPage = lazy(() => import('./pages/ApprovalLevelsMa
 const FeedbackManagementPage = lazy(() => import('./pages/FeedbackManagementPage'));
 const HrModulePage = lazy(() => import('./pages/HrModulePage'));
 const ProjectDashboardPage = lazy(() => import('./pages/ProjectDashboardPage'));
-const ReportingPage = lazy(() => import('./pages/ReportingPage'));
 const ReportingView = lazy(() => import('./pages/ReportingView'));
 const RegionalDashboard = lazy(() => import('./pages/RegionalDashboard'));
 const RegionalReportsView = lazy(() => import('./pages/RegionalReportsView'));
@@ -115,10 +114,6 @@ const router = createBrowserRouter([
       {
         path: 'reports',
         element: <LazyRoute component={ReportsPage} />,
-      },
-      {
-        path: 'reporting',
-        element: <LazyRoute component={ReportingPage} />,
       },
       {
         path: 'view-reports',
