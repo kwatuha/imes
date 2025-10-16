@@ -140,5 +140,10 @@ export const getFeedbackList = async (filters = {}) => {
   return response.data;
 };
 
+export const getFeedbackStats = async () => {
+  const response = await publicApi.get('/feedback/stats');
+  return response.data;
+};
+
 export default publicApi;
 

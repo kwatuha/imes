@@ -34,6 +34,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const reportsRouter = require('./routes/reportsRouter')
 const projectRouter = require('./routes/projectRouter')
 const publicRoutes = require('./routes/publicRoutes')
+const moderationRoutes = require('./routes/moderationRoutes')
 
 const port = 3000;
 const app = express();
@@ -102,6 +103,7 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/approval-levels', approvalLevelsRoutes);
 app.use('/api/payment-status', paymentStatusRoutes);
 app.use('/api/chat', chatRoutes(io));
+app.use('/api/moderate', moderationRoutes);
 
 app.use((err, req, res, next) => {
     console.error(err.stack);

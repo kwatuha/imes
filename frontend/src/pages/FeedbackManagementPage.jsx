@@ -28,6 +28,8 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  List,
+  ListItem,
   Tooltip,
   Badge,
   Tabs,
@@ -52,11 +54,13 @@ import {
   Visibility,
   Assessment,
   Forum,
-  Star
+  Star,
+  Gavel
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../api/axiosInstance';
 import FeedbackAnalytics from '../components/feedback/FeedbackAnalytics';
+import FeedbackModerationPage from './FeedbackModerationPage';
 
 const FeedbackManagementPage = () => {
   const { user } = useAuth();
@@ -74,6 +78,9 @@ const FeedbackManagementPage = () => {
   const [response, setResponse] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalFeedbacks, setModalFeedbacks] = useState([]);
+  const [modalTitle, setModalTitle] = useState('');
 
   const fetchFeedbacks = useCallback(async () => {
     try {
@@ -91,7 +98,7 @@ const FeedbackManagementPage = () => {
       }
 
       const response = await axiosInstance.get(
-        `/public/feedback?${params.toString()}`
+        `/public/feedback/admin?${params.toString()}`
       );
 
       setFeedbacks(response.data.feedbacks || []);
@@ -111,6 +118,22 @@ const FeedbackManagementPage = () => {
 
   const handleAccordionChange = (id) => (event, isExpanded) => {
     setExpandedId(isExpanded ? id : null);
+  };
+
+  const handleStatCardClick = (status, title) => {
+    const filtered = status === 'all' 
+      ? feedbacks 
+      : feedbacks.filter(f => f.status === status);
+    
+    setModalFeedbacks(filtered);
+    setModalTitle(title);
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalFeedbacks([]);
+    setModalTitle('');
   };
 
   const handleOpenResponseModal = (feedback) => {
@@ -234,6 +257,11 @@ const FeedbackManagementPage = () => {
             label="Ratings Analytics" 
             iconPosition="start"
           />
+          <Tab 
+            icon={<Gavel />} 
+            label="Moderation" 
+            iconPosition="start"
+          />
         </Tabs>
       </Paper>
 
@@ -258,7 +286,19 @@ const FeedbackManagementPage = () => {
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)', color: 'white' }}>
+          <Card 
+            sx={{ 
+              background: 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6
+              }
+            }}
+            onClick={() => handleStatCardClick('all', 'Total Feedback')}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <Comment sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -272,7 +312,19 @@ const FeedbackManagementPage = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', color: 'white' }}>
+          <Card 
+            sx={{ 
+              background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6
+              }
+            }}
+            onClick={() => handleStatCardClick('pending', 'Pending Review')}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <Schedule sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -286,7 +338,19 @@ const FeedbackManagementPage = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)', color: 'white' }}>
+          <Card 
+            sx={{ 
+              background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6
+              }
+            }}
+            onClick={() => handleStatCardClick('responded', 'Responded')}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <CheckCircle sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -300,7 +364,19 @@ const FeedbackManagementPage = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)', color: 'white' }}>
+          <Card 
+            sx={{ 
+              background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6
+              }
+            }}
+            onClick={() => handleStatCardClick('reviewed', 'Under Review')}
+          >
             <CardContent sx={{ textAlign: 'center' }}>
               <Reply sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
@@ -853,9 +929,98 @@ const FeedbackManagementPage = () => {
         </DialogActions>
       </Dialog>
         </Box>
-      ) : (
+      ) : activeTab === 1 ? (
         <FeedbackAnalytics />
-      )}
+      ) : activeTab === 2 ? (
+        <FeedbackModerationPage />
+      ) : null}
+
+      {/* Feedback Modal */}
+      <Dialog 
+        open={modalOpen} 
+        onClose={handleCloseModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" fontWeight="bold">
+              {modalTitle}
+            </Typography>
+            <IconButton onClick={handleCloseModal} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent dividers>
+          {modalFeedbacks.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body1" color="text.secondary">
+                No feedback found in this category.
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {modalFeedbacks.map((feedback) => (
+                <ListItem key={feedback.id} sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 2 }}>
+                  <Box sx={{ width: '100%', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Avatar sx={{ mr: 2 }}>
+                        <Person />
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {feedback.name || 'Anonymous'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {feedback.subject || 'No Subject'}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={getStatusInfo(feedback.status).label}
+                        color={getStatusInfo(feedback.status).color}
+                        size="small"
+                      />
+                    </Box>
+                    
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {feedback.message}
+                    </Typography>
+                    
+                    {feedback.project_name && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Related Project: {feedback.project_name}
+                      </Typography>
+                    )}
+                    
+                    <Typography variant="caption" color="text.secondary">
+                      Submitted: {formatDate(feedback.created_at)}
+                    </Typography>
+                    
+                    {feedback.admin_response && (
+                      <Box sx={{ mt: 2, p: 2, backgroundColor: '#e8f5e8', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Admin Response:
+                        </Typography>
+                        <Typography variant="body2">
+                          {feedback.admin_response}
+                        </Typography>
+                        {feedback.responded_at && (
+                          <Typography variant="caption" color="text.secondary">
+                            Responded: {formatDate(feedback.responded_at)}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                  <Divider sx={{ width: '100%', mt: 1 }} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 };

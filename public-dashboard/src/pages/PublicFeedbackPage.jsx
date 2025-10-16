@@ -45,7 +45,7 @@ import {
   Close
 } from '@mui/icons-material';
 import { formatDate } from '../utils/formatters';
-import { getFeedbackList } from '../services/publicApi';
+import { getFeedbackList, getFeedbackStats } from '../services/publicApi';
 
 const PublicFeedbackPage = () => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -59,9 +59,11 @@ const PublicFeedbackPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState('');
   const [modalFeedbacks, setModalFeedbacks] = useState([]);
+  const [feedbackStats, setFeedbackStats] = useState(null);
 
   useEffect(() => {
     fetchFeedbacks();
+    fetchFeedbackStats();
   }, [page, statusFilter, searchTerm]);
 
   const fetchFeedbacks = async () => {
@@ -82,6 +84,23 @@ const PublicFeedbackPage = () => {
       setError(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFeedbackStats = async () => {
+    try {
+      const stats = await getFeedbackStats();
+      setFeedbackStats(stats);
+    } catch (err) {
+      console.error('Error fetching feedback stats:', err);
+      // Set default stats if API fails
+      setFeedbackStats({
+        total_feedback: 0,
+        pending_feedback: 0,
+        reviewed_feedback: 0,
+        responded_feedback: 0,
+        archived_feedback: 0
+      });
     }
   };
 
@@ -174,6 +193,67 @@ const PublicFeedbackPage = () => {
           and improving overall service delivery to the citizens.
         </Typography>
       </Box>
+
+      {/* Feedback Statistics */}
+      {feedbackStats && (
+        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+          <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+            Feedback Overview
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} sx={{ backgroundColor: '#e3f2fd', borderRadius: 2 }}>
+                <Typography variant="h4" fontWeight="bold" color="primary.main">
+                  {feedbackStats.total_feedback}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Total Feedback
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} sx={{ backgroundColor: '#fff3e0', borderRadius: 2 }}>
+                <Typography variant="h4" fontWeight="bold" color="#ff9800">
+                  {feedbackStats.pending_feedback}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Pending Review
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} sx={{ backgroundColor: '#e1f5fe', borderRadius: 2 }}>
+                <Typography variant="h4" fontWeight="bold" color="#2196f3">
+                  {feedbackStats.reviewed_feedback}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Under Review
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} sx={{ backgroundColor: '#e8f5e8', borderRadius: 2 }}>
+                <Typography variant="h4" fontWeight="bold" color="#4caf50">
+                  {feedbackStats.responded_feedback}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Responded
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Box textAlign="center" p={2} sx={{ backgroundColor: '#f3e5f5', borderRadius: 2 }}>
+                <Typography variant="h4" fontWeight="bold" color="#9c27b0">
+                  {feedbackStats.archived_feedback}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Archived
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {/* Info Banner */}
       <Alert 

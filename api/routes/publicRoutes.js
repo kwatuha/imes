@@ -650,6 +650,32 @@ router.get('/metadata/project-types', async (req, res) => {
 // ==================== FEEDBACK ====================
 
 /**
+ * @route GET /api/public/feedback/stats
+ * @description Get feedback statistics (only approved feedback counts)
+ * @access Public
+ */
+router.get('/feedback/stats', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                COUNT(*) as total_feedback,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_feedback,
+                COUNT(CASE WHEN status = 'reviewed' THEN 1 END) as reviewed_feedback,
+                COUNT(CASE WHEN status = 'responded' THEN 1 END) as responded_feedback,
+                COUNT(CASE WHEN status = 'archived' THEN 1 END) as archived_feedback
+            FROM public_feedback 
+            WHERE moderation_status = 'approved'
+        `;
+
+        const [results] = await pool.query(query);
+        res.json(results[0]);
+    } catch (error) {
+        console.error('Error fetching feedback stats:', error);
+        res.status(500).json({ error: 'Failed to fetch feedback statistics' });
+    }
+});
+
+/**
  * @route POST /api/public/feedback
  * @description Submit public feedback (no authentication required)
  * @access Public
@@ -816,7 +842,7 @@ router.get('/feedback', async (req, res) => {
             limit = 10 
         } = req.query;
 
-        let whereConditions = ['1=1'];
+        let whereConditions = ['f.moderation_status = "approved"']; // Only show approved feedback publicly
         const queryParams = [];
 
         if (status && status !== 'all') {
@@ -889,6 +915,111 @@ router.get('/feedback', async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching feedback:', error);
+        res.status(500).json({ error: 'Failed to fetch feedback' });
+    }
+});
+
+/**
+ * @route GET /api/public/feedback/admin
+ * @description Get all feedback for admin interface (including unmoderated)
+ * @access Protected (Admin)
+ */
+router.get('/feedback/admin', async (req, res) => {
+    try {
+        const { 
+            status, 
+            projectId,
+            search,
+            moderation_status,
+            page = 1, 
+            limit = 10 
+        } = req.query;
+
+        let whereConditions = ['1=1']; // Admin can see all feedback
+        const queryParams = [];
+
+        if (status && status !== 'all') {
+            whereConditions.push('f.status = ?');
+            queryParams.push(status);
+        }
+
+        if (moderation_status && moderation_status !== 'all') {
+            whereConditions.push('f.moderation_status = ?');
+            queryParams.push(moderation_status);
+        }
+
+        if (projectId) {
+            whereConditions.push('f.project_id = ?');
+            queryParams.push(projectId);
+        }
+
+        if (search) {
+            whereConditions.push('(f.name LIKE ? OR f.subject LIKE ? OR f.message LIKE ? OR p.projectName LIKE ?)');
+            queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
+        const whereClause = whereConditions.join(' AND ');
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM public_feedback f
+            LEFT JOIN kemri_projects p ON f.project_id = p.id
+            WHERE ${whereClause}
+        `;
+
+        const [countResult] = await pool.query(countQuery, queryParams);
+        const totalFeedbacks = countResult[0].total;
+
+        // Get paginated feedback
+        const feedbackQuery = `
+            SELECT 
+                f.id,
+                f.name,
+                f.email,
+                f.phone,
+                f.subject,
+                f.message,
+                f.project_id,
+                f.status,
+                f.admin_response,
+                f.responded_at,
+                f.created_at,
+                f.moderation_status,
+                f.moderation_reason,
+                f.custom_reason,
+                f.moderator_notes,
+                f.moderated_at,
+                f.rating_overall_support,
+                f.rating_quality_of_life_impact,
+                f.rating_community_alignment,
+                f.rating_transparency,
+                f.rating_feasibility_confidence,
+                p.projectName as project_name,
+                CONCAT(u.firstName, ' ', u.lastName) as moderator_name
+            FROM public_feedback f
+            LEFT JOIN kemri_projects p ON f.project_id = p.id
+            LEFT JOIN kemri_users u ON f.moderated_by = u.userId
+            WHERE ${whereClause}
+            ORDER BY f.created_at DESC
+            LIMIT ? OFFSET ?
+        `;
+
+        queryParams.push(parseInt(limit), offset);
+        const [feedbacks] = await pool.query(feedbackQuery, queryParams);
+
+        res.json({
+            feedbacks,
+            pagination: {
+                total: totalFeedbacks,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(totalFeedbacks / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching admin feedback:', error);
         res.status(500).json({ error: 'Failed to fetch feedback' });
     }
 });
