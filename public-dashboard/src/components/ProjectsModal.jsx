@@ -299,10 +299,10 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
                                                 <TableCell>{index + 1}</TableCell>
                                                 <TableCell>
                                                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                        {project.projectName}
+                                                        {project.project_name}
                                                     </Typography>
                                                 </TableCell>
-                                                <TableCell>{project.department || 'N/A'}</TableCell>
+                                                <TableCell>{project.department_name || 'N/A'}</TableCell>
                                                 <TableCell>
                                                     <Chip 
                                                         icon={getStatusIcon(project.status)}
@@ -341,8 +341,8 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
                                                         {formatCurrency(project.budget)}
                                                     </Typography>
                                                 </TableCell>
-                                                <TableCell>{formatDate(project.startDate)}</TableCell>
-                                                <TableCell>{formatDate(project.endDate)}</TableCell>
+                                                <TableCell>{formatDate(project.start_date)}</TableCell>
+                                                <TableCell>{formatDate(project.end_date)}</TableCell>
                                                 <TableCell>
                                                     <IconButton
                                                         size="small"

@@ -4,6 +4,20 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
 import logo from '../assets/logo.png';
+import {
+    Box,
+    Card,
+    CardContent,
+    TextField,
+    Button,
+    Typography,
+    FormControlLabel,
+    Checkbox,
+    Link,
+    Alert,
+    CircularProgress,
+    Container
+} from '@mui/material';
 
 const Login = () => {
     const [username, setUsername] = useState('');
@@ -41,77 +55,150 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 bg-gradient-to-br from-gray-50 to-gray-200 p-4">
-            <div className="bg-white p-10 rounded-xl shadow-2xl w-full max-w-md transform transition-all hover:scale-105 duration-300 ease-in-out">
-                {/* Logo and Title Section */}
-                <div className="flex flex-col items-center mb-6">
-                    <img
-                        src={logo}
-                        alt="IPMES Logo"
-                        className="h-20 w-auto mb-2"
-                    />
-                    <h1 className="text-4xl font-extrabold text-blue-900 tracking-wider">IPMES</h1>
-                    <p className="text-gray-500 text-center mt-2 text-sm">
-                        Integrated Project Monitoring & Evaluation System | Please Login
-                    </p>
-                </div>
+        <Container 
+            maxWidth="sm" 
+            sx={{ 
+                minHeight: '100vh', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
+                py: 4
+            }}
+        >
+            <Card 
+                sx={{ 
+                    width: '100%', 
+                    maxWidth: 400,
+                    p: 3,
+                    borderRadius: 3,
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    transform: 'translateY(0)',
+                    transition: 'transform 0.3s ease-in-out',
+                    '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
+                    }
+                }}
+            >
+                <CardContent sx={{ p: 0 }}>
+                    {/* Logo and Title Section */}
+                    <Box sx={{ textAlign: 'center', mb: 4 }}>
+                        <img
+                            src={logo}
+                            alt="IPMES Logo"
+                            style={{ height: '80px', width: 'auto', marginBottom: '16px' }}
+                        />
+                        <Typography 
+                            variant="h3" 
+                            component="h1" 
+                            sx={{ 
+                                fontWeight: 'bold', 
+                                color: 'primary.main',
+                                letterSpacing: '0.1em',
+                                mb: 1
+                            }}
+                        >
+                            IPMES
+                        </Typography>
+                        <Typography 
+                            variant="body2" 
+                            color="text.secondary" 
+                            sx={{ fontSize: '0.875rem' }}
+                        >
+                            Integrated Project Monitoring & Evaluation System
+                        </Typography>
+                        <Typography 
+                            variant="body2" 
+                            color="text.secondary" 
+                            sx={{ fontSize: '0.875rem', mt: 0.5 }}
+                        >
+                            Please Login
+                        </Typography>
+                    </Box>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="username">
-                            Username/Email
-                        </label>
-                        <input
-                            type="text"
+                    <Box component="form" onSubmit={handleSubmit}>
+                        <TextField
+                            fullWidth
+                            label="Username/Email"
                             id="username"
-                            className="shadow-sm border border-gray-300 rounded-md w-full py-2 px-3 text-gray-800 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition duration-200 ease-in-out"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
                             disabled={loading}
+                            sx={{ mb: 2 }}
+                            variant="outlined"
                         />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="password">
-                            Password
-                        </label>
-                        <input
-                            type="password"
+                        
+                        <TextField
+                            fullWidth
+                            label="Password"
                             id="password"
-                            className="shadow-sm border border-gray-300 rounded-md w-full py-2 px-3 text-gray-800 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition duration-200 ease-in-out"
+                            type="password"
                             value={password}
                             onChange={(e) => e.target.value.length <= 50 ? setPassword(e.target.value) : null}
                             required
                             disabled={loading}
+                            sx={{ mb: 2 }}
+                            variant="outlined"
                         />
-                    </div>
 
-                    {/* NEW: Remember Me & Forgot Password Section */}
-                    <div className="flex items-center justify-between mb-6 text-sm">
-                        <label className="flex items-center text-gray-600 cursor-pointer">
-                            <input type="checkbox" className="mr-2" />
-                            Remember me
-                        </label>
-                        <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">
-                            Forgot Password?
-                        </a>
-                    </div>
+                        {/* Remember Me & Forgot Password Section */}
+                        <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            mb: 2 
+                        }}>
+                            <FormControlLabel
+                                control={<Checkbox size="small" />}
+                                label="Remember me"
+                                sx={{ fontSize: '0.875rem' }}
+                            />
+                            <Link 
+                                href="#" 
+                                sx={{ 
+                                    fontSize: '0.875rem',
+                                    textDecoration: 'none',
+                                    '&:hover': { textDecoration: 'underline' }
+                                }}
+                            >
+                                Forgot Password?
+                            </Link>
+                        </Box>
 
-                    {error && (
-                        <p className="text-red-600 text-xs italic mb-4 text-center">{error}</p>
-                    )}
-                    <div className="flex items-center justify-center">
-                        <button
+                        {error && (
+                            <Alert severity="error" sx={{ mb: 2, fontSize: '0.875rem' }}>
+                                {error}
+                            </Alert>
+                        )}
+                        
+                        <Button
                             type="submit"
-                            className="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                            fullWidth
+                            variant="contained"
                             disabled={loading}
+                            sx={{ 
+                                py: 1.5,
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                borderRadius: 2,
+                                textTransform: 'none'
+                            }}
                         >
-                            {loading ? 'Logging In...' : 'Login'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                            {loading ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CircularProgress size={20} color="inherit" />
+                                    Logging In...
+                                </Box>
+                            ) : (
+                                'Login'
+                            )}
+                        </Button>
+                    </Box>
+                </CardContent>
+            </Card>
+        </Container>
     );
 };
 

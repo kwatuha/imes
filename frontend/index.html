@@ -9,46 +9,44 @@
     <!-- Performance: Preconnect to external domains -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     
     <!-- Google Fonts: Inter (for overall app consistency) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS CDN (for Login.jsx - Load async to not block rendering) -->
-    <script src="https://cdn.tailwindcss.com" async></script>
+    <!-- Fallback fonts for offline use -->
+    <style>
+      /* Fallback fonts that work offline */
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: local('Inter Regular'), local('Inter-Regular'), 
+             local('Arial'), local('Helvetica'), local('sans-serif');
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: local('Inter SemiBold'), local('Inter-SemiBold'), 
+             local('Arial Bold'), local('Helvetica Bold'), local('sans-serif');
+      }
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: local('Inter Bold'), local('Inter-Bold'), 
+             local('Arial Bold'), local('Helvetica Bold'), local('sans-serif');
+      }
+    </style>
 
     
     <!-- Frappe Gantt CSS (Load async) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css"></noscript>
-    
-    <script>
-      // Configure Tailwind (runs after Tailwind CDN loads)
-      window.tailwindConfig = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              // These are example colors, adjust to KEMRI's branding if different
-              // Material-UI theme in App.jsx will handle MUI components
-              indigo: {
-                50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
-                400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
-                800: '#3730a3', 900: '#312e81', 950: '#1e1b4b',
-              },
-            },
-          },
-        },
-      };
-      // Apply config when Tailwind loads
-      if (window.tailwind) {
-        window.tailwind.config = window.tailwindConfig;
-      }
-    </script>
     
   </head>
   <body>

@@ -382,30 +382,48 @@ const FeedbackAnalytics = () => {
 
       {/* Tab Content */}
       {activeTab === 0 && (
-        <Grid container spacing={3}>
+        <Grid container spacing={3} sx={{ position: 'relative', minHeight: '80vh' }}>
           {/* Radar Chart */}
-          <Grid item xs={12} lg={7}>
-            <Paper sx={{ p: 4 }}>
+          <Grid item xs={12} lg={12}>
+            <Paper sx={{ p: 4, pb: 6 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 Rating Dimensions Overview
               </Typography>
-              <ResponsiveContainer width="100%" height={500}>
-                <RadarChart data={[
-                  { dimension: 'Overall Support', value: parseFloat(analytics.averages.overall_support) },
-                  { dimension: 'Quality of Life', value: parseFloat(analytics.averages.quality_of_life) },
-                  { dimension: 'Community Alignment', value: parseFloat(analytics.averages.community_alignment) },
-                  { dimension: 'Implementation/Supervision', value: parseFloat(analytics.averages.transparency) },
-                  { dimension: 'Feasibility Confidence', value: parseFloat(analytics.averages.feasibility) }
-                ]}>
+              <ResponsiveContainer width="100%" height={900}>
+                <RadarChart 
+                  data={[
+                    { dimension: 'Overall Support', value: parseFloat(analytics.averages.overall_support) },
+                    { dimension: 'Quality of Life', value: parseFloat(analytics.averages.quality_of_life) },
+                    { dimension: 'Community Alignment', value: parseFloat(analytics.averages.community_alignment) },
+                    { dimension: 'Implementation/Supervision', value: parseFloat(analytics.averages.transparency) },
+                    { dimension: 'Feasibility Confidence', value: parseFloat(analytics.averages.feasibility) }
+                  ]}
+                  margin={{ top: 80, right: 80, bottom: 120, left: 80 }}
+                >
                   <PolarGrid />
                   <PolarAngleAxis 
                     dataKey="dimension" 
-                    tick={{ fontSize: 13, fill: '#333', fontWeight: 'bold' }}
-                    tickFormatter={(value) => value.length > 18 ? value.substring(0, 18) + '...' : value}
+                    tick={{ 
+                      fontSize: 15, 
+                      fill: '#333', 
+                      fontWeight: 'bold',
+                      textAnchor: 'middle'
+                    }}
+                    tickFormatter={(value) => {
+                      // Use clean, short labels as specified
+                      const labelMap = {
+                        'Overall Support': 'Support',
+                        'Quality of Life': 'Quality',
+                        'Community Alignment': 'Alignment',
+                        'Implementation/Supervision': 'Implementation',
+                        'Feasibility Confidence': 'Feasibility'
+                      };
+                      return labelMap[value] || value;
+                    }}
                   />
                   <PolarRadiusAxis 
                     domain={[0, 5]} 
-                    tick={{ fontSize: 12, fill: '#333', fontWeight: 'bold' }}
+                    tick={{ fontSize: 13, fill: '#666', fontWeight: 'bold' }}
                     tickCount={6}
                   />
                   <Radar 
@@ -430,13 +448,21 @@ const FeedbackAnalytics = () => {
             </Paper>
           </Grid>
 
-          {/* Bar Chart */}
-          <Grid item xs={12} lg={5}>
-            <Paper sx={{ p: 4 }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Average Ratings Comparison
-              </Typography>
-              <ResponsiveContainer width="100%" height={500}>
+          {/* Bar Chart - Positioned absolutely to utilize right space */}
+          <Paper sx={{ 
+            p: 2, 
+            pb: 3,
+            position: 'absolute',
+            right: '30px', // Move further from the right edge
+            top: '0',
+            width: '400px', // Increased width
+            height: '850px', // Increased height to accommodate labels
+            zIndex: 1
+          }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Average Ratings Comparison
+            </Typography>
+              <ResponsiveContainer width="100%" height={650}>
                 <BarChart data={[
                   { name: 'Overall Support', value: parseFloat(analytics.averages.overall_support) },
                   { name: 'Quality of Life', value: parseFloat(analytics.averages.quality_of_life) },
@@ -449,13 +475,24 @@ const FeedbackAnalytics = () => {
                     dataKey="name" 
                     angle={-15} 
                     textAnchor="end" 
-                    height={120}
-                    tick={{ fontSize: 12, fill: '#333', fontWeight: 'bold' }}
+                    height={150}
+                    tick={{ fontSize: 13, fill: '#333', fontWeight: 'bold' }}
                     interval={0}
+                    tickFormatter={(value) => {
+                      // Use clean, short labels as specified
+                      const labelMap = {
+                        'Overall Support': 'Support',
+                        'Quality of Life': 'Quality',
+                        'Community Alignment': 'Alignment',
+                        'Implementation/Supervision': 'Implementation',
+                        'Feasibility Confidence': 'Feasibility'
+                      };
+                      return labelMap[value] || value;
+                    }}
                   />
                   <YAxis 
                     domain={[0, 5]} 
-                    tick={{ fontSize: 12, fill: '#333', fontWeight: 'bold' }}
+                    tick={{ fontSize: 14, fill: '#333', fontWeight: 'bold' }}
                     tickCount={6}
                   />
                   <Tooltip 
@@ -475,7 +512,6 @@ const FeedbackAnalytics = () => {
                 </BarChart>
               </ResponsiveContainer>
             </Paper>
-          </Grid>
         </Grid>
       )}
 
@@ -693,4 +729,3 @@ const FeedbackAnalytics = () => {
 };
 
 export default FeedbackAnalytics;
-

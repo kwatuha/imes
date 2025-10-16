@@ -218,3 +218,5 @@ INSERT IGNORE INTO feedback_moderation_settings (setting_name, setting_value, de
 ('moderation_timeout_hours', '24', 'Hours before feedback is auto-approved if not moderated'),
 ('spam_keywords', 'spam,scam,fake', 'Comma-separated keywords to flag as spam'),
 ('inappropriate_keywords', 'hate,abuse,violence', 'Comma-separated keywords to flag as inappropriate');
+
+
