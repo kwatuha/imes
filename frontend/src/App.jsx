@@ -50,6 +50,14 @@ import ApprovalLevelsManagementPage from './pages/ApprovalLevelsManagementPage';
 import AdminPage from './pages/AdminPage';
 // ✨ NEW: Import the FeedbackManagementPage component
 import FeedbackManagementPage from './pages/FeedbackManagementPage';
+// ✨ NEW: Import the AbsorptionReport component
+import AbsorptionReport from './components/AbsorptionReport';
+// ✨ NEW: Import the PerformanceManagementReport component
+import PerformanceManagementReport from './components/PerformanceManagementReport';
+// ✨ NEW: Import the CAPRReport component
+import CAPRReport from './components/CAPRReport';
+// ✨ NEW: Import the QuarterlyImplementationReport component
+import QuarterlyImplementationReport from './components/QuarterlyImplementationReport';
  
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
@@ -149,6 +157,22 @@ const router = createBrowserRouter([
       {
         path: 'feedback-management',
         element: <FeedbackManagementPage />,
+      },
+      {
+        path: 'absorption-report',
+        element: <AbsorptionReport />,
+      },
+      {
+        path: 'performance-management-report',
+        element: <PerformanceManagementReport />,
+      },
+      {
+        path: 'capr-report',
+        element: <CAPRReport />,
+      },
+      {
+        path: 'quarterly-implementation-report',
+        element: <QuarterlyImplementationReport />,
       },
       {
         path: 'strategic-planning',

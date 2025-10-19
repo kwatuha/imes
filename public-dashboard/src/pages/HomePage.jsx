@@ -152,30 +152,73 @@ const HomePage = () => {
         }}
       >
         <Container maxWidth="lg">
-          <Box display="flex" alignItems="center" justifyContent="center" gap={4}>
-            <Box
-              component="img"
-              src="images/logo.min.png"
-              alt="County Government of Kisumu Logo"
-              sx={{
-                height: 120,
-                width: 'auto',
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
-              }}
-            />
-            <Box textAlign="center">
-              <Typography variant="h3" fontWeight="bold" color="#2c3e50" gutterBottom>
-                COUNTY GOVERNMENT OF KISUMU
-              </Typography>
-              <Typography variant="h5" color="#6c757d" sx={{ fontWeight: 500 }}>
-                Project Management System
-              </Typography>
-              <Typography variant="body1" color="#6c757d" sx={{ mt: 1, opacity: 0.8 }}>
-                Empowering Transparency • Building Communities • Delivering Results
-              </Typography>
-            </Box>
-          </Box>
+          <Grid container spacing={0} sx={{ py: 4 }} alignItems="flex-start">
+            {/* Logo Container */}
+            <Grid item xs={12} md={3} sx={{ display: 'flex', justifyContent: { xs: 'center', md: 'flex-end' }, pr: { md: 2 } }}>
+              <Box
+                component="img"
+                src="images/logo.min.png"
+                alt="County Government of Kisumu Logo"
+                sx={{
+                  height: 120,
+                  width: 'auto',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
+                  display: 'block',
+                  mt: -1
+                }}
+              />
+            </Grid>
+            
+            {/* Text Container */}
+            <Grid item xs={12} md={9}>
+              <Box 
+                textAlign={{ xs: 'center', md: 'left' }}
+                sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'flex-start',
+                  height: '100%'
+                }}
+              >
+                <Typography 
+                  variant="h3" 
+                  fontWeight="bold" 
+                  color="#2c3e50" 
+                  sx={{ 
+                    margin: 0, 
+                    mb: 1,
+                    lineHeight: 1.1
+                  }}
+                >
+                  COUNTY GOVERNMENT OF KISUMU
+                </Typography>
+                <Typography 
+                  variant="h5" 
+                  color="#6c757d" 
+                  sx={{ 
+                    fontWeight: 500, 
+                    margin: 0, 
+                    mb: 1,
+                    lineHeight: 1.2
+                  }}
+                >
+                  Project Management System
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  color="#6c757d" 
+                  sx={{ 
+                    margin: 0, 
+                    opacity: 0.8,
+                    lineHeight: 1.3
+                  }}
+                >
+                  Empowering Transparency • Building Communities • Delivering Results
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
         </Container>
       </Box>
 
@@ -1140,4 +1183,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-

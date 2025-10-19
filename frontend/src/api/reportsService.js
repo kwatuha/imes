@@ -193,6 +193,50 @@ const reportsService = {
       throw error;
     }
   },
+
+  // --- Absorption Report ---
+  getAbsorptionReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/absorption-report', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch absorption report:", error);
+      throw error;
+    }
+  },
+
+  // --- Performance Management Report ---
+  getPerformanceManagementReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/performance-management-report', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch performance management report:", error);
+      throw error;
+    }
+  },
+
+  // --- CAPR Report ---
+  getCAPRReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/capr-report', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch CAPR report:", error);
+      throw error;
+    }
+  },
+
+  // --- Quarterly Implementation Report ---
+  getQuarterlyImplementationReport: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/reports/quarterly-implementation-report', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch quarterly implementation report:", error);
+      throw error;
+    }
+  },
 };
 
 export default reportsService;

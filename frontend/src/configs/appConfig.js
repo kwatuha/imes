@@ -71,6 +71,10 @@ export const ROUTES = {
     WORKFLOW_MANAGEMENT: '/workflow-management',
     APPROVAL_LEVELS_MANAGEMENT: '/approval-levels-management', // ✨ NEW: Add the approval levels management route
     FEEDBACK_MANAGEMENT: '/feedback-management', // ✨ NEW: Public feedback management route
+    ABSORPTION_REPORT: '/absorption-report', // ✨ NEW: Absorption report route
+    PERFORMANCE_MANAGEMENT_REPORT: '/performance-management-report', // ✨ NEW: Performance Management report route
+    CAPR_REPORT: '/capr-report', // ✨ NEW: CAPR report route
+    QUARTERLY_IMPLEMENTATION_REPORT: '/quarterly-implementation-report', // ✨ NEW: Quarterly Implementation report route
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',

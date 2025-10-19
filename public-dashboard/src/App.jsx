@@ -53,20 +53,26 @@ function App() {
         }}
       >
         <Toolbar sx={{ py: 1 }}>
-          <Box display="flex" alignItems="center" sx={{ flexGrow: 1 }}>
-            <Box
-              component="img"
-              src="images/logo.min.png"
-              alt="County Government of Kisumu Logo"
-              sx={{
-                height: 50,
-                width: 'auto',
-                objectFit: 'contain',
-                mr: 2,
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-              }}
-            />
-            <Box>
+          <Grid container spacing={0} alignItems="flex-start" sx={{ flexGrow: 1 }}>
+            {/* Logo Container */}
+            <Grid item sx={{ display: 'flex', alignItems: 'flex-start', pr: 1 }}>
+              <Box
+                component="img"
+                src="images/logo.min.png"
+                alt="County Government of Kisumu Logo"
+                sx={{
+                  height: 50,
+                  width: 'auto',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                  display: 'block',
+                  mt: -0.5
+                }}
+              />
+            </Grid>
+            
+            {/* Text Container */}
+            <Grid item sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <Typography 
                 variant="h6" 
                 component="div" 
@@ -75,10 +81,11 @@ function App() {
                   fontSize: '1.1rem',
                   lineHeight: 1.2,
                   color: 'white',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                  margin: 0
                 }}
               >
-                COUNTY GOVERNMENT OF KISUMU
+                County Government of Kisumu
               </Typography>
               <Typography 
                 variant="caption" 
@@ -87,13 +94,15 @@ function App() {
                   fontSize: '0.75rem',
                   fontWeight: 500,
                   letterSpacing: '0.5px',
-                  textTransform: 'uppercase'
+                  textTransform: 'uppercase',
+                  margin: 0
                 }}
               >
                 Project Management System
               </Typography>
-            </Box>
-          </Box>
+            </Grid>
+          </Grid>
+          
           <Button
             color="inherit"
             component={Link}
@@ -104,6 +113,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -123,6 +133,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -142,6 +153,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -161,6 +173,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -180,6 +193,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -199,6 +213,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -218,6 +233,7 @@ function App() {
               textTransform: 'none',
               borderRadius: 2,
               px: 2,
+              mx: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 transform: 'translateY(-1px)'
@@ -257,23 +273,32 @@ function App() {
           <Grid container spacing={4}>
             {/* Brand Section */}
             <Grid item xs={12} md={4}>
-              <Box display="flex" alignItems="center" mb={2}>
-                <Box
-                  component="img"
-                  src="images/logo.min.png"
-                  alt="County Government of Kisumu Logo"
-                  sx={{
-                    height: 40,
-                    width: 'auto',
-                    objectFit: 'contain',
-                    mr: 2
-                  }}
-                />
-                <Typography variant="h6" fontWeight="bold">
-                  COUNTY GOVERNMENT OF KISUMU
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="rgba(255, 255, 255, 0.8)" sx={{ mb: 2 }}>
+              <Grid container spacing={0} alignItems="flex-start">
+                {/* Logo Container */}
+                <Grid item sx={{ pr: 1 }}>
+                  <Box
+                    component="img"
+                    src="images/logo.min.png"
+                    alt="County Government of Kisumu Logo"
+                    sx={{
+                      height: 40,
+                      width: 'auto',
+                      objectFit: 'contain',
+                      display: 'block',
+                      mt: -0.5
+                    }}
+                  />
+                </Grid>
+                
+                {/* Text Container */}
+                <Grid item xs>
+                  <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5 }}>
+                    County Government of Kisumu
+                  </Typography>
+                </Grid>
+              </Grid>
+              
+              <Typography variant="body2" color="rgba(255, 255, 255, 0.8)" sx={{ mb: 2, mt: 2 }}>
                 Project Management System
               </Typography>
               <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
@@ -415,4 +440,3 @@ function App() {
 }
 
 export default App;
-

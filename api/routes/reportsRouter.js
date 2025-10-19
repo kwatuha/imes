@@ -1630,4 +1630,629 @@ router.get('/projects-by-village', async (req, res) => {
     }
 });
 
+/**
+ * @route GET /api/reports/absorption-report
+ * @description Get absorption report data grouped by department with financial metrics
+ * @access Public (for now)
+ * @returns {Object} Object containing absorption report data and summary totals
+ */
+router.get('/absorption-report', async (req, res) => {
+    try {
+        const { 
+            finYearId, 
+            departmentId, 
+            status, 
+            startDate, 
+            endDate 
+        } = req.query;
+
+        let whereConditions = ['p.voided = 0', 'd.name IS NOT NULL'];
+        const queryParams = [];
+
+        if (finYearId) {
+            whereConditions.push('p.finYearId = ?');
+            queryParams.push(finYearId);
+        }
+
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (status) {
+            whereConditions.push('p.status = ?');
+            queryParams.push(status);
+        }
+
+        if (startDate) {
+            whereConditions.push('p.startDate >= ?');
+            queryParams.push(startDate);
+        }
+
+        if (endDate) {
+            whereConditions.push('p.endDate <= ?');
+            queryParams.push(endDate);
+        }
+
+        // Main query to get department-level absorption data
+        const sqlQuery = `
+            SELECT
+                d.name AS departmentName,
+                d.alias AS departmentAlias,
+                COUNT(p.id) AS projectCount,
+                
+                -- Calculate completion percentage based on status
+                CASE 
+                    WHEN COUNT(p.id) > 0 THEN 
+                        ROUND(
+                            (COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) * 100.0 / COUNT(p.id)), 
+                            1
+                        )
+                    ELSE 0 
+                END AS completionPercentage,
+                
+                -- Budget and financial data
+                COALESCE(SUM(p.costOfProject), 0) AS budget,
+                COALESCE(SUM(p.costOfProject), 0) AS contractSum,
+                COALESCE(SUM(p.paidOut), 0) AS paidAmount,
+                
+                -- Calculate absorption percentage
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        ROUND((SUM(p.paidOut) * 100.0 / SUM(p.costOfProject)), 2)
+                    ELSE 0 
+                END AS absorptionPercentage
+                
+            FROM
+                kemri_projects p
+            LEFT JOIN
+                kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+            WHERE ${whereConditions.join(' AND ')}
+            GROUP BY
+                d.departmentId, d.name, d.alias
+            ORDER BY
+                d.name;
+        `;
+
+        const [rows] = await pool.query(sqlQuery, queryParams);
+
+        // Calculate summary totals
+        const summaryQuery = `
+            SELECT
+                COUNT(DISTINCT p.id) AS totalCount,
+                ROUND(
+                    AVG(
+                        CASE 
+                            WHEN p.status = 'Completed' THEN 100
+                            WHEN p.status = 'In Progress' THEN 75
+                            WHEN p.status = 'At Risk' THEN 25
+                            WHEN p.status = 'Delayed' THEN 50
+                            WHEN p.status = 'Stalled' THEN 10
+                            ELSE 0
+                        END
+                    ), 1
+                ) AS averageCompletion,
+                COALESCE(SUM(p.costOfProject), 0) AS totalBudget,
+                COALESCE(SUM(p.costOfProject), 0) AS totalContractSum,
+                COALESCE(SUM(p.paidOut), 0) AS totalPaidAmount,
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        ROUND((SUM(p.paidOut) * 100.0 / SUM(p.costOfProject)), 1)
+                    ELSE 0 
+                END AS absorbedPercentage
+            FROM
+                kemri_projects p
+            LEFT JOIN
+                kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+            WHERE ${whereConditions.join(' AND ')}
+        `;
+
+        const [summaryRows] = await pool.query(summaryQuery, queryParams);
+        const summary = summaryRows[0] || {};
+
+        // Transform the data to match the frontend component expectations
+        const transformedData = rows.map(row => ({
+            id: Math.random(), // Generate a temporary ID for React key
+            department: row.departmentName,
+            projectCount: row.projectCount,
+            ward: '', // Not available in current schema
+            status: '', // Not available in current schema
+            completionPercentage: parseFloat(row.completionPercentage) || 0,
+            budget: parseFloat(row.budget) || 0,
+            contractSum: parseFloat(row.contractSum) || 0,
+            paidAmount: parseFloat(row.paidAmount) || 0,
+            absorptionPercentage: parseFloat(row.absorptionPercentage) || 0
+        }));
+
+        res.status(200).json({
+            data: transformedData,
+            summary: {
+                count: summary.totalCount || 0,
+                averageCompletion: parseFloat(summary.averageCompletion) || 0,
+                totalBudget: parseFloat(summary.totalBudget) || 0,
+                totalContractSum: parseFloat(summary.totalContractSum) || 0,
+                totalPaidAmount: parseFloat(summary.totalPaidAmount) || 0,
+                absorbedPercentage: parseFloat(summary.absorbedPercentage) || 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching absorption report:', error);
+        res.status(500).json({
+            message: 'Error fetching absorption report',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/performance-management-report
+ * @description Get performance management report data grouped by department with performance metrics
+ * @access Public (for now)
+ * @returns {Object} Object containing performance management report data and summary totals
+ */
+router.get('/performance-management-report', async (req, res) => {
+    try {
+        const { 
+            finYearId, 
+            departmentId, 
+            status, 
+            startDate, 
+            endDate 
+        } = req.query;
+
+        let whereConditions = ['p.voided = 0', 'd.name IS NOT NULL'];
+        const queryParams = [];
+
+        if (finYearId) {
+            whereConditions.push('p.finYearId = ?');
+            queryParams.push(finYearId);
+        }
+
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (status) {
+            whereConditions.push('p.status = ?');
+            queryParams.push(status);
+        }
+
+        if (startDate) {
+            whereConditions.push('p.startDate >= ?');
+            queryParams.push(startDate);
+        }
+
+        if (endDate) {
+            whereConditions.push('p.endDate <= ?');
+            queryParams.push(endDate);
+        }
+
+        // Main query to get department-level performance data
+        const sqlQuery = `
+            SELECT
+                d.name AS departmentName,
+                d.alias AS departmentAlias,
+                COUNT(p.id) AS projectCount,
+                
+                -- Calculate completion percentage based on status
+                CASE 
+                    WHEN COUNT(p.id) > 0 THEN 
+                        ROUND(
+                            (COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) * 100.0 / COUNT(p.id)), 
+                            1
+                        )
+                    ELSE 0 
+                END AS completionPercentage,
+                
+                -- Calculate absorption percentage
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        ROUND((SUM(p.paidOut) * 100.0 / SUM(p.costOfProject)), 2)
+                    ELSE 0 
+                END AS absorptionPercentage,
+                
+                -- FY Target (ADP) - using costOfProject as target
+                COALESCE(SUM(p.costOfProject), 0) AS fyTargetAdp,
+                
+                -- FY Actual - using paidOut as actual
+                COALESCE(SUM(p.paidOut), 0) AS fyActual
+                
+            FROM
+                kemri_projects p
+            LEFT JOIN
+                kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+            WHERE ${whereConditions.join(' AND ')}
+            GROUP BY
+                d.departmentId, d.name, d.alias
+            ORDER BY
+                d.name;
+        `;
+
+        const [rows] = await pool.query(sqlQuery, queryParams);
+
+        // Calculate summary totals
+        const summaryQuery = `
+            SELECT
+                COUNT(DISTINCT p.id) AS totalCount,
+                ROUND(
+                    AVG(
+                        CASE 
+                            WHEN p.status = 'Completed' THEN 100
+                            WHEN p.status = 'In Progress' THEN 75
+                            WHEN p.status = 'At Risk' THEN 25
+                            WHEN p.status = 'Delayed' THEN 50
+                            WHEN p.status = 'Stalled' THEN 10
+                            ELSE 0
+                        END
+                    ), 1
+                ) AS averageCompletion,
+                CASE 
+                    WHEN SUM(p.costOfProject) > 0 THEN 
+                        ROUND((SUM(p.paidOut) * 100.0 / SUM(p.costOfProject)), 1)
+                    ELSE 0 
+                END AS absorptionPercentage,
+                COALESCE(SUM(p.costOfProject), 0) AS fyTargetAdp,
+                COALESCE(SUM(p.paidOut), 0) AS fyActual
+            FROM
+                kemri_projects p
+            LEFT JOIN
+                kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+            WHERE ${whereConditions.join(' AND ')}
+        `;
+
+        const [summaryRows] = await pool.query(summaryQuery, queryParams);
+        const summary = summaryRows[0] || {};
+
+        // Transform the data to match the frontend component expectations
+        const transformedData = rows.map(row => ({
+            id: Math.random(), // Generate a temporary ID for React key
+            department: row.departmentName,
+            projectCount: row.projectCount,
+            ward: '', // Not available in current schema
+            status: '', // Not available in current schema
+            completionPercentage: parseFloat(row.completionPercentage) || 0,
+            absorptionPercentage: parseFloat(row.absorptionPercentage) || 0,
+            fyTargetAdp: parseFloat(row.fyTargetAdp) || 0,
+            fyActual: parseFloat(row.fyActual) || 0
+        }));
+
+        res.status(200).json({
+            data: transformedData,
+            summary: {
+                count: summary.totalCount || 0,
+                averageCompletion: parseFloat(summary.averageCompletion) || 0,
+                absorptionPercentage: parseFloat(summary.absorptionPercentage) || 0,
+                fyTargetAdp: parseFloat(summary.fyTargetAdp) || 0,
+                fyActual: parseFloat(summary.fyActual) || 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching performance management report:', error);
+        res.status(500).json({
+            message: 'Error fetching performance management report',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/capr-report
+ * @description Get CAPR (County Annual Performance Report) data with hierarchical grouping
+ * @access Public (for now)
+ * @returns {Object} Object containing CAPR report data grouped by SubCounty and Status
+ */
+router.get('/capr-report', async (req, res) => {
+    try {
+        const { 
+            subCounty, 
+            status, 
+            programme,
+            startDate, 
+            endDate 
+        } = req.query;
+
+        let whereConditions = ['1=1']; // Base condition
+        const queryParams = [];
+
+        if (subCounty) {
+            whereConditions.push('p.subCounty = ?');
+            queryParams.push(subCounty);
+        }
+
+        if (status) {
+            whereConditions.push('p.status = ?');
+            queryParams.push(status);
+        }
+
+        if (programme) {
+            whereConditions.push('p.programme LIKE ?');
+            queryParams.push(`%${programme}%`);
+        }
+
+        if (startDate) {
+            whereConditions.push('p.startDate >= ?');
+            queryParams.push(startDate);
+        }
+
+        if (endDate) {
+            whereConditions.push('p.endDate <= ?');
+            queryParams.push(endDate);
+        }
+
+        // Main query to get CAPR data
+        // Note: This is a mock query structure since we don't have CAPR-specific tables
+        // In a real implementation, you would have tables like kemri_capr_programmes, kemri_cidp_outcomes, etc.
+        const sqlQuery = `
+            SELECT
+                CASE 
+                    WHEN p.id % 3 = 0 THEN 'Central Region'
+                    WHEN p.id % 3 = 1 THEN 'Eastern Region'
+                    ELSE 'Western Region'
+                END AS subCounty,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN 'Completed'
+                    ELSE 'In Progress'
+                END AS status,
+                'Preventive Programme' AS programme,
+                '• Establish comprehensive preventive healthcare services\\n• Enhance community health awareness\\n• Scale up immunization coverage' AS objectives,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN 'Improved ANC visits'
+                    ELSE 'Improved FP services'
+                END AS cidpOutcome,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN '% ANC attendance'
+                    ELSE 'Contraceptive Prevalence Rate (CPR)'
+                END AS cidpKpi,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN 'Baseline: 17%, Y1:18%, Y2:19%, Y3:20%, Y4:21%, Y5:25%'
+                    ELSE 'Baseline: 65%, Y1:68%, Y2:79%, Y3:82%, Y4:85%, Y5:90%'
+                END AS cidpTargets,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN 'Y5: 25%'
+                    ELSE 'Y5: 90%'
+                END AS y5Target,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN 'Km of roads (Length: KM)'
+                    ELSE 'large (Size: Large)'
+                END AS outputKpi,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN 'FY2018/2019'
+                    ELSE 'FY2017/2018'
+                END AS adpFy,
+                CASE 
+                    WHEN p.id % 2 = 0 THEN '45'
+                    ELSE '80'
+                END AS fyBaseline
+            FROM
+                kemri_projects p
+            WHERE ${whereConditions.join(' AND ')}
+            LIMIT 20
+        `;
+
+        const [rows] = await pool.query(sqlQuery, queryParams);
+
+        // Transform the data to match the frontend component expectations
+        const transformedData = rows.map((row, index) => ({
+            id: index + 1,
+            subCounty: row.subCounty,
+            status: row.status,
+            programme: row.programme,
+            objectives: row.objectives,
+            cidpOutcome: row.cidpOutcome,
+            cidpKpi: row.cidpKpi,
+            cidpTargets: row.cidpTargets,
+            y5Target: row.y5Target,
+            outputKpi: row.outputKpi,
+            adpFy: row.adpFy,
+            fyBaseline: row.fyBaseline
+        }));
+
+        res.status(200).json({
+            data: transformedData
+        });
+
+    } catch (error) {
+        console.error('Error fetching CAPR report:', error);
+        res.status(500).json({
+            message: 'Error fetching CAPR report',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/reports/quarterly-implementation-report
+ * @description Get quarterly implementation report data with project progress and financial metrics
+ * @access Public (for now) - In production, this should use basic auth with akwatuha/reset123
+ * @returns {Object} Object containing quarterly implementation report data and summary totals
+ */
+router.get('/quarterly-implementation-report', async (req, res) => {
+    try {
+        const { 
+            quarter, 
+            year, 
+            departmentId, 
+            status, 
+            startDate, 
+            endDate 
+        } = req.query;
+
+        let whereConditions = ['p.voided = 0', 'd.name IS NOT NULL'];
+        const queryParams = [];
+
+        if (quarter) {
+            // Map quarter to date ranges
+            const quarterRanges = {
+                'Q1': ['01-01', '03-31'],
+                'Q2': ['04-01', '06-30'],
+                'Q3': ['07-01', '09-30'],
+                'Q4': ['10-01', '12-31']
+            };
+            
+            if (quarterRanges[quarter]) {
+                const yearValue = year || new Date().getFullYear();
+                whereConditions.push(`DATE_FORMAT(p.startDate, '%m-%d') >= ? AND DATE_FORMAT(p.startDate, '%m-%d') <= ?`);
+                queryParams.push(quarterRanges[quarter][0], quarterRanges[quarter][1]);
+                whereConditions.push(`YEAR(p.startDate) = ?`);
+                queryParams.push(yearValue);
+            }
+        }
+
+        if (departmentId) {
+            whereConditions.push('p.departmentId = ?');
+            queryParams.push(departmentId);
+        }
+
+        if (status) {
+            whereConditions.push('p.status = ?');
+            queryParams.push(status);
+        }
+
+        if (startDate) {
+            whereConditions.push('p.startDate >= ?');
+            queryParams.push(startDate);
+        }
+
+        if (endDate) {
+            whereConditions.push('p.endDate <= ?');
+            queryParams.push(endDate);
+        }
+
+        // Main query to get quarterly implementation data
+        const sqlQuery = `
+            SELECT
+                p.id,
+                p.projectName,
+                d.name AS department,
+                CASE 
+                    WHEN MONTH(p.startDate) BETWEEN 1 AND 3 THEN 'Q1'
+                    WHEN MONTH(p.startDate) BETWEEN 4 AND 6 THEN 'Q2'
+                    WHEN MONTH(p.startDate) BETWEEN 7 AND 9 THEN 'Q3'
+                    WHEN MONTH(p.startDate) BETWEEN 10 AND 12 THEN 'Q4'
+                    ELSE 'Q1'
+                END AS quarter,
+                p.status,
+                
+                -- Calculate progress percentage based on status and dates
+                CASE 
+                    WHEN p.status = 'Completed' THEN 100
+                    WHEN p.status = 'In Progress' THEN 
+                        CASE 
+                            WHEN p.endDate IS NOT NULL AND p.startDate IS NOT NULL THEN
+                                LEAST(100, GREATEST(0, 
+                                    ROUND(
+                                        (DATEDIFF(CURDATE(), p.startDate) * 100.0 / 
+                                         NULLIF(DATEDIFF(p.endDate, p.startDate), 0)), 
+                                        1
+                                    )
+                                ))
+                            ELSE 75
+                        END
+                    WHEN p.status = 'At Risk' THEN 25
+                    WHEN p.status = 'Delayed' THEN 50
+                    WHEN p.status = 'Stalled' THEN 10
+                    ELSE 0
+                END AS progressPercentage,
+                
+                -- Financial data
+                COALESCE(p.costOfProject, 0) AS budget,
+                COALESCE(p.paidOut, 0) AS spent,
+                COALESCE(p.costOfProject, 0) - COALESCE(p.paidOut, 0) AS remaining,
+                
+                -- Dates
+                DATE_FORMAT(p.startDate, '%Y-%m-%d') AS startDate,
+                DATE_FORMAT(p.endDate, '%Y-%m-%d') AS endDate
+                
+            FROM
+                kemri_projects p
+            LEFT JOIN
+                kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+            WHERE ${whereConditions.join(' AND ')}
+            ORDER BY
+                p.projectName
+            LIMIT 50
+        `;
+
+        const [rows] = await pool.query(sqlQuery, queryParams);
+
+        // Calculate summary totals
+        const summaryQuery = `
+            SELECT
+                COUNT(DISTINCT p.id) AS totalProjects,
+                COALESCE(SUM(p.costOfProject), 0) AS totalBudget,
+                COALESCE(SUM(p.paidOut), 0) AS totalSpent,
+                ROUND(
+                    AVG(
+                        CASE 
+                            WHEN p.status = 'Completed' THEN 100
+                            WHEN p.status = 'In Progress' THEN 
+                                CASE 
+                                    WHEN p.endDate IS NOT NULL AND p.startDate IS NOT NULL THEN
+                                        LEAST(100, GREATEST(0, 
+                                            ROUND(
+                                                (DATEDIFF(CURDATE(), p.startDate) * 100.0 / 
+                                                 NULLIF(DATEDIFF(p.endDate, p.startDate), 0)), 
+                                                1
+                                            )
+                                        ))
+                                    ELSE 75
+                                END
+                            WHEN p.status = 'At Risk' THEN 25
+                            WHEN p.status = 'Delayed' THEN 50
+                            WHEN p.status = 'Stalled' THEN 10
+                            ELSE 0
+                        END
+                    ), 1
+                ) AS averageProgress,
+                COUNT(CASE WHEN p.status IN ('Completed', 'In Progress') THEN 1 END) AS onTrackProjects,
+                COUNT(CASE WHEN p.status IN ('Delayed', 'At Risk', 'Stalled') THEN 1 END) AS delayedProjects
+            FROM
+                kemri_projects p
+            LEFT JOIN
+                kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+            WHERE ${whereConditions.join(' AND ')}
+        `;
+
+        const [summaryRows] = await pool.query(summaryQuery, queryParams);
+        const summary = summaryRows[0] || {};
+
+        // Transform the data to match the frontend component expectations
+        const transformedData = rows.map(row => ({
+            id: row.id,
+            projectName: row.projectName,
+            department: row.department,
+            quarter: row.quarter,
+            status: row.status,
+            progressPercentage: parseFloat(row.progressPercentage) || 0,
+            budget: parseFloat(row.budget) || 0,
+            spent: parseFloat(row.spent) || 0,
+            remaining: parseFloat(row.remaining) || 0,
+            startDate: row.startDate,
+            endDate: row.endDate
+        }));
+
+        res.status(200).json({
+            data: transformedData,
+            summary: {
+                totalProjects: summary.totalProjects || 0,
+                totalBudget: parseFloat(summary.totalBudget) || 0,
+                totalSpent: parseFloat(summary.totalSpent) || 0,
+                averageProgress: parseFloat(summary.averageProgress) || 0,
+                onTrackProjects: summary.onTrackProjects || 0,
+                delayedProjects: summary.delayedProjects || 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching quarterly implementation report:', error);
+        res.status(500).json({
+            message: 'Error fetching quarterly implementation report',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
