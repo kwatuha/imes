@@ -40,6 +40,8 @@ const BASE_PROJECT_SELECT_JOINS = `
         p.expectedOutcome,
         p.status,
         p.statusReason,
+        p.ProjectRefNum,
+        p.Contracted,
         p.createdAt,
         p.updatedAt,
         p.voided,
@@ -181,7 +183,7 @@ const projectHeaderMap = {
     department: ['department', 'implementingdepartment', 'directorate'],
     'sub-county': ['subcounty', 'subcountyname', 'subcountyid', 'sub-county', 'subcounty_'],
     ward: ['ward', 'wardname', 'wardid'],
-    Contracted: ['contracted', 'iscontracted', 'contractstatus', 'contracted?'],
+    Contracted: ['contracted', 'contractamount', 'contractedamount', 'contractsum', 'contract value', 'contract value (kes)'],
     StartDate: ['startdate', 'projectstartdate', 'commencementdate', 'start'],
     EndDate: ['enddate', 'projectenddate', 'completiondate', 'end']
 };
@@ -311,15 +313,149 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
  * @description Confirm and import project data
  */
 router.post('/confirm-import-data', async (req, res) => {
-    // This endpoint should handle the actual import
-    // For now, return a placeholder response
-    res.status(200).json({
-        success: true,
-        message: 'Project import confirmation endpoint - implementation needed',
-        projectsCreated: 0,
-        projectsUpdated: 0,
-        errors: []
-    });
+    const { dataToImport } = req.body || {};
+    if (!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) {
+        return res.status(400).json({ success: false, message: 'No data provided for import confirmation.' });
+    }
+
+    const toBool = (v) => {
+        if (typeof v === 'number') return v !== 0;
+        if (typeof v === 'boolean') return v;
+        if (typeof v === 'string') {
+            const s = v.trim().toLowerCase();
+            return ['1','true','yes','y','contracted'].includes(s);
+        }
+        return false;
+    };
+
+    const normalizeStr = (v) => (typeof v === 'string' ? v.trim() : v);
+
+    let connection;
+    const summary = { projectsCreated: 0, projectsUpdated: 0, linksCreated: 0, errors: [] };
+
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        for (let i = 0; i < dataToImport.length; i++) {
+            const row = dataToImport[i] || {};
+            try {
+                const projectName = normalizeStr(row.projectName || row.Project_Name || row['Project Name']);
+                const projectRef = normalizeStr(row.ProjectRefNum || row.Project_Ref_Num || row['Project Ref Num']);
+                if (!projectName && !projectRef) {
+                    throw new Error('Missing projectName and ProjectRefNum');
+                }
+
+                // Resolve departmentId by name (create if missing)
+                const departmentName = normalizeStr(row.department || row.Department);
+                let departmentId = null;
+                if (departmentName) {
+                    const [deptRows] = await connection.query('SELECT departmentId FROM kemri_departments WHERE name = ?', [departmentName]);
+                    if (deptRows.length > 0) {
+                        departmentId = deptRows[0].departmentId;
+                    } else {
+                        const [insDept] = await connection.query('INSERT INTO kemri_departments (name) VALUES (?)', [departmentName]);
+                        departmentId = insDept.insertId;
+                    }
+                }
+
+                // Resolve financial year id by name (create if missing)
+                const finYearName = normalizeStr(row.financialYear || row.FinancialYear || row['Financial Year'] || row.ADP || row.Year);
+                let finYearId = null;
+                if (finYearName) {
+                    const [fyRows] = await connection.query('SELECT finYearId FROM kemri_financialyears WHERE finYearName = ?', [finYearName]);
+                    if (fyRows.length > 0) {
+                        finYearId = fyRows[0].finYearId;
+                    } else {
+                        const [insFy] = await connection.query('INSERT INTO kemri_financialyears (finYearName) VALUES (?)', [finYearName]);
+                        finYearId = insFy.insertId;
+                    }
+                }
+
+                // Prepare project payload
+                const toMoney = (v) => (v != null ? Number(String(v).replace(/,/g, '')) : null);
+                const projectPayload = {
+                    projectName: projectName || null,
+                    ProjectRefNum: projectRef || null,
+                    projectDescription: normalizeStr(row.ProjectDescription || row.Description) || null,
+                    status: normalizeStr(row.Status) || null,
+                    costOfProject: toMoney(row.budget),
+                    paidOut: toMoney(row.amountPaid),
+                    startDate: row.StartDate || null,
+                    endDate: row.EndDate || null,
+                    directorate: normalizeStr(row.directorate || row.Directorate) || null,
+                    departmentId: departmentId,
+                    finYearId: finYearId,
+                    Contracted: toMoney(row.Contracted),
+                };
+
+                // Upsert by ProjectRefNum first, else by projectName
+                let projectId = null;
+                if (projectPayload.ProjectRefNum) {
+                    const [existByRef] = await connection.query('SELECT id FROM kemri_projects WHERE ProjectRefNum = ?', [projectPayload.ProjectRefNum]);
+                    if (existByRef.length > 0) {
+                        projectId = existByRef[0].id;
+                        await connection.query('UPDATE kemri_projects SET ? WHERE id = ?', [projectPayload, projectId]);
+                        summary.projectsUpdated++;
+                    }
+                }
+                if (!projectId && projectPayload.projectName) {
+                    const [existByName] = await connection.query('SELECT id FROM kemri_projects WHERE projectName = ?', [projectPayload.projectName]);
+                    if (existByName.length > 0) {
+                        projectId = existByName[0].id;
+                        await connection.query('UPDATE kemri_projects SET ? WHERE id = ?', [projectPayload, projectId]);
+                        summary.projectsUpdated++;
+                    }
+                }
+                if (!projectId) {
+                    const [insProj] = await connection.query('INSERT INTO kemri_projects SET ?', projectPayload);
+                    projectId = insProj.insertId;
+                    summary.projectsCreated++;
+                }
+
+                // Link Subcounty
+                const subCountyName = normalizeStr(row['sub-county'] || row.SubCounty || row['Sub County'] || row.Subcounty);
+                if (subCountyName) {
+                    const [scRows] = await connection.query('SELECT subcountyId FROM kemri_subcounties WHERE name = ?', [subCountyName]);
+                    if (scRows.length > 0) {
+                        const subcountyId = scRows[0].subcountyId;
+                        await connection.query('INSERT IGNORE INTO kemri_project_subcounties (projectId, subcountyId) VALUES (?, ?)', [projectId, subcountyId]);
+                        summary.linksCreated++;
+                    }
+                }
+
+                // Link Ward
+                const wardName = normalizeStr(row.ward || row.Ward || row['Ward Name']);
+                if (wardName) {
+                    const [wRows] = await connection.query('SELECT wardId FROM kemri_wards WHERE name = ?', [wardName]);
+                    if (wRows.length > 0) {
+                        const wardId = wRows[0].wardId;
+                        await connection.query('INSERT IGNORE INTO kemri_project_wards (projectId, wardId) VALUES (?, ?)', [projectId, wardId]);
+                        summary.linksCreated++;
+                    }
+                }
+
+            } catch (rowErr) {
+                summary.errors.push(`Row ${i + 2}: ${rowErr.message}`);
+            }
+        }
+
+        if (summary.errors.length > 0) {
+            await connection.rollback();
+            return res.status(400).json({ success: false, message: 'Import failed with errors. No changes committed.', details: summary.errors });
+        }
+
+        await connection.commit();
+        return res.status(200).json({ success: true, message: 'Projects imported successfully', details: summary });
+    } catch (err) {
+        if (connection) {
+            await connection.rollback();
+        }
+        console.error('Project import confirmation error:', err);
+        return res.status(500).json({ success: false, message: 'Failed to import projects' });
+    } finally {
+        if (connection) connection.release();
+    }
 });
 
 /**
@@ -693,6 +829,8 @@ router.get('/', async (req, res) => {
                 p.expectedOutcome,
                 p.status,
                 p.statusReason,
+                p.ProjectRefNum,
+                p.Contracted,
                 p.createdAt,
                 p.updatedAt,
                 p.voided,
