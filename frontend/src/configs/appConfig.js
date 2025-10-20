@@ -79,6 +79,7 @@ export const ROUTES = {
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',
     PROJECT_GANTT_CHART: '/projects/:projectId/gantt-chart',
+    PROJECT_IMPORT: '/projects/import-data',
     KDSP_PROJECT_DETAILS: '/projects/:projectId/kdsp-details',
     MAP_DATA_IMPORT: '/maps/import-data',
     STRATEGIC_PLAN_DETAILS: '/strategic-planning/:planId',

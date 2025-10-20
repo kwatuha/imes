@@ -9,7 +9,7 @@ import { getThemedDataGridSx } from '../utils/dataGridTheme';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewDetailsIcon, FilterList as FilterListIcon, BarChart as GanttChartIcon,
   ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon, Category as CategoryIcon,
-  GroupAdd as GroupAddIcon
+  GroupAdd as GroupAddIcon, Upload as UploadIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../context/AuthContext.jsx';
@@ -177,6 +177,10 @@ function ProjectManagementPage() {
 
   const handleCloseSnackbar = (event, reason) => { if (reason === 'clickaway') return; setSnackbar({ ...snackbar, open: false }); };
 
+  const handleImportProjects = () => {
+    navigate('/projects/import-data');
+  };
+
   const handleResetColumns = () => {
     const defaultVisibility = {};
     projectTableColumnsConfig.forEach(col => {
@@ -244,6 +248,14 @@ function ProjectManagementPage() {
         dataGridColumn.renderCell = (params) => {
           if (!params) return 'N/A';
           return params.value ? new Date(params.value).toLocaleDateString() : 'N/A';
+        };
+        break;
+      case 'directorate':
+        dataGridColumn.valueGetter = (params) => {
+          if (!params) return 'N/A';
+          if (!params.row) return 'N/A';
+          // Use directorate if available, otherwise fall back to section
+          return params.row.directorate || params.row.section || params.row.sectionName || 'N/A';
         };
         break;
       case 'principalInvestigator':
@@ -336,11 +348,28 @@ function ProjectManagementPage() {
             sx={{ color: isLight ? theme.palette.text.primary : colors.grey[100], borderColor: isLight ? theme.palette.divider : colors.grey[400], '&:hover': { backgroundColor: isLight ? theme.palette.action.hover : colors.primary[500], borderColor: isLight ? theme.palette.text.primary : colors.grey[100] } }}
           >Reset to Defaults</Button>
           {checkUserPrivilege(user, 'project.create') && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}
-              sx={{ backgroundColor: isLight ? theme.palette.success.main : colors.greenAccent[600], '&:hover': { backgroundColor: isLight ? theme.palette.success.dark : colors.greenAccent[700] }, color: '#fff' }}
-            >
-              Add New Project
-            </Button>
+            <>
+              <Button 
+                variant="outlined" 
+                startIcon={<UploadIcon />} 
+                onClick={handleImportProjects}
+                sx={{ 
+                  color: isLight ? theme.palette.info.main : colors.blueAccent[500], 
+                  borderColor: isLight ? theme.palette.info.main : colors.blueAccent[500], 
+                  '&:hover': { 
+                    backgroundColor: isLight ? theme.palette.info.light : colors.blueAccent[600], 
+                    borderColor: isLight ? theme.palette.info.dark : colors.blueAccent[400] 
+                  } 
+                }}
+              >
+                Import Projects
+              </Button>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}
+                sx={{ backgroundColor: isLight ? theme.palette.success.main : colors.greenAccent[600], '&:hover': { backgroundColor: isLight ? theme.palette.success.dark : colors.greenAccent[700] }, color: '#fff' }}
+              >
+                Add New Project
+              </Button>
+            </>
           )}
         </Stack>
       </Box>

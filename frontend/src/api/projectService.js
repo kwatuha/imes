@@ -39,6 +39,26 @@ const projectService = {
       return response.data;
     },
     
+    // NEW: Project Import API Calls
+    previewProjectImport: async (formData) => {
+      const response = await axiosInstance.post('/projects/import-data', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+    confirmProjectImport: async (importData) => {
+      const response = await axiosInstance.post('/projects/confirm-import-data', importData);
+      return response.data;
+    },
+    downloadProjectTemplate: async () => {
+      const response = await axiosInstance.get('/projects/template', {
+        responseType: 'blob'
+      });
+      return response.data;
+    },
+    
     // NEW: Function to apply a milestone template to an existing project
     applyMilestoneTemplate: async (projectId) => {
         const response = await axiosInstance.post(`/projects/apply-template/${projectId}`);
@@ -158,6 +178,24 @@ const projectService = {
       importMapData: async (payload) => {
           const response = await axiosInstance.post(`/projects/project_maps/import`, payload);
           return response.data;
+      },
+      previewMapDataImport: async (formData) => {
+        const response = await axiosInstance.post('/maps/import-data', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        return response.data;
+      },
+      confirmMapDataImport: async (importData) => {
+        const response = await axiosInstance.post('/maps/confirm-import-data', importData);
+        return response.data;
+      },
+      downloadMapDataTemplate: async () => {
+        const response = await axiosInstance.get('/maps/template', {
+          responseType: 'blob'
+        });
+        return response.data;
       },
   },
   

@@ -146,13 +146,13 @@ const HomePage = () => {
       <Box
         sx={{
           background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-          py: 6,
+          py: 3,
           borderBottom: '2px solid #dee2e6',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}
       >
         <Container maxWidth="lg">
-          <Grid container spacing={0} sx={{ py: 4 }} alignItems="flex-start">
+          <Grid container spacing={0} sx={{ py: 2 }} alignItems="flex-start">
             {/* Logo Container */}
             <Grid item xs={12} md={3} sx={{ display: 'flex', justifyContent: { xs: 'center', md: 'flex-end' }, pr: { md: 2 } }}>
               <Box
@@ -160,7 +160,7 @@ const HomePage = () => {
                 src="images/logo.min.png"
                 alt="County Government of Kisumu Logo"
                 sx={{
-                  height: 120,
+                  height: 140,
                   width: 'auto',
                   objectFit: 'contain',
                   filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',

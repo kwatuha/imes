@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const pool = require('../config/db'); // Import the database connection pool
+const multer = require('multer');
+const xlsx = require('xlsx');
 
 // --- Consolidated Imports for All Sub-Routers ---
 const appointmentScheduleRoutes = require('./appointmentScheduleRoutes');
@@ -151,6 +155,192 @@ router.use('/:projectId/counties', projectCountiesRouter);
 router.use('/:projectId/subcounties', projectSubcountiesRouter);
 router.use('/:projectId/wards', projectWardsRouter);
 router.use('/:projectId/photos', projectPhotoRouter);
+
+// --- Project Import Endpoints (MUST come before parameterized routes) ---
+// Multer storage for temp uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+});
+const upload = multer({ storage });
+
+// Header normalization and mapping for Projects
+const normalizeHeader = (header) => String(header || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+const projectHeaderMap = {
+    // Canonical -> Variants (normalized)
+    projectName: ['projectname', 'name', 'title', 'project', 'project_name', 'project name'],
+    ProjectDescription: ['projectdescription', 'description', 'details', 'projectdesc'],
+    ProjectRefNum: ['projectrefnum', 'ref', 'refnum', 'reference', 'projectreference', 'projectref'],
+    Status: ['status', 'projectstatus', 'currentstatus'],
+    budget: ['budget', 'estimatedcost', 'budgetkes', 'projectcost', 'costofproject'],
+    amountPaid: ['amountpaid', 'disbursed', 'expenditure', 'paidout'],
+    financialYear: ['financialyear', 'financial-year', 'financial year', 'fy', 'adp', 'year'],
+    department: ['department', 'implementingdepartment', 'directorate'],
+    'sub-county': ['subcounty', 'subcountyname', 'subcountyid', 'sub-county', 'subcounty_'],
+    ward: ['ward', 'wardname', 'wardid'],
+    Contracted: ['contracted', 'iscontracted', 'contractstatus', 'contracted?'],
+    StartDate: ['startdate', 'projectstartdate', 'commencementdate', 'start'],
+    EndDate: ['enddate', 'projectenddate', 'completiondate', 'end']
+};
+
+// Reverse lookup: normalized variant -> canonical
+const variantToCanonical = (() => {
+    const map = {};
+    Object.entries(projectHeaderMap).forEach(([canonical, variants]) => {
+        variants.forEach(v => { map[v] = canonical; });
+    });
+    return map;
+})();
+
+const parseDateToYMD = (value) => {
+    if (!value) return null;
+    if (value instanceof Date && !isNaN(value.getTime())) {
+        const yyyy = value.getFullYear();
+        const mm = String(value.getMonth() + 1).padStart(2, '0');
+        const dd = String(value.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    if (typeof value !== 'string') return value;
+    const s = value.trim();
+    // Replace multiple separators with a single dash for easier parsing
+    const norm = s.replace(/[\.\/]/g, '-');
+    // Try YYYY-MM-DD
+    let m = norm.match(/^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/);
+    if (m) {
+        const yyyy = parseInt(m[1], 10);
+        const mm = String(parseInt(m[2], 10)).padStart(2, '0');
+        const dd = String(parseInt(m[3], 10)).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    // Try DD-MM-YYYY
+    m = norm.match(/^\s*(\d{1,2})-(\d{1,2})-(\d{4})\s*$/);
+    if (m) {
+        const dd = String(parseInt(m[1], 10)).padStart(2, '0');
+        const mm = String(parseInt(m[2], 10)).padStart(2, '0');
+        const yyyy = parseInt(m[3], 10);
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    // Try MM-DD-YYYY
+    m = norm.match(/^\s*(\d{1,2})-(\d{1,2})-(\d{4})\s*$/);
+    if (m) {
+        const mm = String(parseInt(m[1], 10)).padStart(2, '0');
+        const dd = String(parseInt(m[2], 10)).padStart(2, '0');
+        const yyyy = parseInt(m[3], 10);
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    return s; // leave as-is if not parsed
+};
+
+const mapRowUsingHeaderMap = (headers, row) => {
+    const obj = {};
+    for (let i = 0; i < headers.length; i++) {
+        const rawHeader = headers[i];
+        const normalized = normalizeHeader(rawHeader);
+        const canonical = variantToCanonical[normalized] || rawHeader; // keep unknowns
+        let value = row[i];
+        // Normalize dates (Excel Date objects or strings) to YYYY-MM-DD
+        if (canonical === 'StartDate' || canonical === 'EndDate' || /date/i.test(String(canonical))) {
+            value = parseDateToYMD(value);
+        }
+        obj[canonical] = value === '' ? null : value;
+    }
+    return obj;
+};
+/**
+ * @route POST /api/projects/import-data
+ * @description Preview project data from uploaded file
+ */
+router.post('/import-data', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded.' });
+    }
+    const filePath = req.file.path;
+    try {
+        const workbook = xlsx.readFile(filePath, { cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (rawData.length < 2) {
+            fs.unlink(filePath, () => {});
+            return res.status(400).json({ success: false, message: 'Uploaded Excel file is empty or has no data rows.' });
+        }
+
+        const headers = rawData[0];
+        const dataRows = rawData.slice(1);
+
+        // Build unrecognized headers list
+        const normalizedKnown = new Set(Object.keys(variantToCanonical));
+        const unrecognizedHeaders = [];
+        headers.forEach(h => {
+            const norm = normalizeHeader(h);
+            if (!normalizedKnown.has(norm) && !Object.prototype.hasOwnProperty.call(projectHeaderMap, h)) {
+                // Allow canonical headers to pass even if not normalized in map
+                const isCanonical = Object.keys(projectHeaderMap).includes(h);
+                if (!isCanonical && !unrecognizedHeaders.includes(h)) {
+                    unrecognizedHeaders.push(h);
+                }
+            }
+        });
+
+        const fullData = dataRows.map(r => mapRowUsingHeaderMap(headers, r));
+        const previewLimit = 10;
+        const previewData = fullData.slice(0, previewLimit);
+
+        fs.unlink(filePath, () => {});
+        return res.status(200).json({
+            success: true,
+            message: `File parsed successfully. Review ${previewData.length} of ${fullData.length} rows.`,
+            previewData,
+            headers,
+            fullData,
+            unrecognizedHeaders
+        });
+    } catch (err) {
+        fs.unlink(filePath, () => {});
+        console.error('Project import preview error:', err);
+        return res.status(500).json({ success: false, message: `File parsing failed: ${err.message}` });
+    }
+});
+
+/**
+ * @route POST /api/projects/confirm-import-data
+ * @description Confirm and import project data
+ */
+router.post('/confirm-import-data', async (req, res) => {
+    // This endpoint should handle the actual import
+    // For now, return a placeholder response
+    res.status(200).json({
+        success: true,
+        message: 'Project import confirmation endpoint - implementation needed',
+        projectsCreated: 0,
+        projectsUpdated: 0,
+        errors: []
+    });
+});
+
+/**
+ * @route GET /api/projects/template
+ * @description Download project import template
+ */
+router.get('/template', async (req, res) => {
+    try {
+        // Resolve the path to the projects template stored under api/templates
+        const templatePath = path.resolve(__dirname, '..', 'templates', 'projects_import_template.xlsx');
+        if (!fs.existsSync(templatePath)) {
+            return res.status(404).json({ message: 'Projects template not found on server' });
+        }
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="projects_import_template.xlsx"');
+        return res.sendFile(templatePath);
+    } catch (err) {
+        console.error('Error serving projects template:', err);
+        return res.status(500).json({ message: 'Failed to serve projects template' });
+    }
+});
 
 // --- Analytics Endpoints (MUST come before parameterized routes) ---
 /**

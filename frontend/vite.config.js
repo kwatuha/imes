@@ -15,7 +15,7 @@ export default defineConfig({
       // Disable HMR overlay for production-like deployments to prevent errors
       overlay: false,
       // Use the external port when accessed from outside
-      clientPort: process.env.VITE_HMR_CLIENT_PORT || 5173,
+      clientPort: process.env.VITE_HMR_CLIENT_PORT || 5175,
       port: 5173,
       protocol: 'ws',
       host: process.env.VITE_HMR_HOST || 'localhost',

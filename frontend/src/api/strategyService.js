@@ -356,6 +356,26 @@ const strategyService = {
       throw error;
     }
   },
+  confirmStrategicPlanImport: async (dataPayload) => {
+    try {
+      const response = await axiosInstance.post('/strategy/confirm-import-cidp', dataPayload);
+      return response.data;
+    } catch (error) {
+      console.error('Error confirming strategic plan data import:', error);
+      throw error;
+    }
+  },
+  downloadStrategicPlanTemplate: async () => {
+    try {
+      const response = await axiosInstance.get('/strategy/template', {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading strategic plan template:', error);
+      throw error;
+    }
+  },
 
   // --- NEW: PDF Download Methods ---
   downloadPlanPdf: async (planId) => {

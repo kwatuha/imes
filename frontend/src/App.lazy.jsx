@@ -15,6 +15,8 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const DashboardLandingPage = lazy(() => import('./pages/DashboardLandingPage'));
 const RawDataPage = lazy(() => import('./pages/RawDataPage'));
 const ProjectManagementPage = lazy(() => import('./pages/ProjectManagementPage'));
+const ProjectImportPage = lazy(() => import('./pages/ProjectImportPage'));
+const CentralImportPage = lazy(() => import('./pages/CentralImportPage'));
 const ProjectDetailsPage = lazy(() => import('./pages/ProjectDetailsPage'));
 const ProjectGanttChartPage = lazy(() => import('./pages/ProjectGanttChartPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
@@ -98,6 +100,14 @@ const router = createBrowserRouter([
       {
         path: 'projects',
         element: <LazyRoute component={ProjectManagementPage} />,
+      },
+      {
+        path: 'projects/import-data',
+        element: <LazyRoute component={ProjectImportPage} />,
+      },
+      {
+        path: 'data-import',
+        element: <LazyRoute component={CentralImportPage} />,
       },
       {
         path: 'projects/:projectId',

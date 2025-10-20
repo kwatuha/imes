@@ -232,7 +232,7 @@ const Sidebar = () => {
   const dashboardItems = [
     { title: "Dashboard", to: ROUTES.DASHBOARD, icon: <DashboardIcon /> },
     { title: "Raw Data", to: ROUTES.RAW_DATA, icon: <TableChartIcon /> },
-    { title: "Project Management", to: ROUTES.PROJECTS, icon: <FolderOpenIcon /> },
+    { title: "Projects", to: ROUTES.PROJECTS, icon: <FolderOpenIcon /> },
     { title: "Contractor Dashboard", to: ROUTES.CONTRACTOR_DASHBOARD, icon: <PaidIcon /> },
   ];
 
@@ -248,6 +248,7 @@ const Sidebar = () => {
   ];
 
   const managementItems = [
+    { title: "Central Data Import", to: "/data-import", icon: <CloudUploadIcon /> },
     { title: "GIS Mapping", to: ROUTES.GIS_MAPPING, icon: <MapIcon /> },
     { title: "Import Map Data", to: ROUTES.MAP_DATA_IMPORT, icon: <CloudUploadIcon /> },
     { title: "Strategic Planning", to: ROUTES.STRATEGIC_PLANNING, icon: <AssignmentIcon /> },

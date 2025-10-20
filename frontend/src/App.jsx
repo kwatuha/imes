@@ -67,6 +67,8 @@ import ProjectDashboardPage from './pages/ProjectsDashboardPage';
 import DashboardConfigManager from './components/DashboardConfigManager';
 // NEW: Import the simplified modern theme
 import { modernTheme } from './theme/modernTheme';
+// Add CentralImportPage for unified import hub
+import CentralImportPage from './pages/CentralImportPage';
 
 // Define your routes with basename for /impes path
 const router = createBrowserRouter([
@@ -141,6 +143,10 @@ const router = createBrowserRouter([
       {
         path: 'maps/import-data',
         element: <MapDataImportPage />,
+      },
+      {
+        path: 'data-import',
+        element: <CentralImportPage />,
       },
       {
         path: 'user-management',

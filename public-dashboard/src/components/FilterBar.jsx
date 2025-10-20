@@ -146,12 +146,9 @@ const FilterBar = ({
             >
               {financialYears.map((fy) => (
                 <MenuItem key={fy.id} value={fy.id}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Assessment sx={{ fontSize: 16 }} />
-                    <Typography variant="body2">
-                      FY {fy.name}
-                    </Typography>
-                  </Box>
+                  <Typography variant="body2">
+                    {fy.name}
+                  </Typography>
                 </MenuItem>
               ))}
             </Select>

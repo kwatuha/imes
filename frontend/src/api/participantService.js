@@ -149,6 +149,41 @@ const participantService = {
       throw error;
     }
   },
+
+  // --- Import Methods ---
+  previewParticipantImport: async (formData) => {
+    try {
+      const response = await axiosInstance.post('/participants/import-data', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error previewing participant data:', error);
+      throw error;
+    }
+  },
+  confirmParticipantImport: async (importData) => {
+    try {
+      const response = await axiosInstance.post('/participants/confirm-import-data', importData);
+      return response.data;
+    } catch (error) {
+      console.error('Error confirming participant data import:', error);
+      throw error;
+    }
+  },
+  downloadParticipantTemplate: async () => {
+    try {
+      const response = await axiosInstance.get('/participants/template', {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading participant template:', error);
+      throw error;
+    }
+  },
 };
 
 export default participantService;
