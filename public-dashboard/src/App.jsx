@@ -99,7 +99,7 @@ function App() {
                   margin: 0
                 }}
               >
-                Integrated Monitoring and Evaluation System
+                Electronic County Integrated Monitoring and Evaluation System
               </Typography>
             </Grid>
           </Grid>
@@ -113,10 +113,10 @@ function App() {
               fontWeight: 600,
               textTransform: 'none',
               borderRadius: 2,
-              px: 4,
+              px: 3,
               py: 1.5,
               minHeight: '48px',
-              mr: 1,
+              mr: 2,
               gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -141,10 +141,10 @@ function App() {
               fontWeight: 600,
               textTransform: 'none',
               borderRadius: 2,
-              px: 4,
+              px: 3,
               py: 1.5,
               minHeight: '48px',
-              mr: 3,
+              mr: 2,
               gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -169,11 +169,11 @@ function App() {
               fontWeight: 600,
               textTransform: 'none',
               borderRadius: 2,
-              px: 4,
+              px: 3,
               py: 1.5,
               minHeight: '48px',
-              mr: 3,
-              gap: 3,
+              mr: 2,
+              gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
                 transform: 'translateY(-1px)',
@@ -200,7 +200,7 @@ function App() {
               px: 2,
               py: 1.5,
               minHeight: '48px',
-              mr: 4,
+              mr: 2,
               gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -228,7 +228,7 @@ function App() {
               px: 2,
               py: 1.5,
               minHeight: '48px',
-              mr: 3,
+              mr: 2,
               gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -256,7 +256,7 @@ function App() {
               px: 2,
               py: 1.5,
               minHeight: '48px',
-              mr: 4,
+              mr: 3,
               gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -284,7 +284,7 @@ function App() {
               px: 2,
               py: 1.5,
               minHeight: '48px',
-              mr: 0,
+              mr: 2,
               gap: 1,
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -356,7 +356,7 @@ function App() {
               </Grid>
               
               <Typography variant="body2" color="rgba(255, 255, 255, 0.8)" sx={{ mb: 2, mt: 2 }}>
-                Integrated Monitoring and Evaluation System
+                Electronic County Integrated Monitoring and Evaluation System
               </Typography>
               <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
                 Empowering transparency, accountability, and efficient project delivery 
@@ -394,7 +394,8 @@ function App() {
                 <Box display="flex" alignItems="center" gap={1}>
                   <LocationOn sx={{ fontSize: 16, color: '#3498db' }} />
                   <Typography variant="body2" color="rgba(255, 255, 255, 0.8)">
-                    Prosperity House (Former Nyanza Provincial Headquarters Building) P.O. Box 2738-40100, Kisumu
+                    Prosperity House (Former Nyanza Provincial Headquarters Building)<br />
+                    P.O. Box 2738-40100, Kisumu
                   </Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1}>

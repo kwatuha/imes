@@ -62,7 +62,7 @@ const Register = () => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
             <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-                <h2 className="text-3xl font-bold text-center text-indigo-800 mb-6">Register for IPMES Dashboard</h2>
+                <h2 className="text-3xl font-bold text-center text-indigo-800 mb-6">Register for E-CIMES Dashboard</h2>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
                         <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">

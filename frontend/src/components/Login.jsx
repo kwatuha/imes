@@ -86,7 +86,7 @@ const Login = () => {
                     <Box sx={{ textAlign: 'center', mb: 4 }}>
                         <img
                             src={logo}
-                            alt="IPMES Logo"
+                            alt="E-CIMES Logo"
                             style={{ height: '80px', width: 'auto', marginBottom: '16px' }}
                         />
                         <Typography 
@@ -99,7 +99,7 @@ const Login = () => {
                                 mb: 1
                             }}
                         >
-                            IPMES
+                            E-CIMES
                         </Typography>
                         <Typography 
                             variant="body2" 

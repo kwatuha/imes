@@ -85,9 +85,9 @@ function MainLayoutContent() {
             </IconButton>
             
             <Box sx={{ display: 'flex', alignItems: 'center', minWidth: '200px' }}>
-              <img src={logo} alt="IPMES Logo" style={{ height: '40px', marginRight: '10px' }} />
+              <img src={logo} alt="E-CIMES Logo" style={{ height: '40px', marginRight: '10px' }} />
               <Typography variant="h6" noWrap component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
-                IPMES
+                E-CIMES
               </Typography>
             </Box>
             
