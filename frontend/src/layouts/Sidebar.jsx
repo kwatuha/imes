@@ -175,7 +175,7 @@ const SearchableMenu = ({ items, selected, setSelected, theme }) => {
   );
 };
 
-const Sidebar = () => {
+const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
   const theme = useTheme();
   
   // ✨ Compatibility layer for theme colors (simplified from old token system)
@@ -283,6 +283,14 @@ const Sidebar = () => {
     return [...dashboardItems, ...reportingItems, ...managementItems];
   }, [user?.roleName]);
 
+  const [collapsed, setCollapsed] = useState(!isPinnedOpen);
+  const expandedWidth = 240;
+  const collapsedWidth = 64;
+
+  useEffect(() => {
+    setCollapsed(!isPinnedOpen);
+  }, [isPinnedOpen]);
+
   return (
     <Box
       sx={{
@@ -297,7 +305,7 @@ const Sidebar = () => {
         top: '64px',
         left: 0,
         height: 'calc(100vh - 64px)',
-        width: '240px',
+        width: collapsed ? `${collapsedWidth}px` : `${expandedWidth}px`,
         zIndex: 999,
         display: 'block',
         visibility: 'visible',
@@ -430,7 +438,7 @@ const Sidebar = () => {
           top: "64px !important", // Start below the AppBar
           left: "0 !important",
           height: "calc(100vh - 64px) !important", // Adjust height to account for AppBar
-          width: "240px !important",
+          width: `${collapsedWidth}px !important`,
           display: "block !important",
           visibility: "visible !important",
         },
@@ -442,136 +450,21 @@ const Sidebar = () => {
           top: '64px',
           left: 0,
           height: 'calc(100vh - 64px)',
-          width: '240px',
+          width: `${collapsedWidth}px`, // Always collapsed - just show colored strip
           zIndex: 999,
           display: 'block',
-          visibility: 'visible'
+          visibility: 'visible',
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? colors.primary[600] 
+            : '#81d4fa',
+          borderRight: `1px solid ${theme.palette.mode === 'dark' 
+            ? colors.primary[400] 
+            : '#4fc3f7'}`,
         }}
       >
-        <Menu iconShape="square">
+        {/* Empty sidebar - just the colored strip */}
+        <Box sx={{ height: '100%', width: '100%' }} />
 
-          {/* Simple Menu Header */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              padding: "12px 16px",
-              backgroundColor: theme.palette.mode === 'dark' 
-                ? colors.primary[600] 
-                : '#81d4fa',
-              borderRadius: "8px",
-              margin: "8px",
-              border: `1px solid ${theme.palette.mode === 'dark' 
-                ? colors.primary[400] 
-                : '#4fc3f7'}`,
-              boxShadow: theme.palette.mode === 'dark' 
-                ? "0 2px 6px rgba(0,0,0,0.1)" 
-                : "0 1px 4px rgba(0,0,0,0.08)",
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              color={theme.palette.mode === 'dark' 
-                ? colors.grey[100] 
-                : '#1e3a8a'}
-              sx={{ 
-                fontWeight: '600', 
-                fontSize: '1.1rem',
-              }}
-            >
-              Navigation Menu
-            </Typography>
-          </Box>
-
-
-
-          <Box paddingLeft="4px">
-            {user?.roleName === 'contractor' ? (
-              // Contractor menu (simple list)
-              contractorItems.map((item, index) => (
-              <Item
-                key={index}
-                title={item.title}
-                to={item.to}
-                icon={item.icon}
-                selected={selected}
-                setSelected={setSelected}
-                privilegeCheck={item.privilege}
-                theme={theme}
-              />
-              ))
-            ) : (
-              // Always show organized menu groups
-              <>
-                <MenuGroup
-                  title="Dashboard"
-                  icon={<DashboardIcon />}
-                  isOpen={openGroups.dashboard}
-                  onToggle={() => toggleGroup('dashboard')}
-                  theme={theme}
-                  colors={colors}
-                >
-                  <SearchableMenu
-                    items={dashboardItems}
-                    selected={selected}
-                    setSelected={setSelected}
-                    theme={theme}
-                  />
-                </MenuGroup>
-
-                <MenuGroup
-                  title="Reporting"
-                  icon={<AssessmentIcon />}
-                  isOpen={openGroups.reporting}
-                  onToggle={() => toggleGroup('reporting')}
-                  theme={theme}
-                  colors={colors}
-                >
-                  <SearchableMenu
-                    items={reportingItems}
-                    selected={selected}
-                    setSelected={setSelected}
-                    theme={theme}
-                  />
-                </MenuGroup>
-
-                <MenuGroup
-                  title="Management"
-                  icon={<SettingsIcon />}
-                  isOpen={openGroups.management}
-                  onToggle={() => toggleGroup('management')}
-                  theme={theme}
-                  colors={colors}
-                >
-                  <SearchableMenu
-                    items={managementItems}
-                    selected={selected}
-                    setSelected={setSelected}
-                    theme={theme}
-                  />
-                </MenuGroup>
-
-                {user?.roleName === 'admin' && (
-                  <MenuGroup
-                    title="Administration"
-                    icon={<GroupIcon />}
-                    isOpen={openGroups.admin}
-                    onToggle={() => toggleGroup('admin')}
-                    theme={theme}
-                    colors={colors}
-                  >
-                    <SearchableMenu
-                      items={adminItems}
-                      selected={selected}
-                      setSelected={setSelected}
-                      theme={theme}
-                    />
-                  </MenuGroup>
-                )}
-              </>
-            )}
-          </Box>
-        </Menu>
       </ProSidebar>
     </Box>
   );

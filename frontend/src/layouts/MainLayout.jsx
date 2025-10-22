@@ -21,14 +21,18 @@ import { useTheme } from "@mui/material";
 import Topbar from "./Topbar.jsx";
 import Sidebar from "./Sidebar.jsx";
 import FloatingChatButton from "../components/chat/FloatingChatButton.jsx";
+import RibbonMenu from "./RibbonMenu.jsx";
 
-const drawerWidth = 240;
+const expandedSidebarWidth = 240;
+const collapsedSidebarWidth = 64;
 
 function MainLayoutContent() {
   const theme = useTheme();
   // ✨ Using MUI theme directly - simpler and clearer!
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Sidebar pin (expanded) state for desktop
+  const [isSidebarPinnedOpen, setIsSidebarPinnedOpen] = useState(false);
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -114,15 +118,18 @@ function MainLayoutContent() {
         <Sidebar 
           mobileOpen={mobileOpen}
           onMobileClose={handleDrawerToggle}
+          isPinnedOpen={isSidebarPinnedOpen}
+          onTogglePinned={() => setIsSidebarPinnedOpen((v) => !v)}
         />
         <Box
           component="main"
           sx={{
             flexGrow: 1, 
-            p: { xs: 2, sm: 3, md: 4 }, 
+            p: { xs: 1, sm: 1.5, md: 2 }, 
             mt: '64px',
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            ml: { sm: `${drawerWidth}px` },
+            // Do not shift on hover; only shift when pinned open
+            width: { sm: `calc(100% - ${isSidebarPinnedOpen ? expandedSidebarWidth : collapsedSidebarWidth}px)` },
+            ml: { sm: `${isSidebarPinnedOpen ? expandedSidebarWidth : collapsedSidebarWidth}px` },
             minHeight: 'calc(100vh - 64px)',
             backgroundColor: theme.palette.mode === 'dark' 
               ? theme.palette.background.default
@@ -132,6 +139,8 @@ function MainLayoutContent() {
             zIndex: 1,
           }}
         >
+          {/* Ribbon-style top menu (experimental) */}
+          <RibbonMenu isAdmin={user?.roleName === 'admin'} />
           <Outlet />
         </Box>
       </Box>

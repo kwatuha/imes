@@ -9,7 +9,15 @@ import {
   Alert,
   Tabs,
   Tab,
-  Divider
+  Divider,
+  Card,
+  CardContent,
+  LinearProgress,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
 } from '@mui/material';
 import {
   Assessment,
@@ -17,9 +25,32 @@ import {
   LocationOn,
   LocationCity,
   Dashboard as DashboardIcon,
-  TrendingUp
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
+  Schedule,
+  Warning,
+  Star,
+  BarChart as BarChartIcon,
+  PieChart as PieChartIcon,
+  Timeline
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line
+} from 'recharts';
 import StatCard from '../components/StatCard';
 import DepartmentSummaryTable from '../components/DepartmentSummaryTable';
 import SubCountySummaryTable from '../components/SubCountySummaryTable';
@@ -29,6 +60,9 @@ import FilterBar from '../components/FilterBar';
 import ProjectsModal from '../components/ProjectsModal';
 import { getOverviewStats, getFinancialYears } from '../services/publicApi';
 import { formatCurrency } from '../utils/formatters';
+
+// Chart colors
+const COLORS = ['#4caf50', '#ff9800', '#f44336', '#9e9e9e', '#2196f3'];
 
 const DashboardPage = () => {
   const [searchParams] = useSearchParams();
@@ -73,7 +107,9 @@ const DashboardPage = () => {
         const fyFromUrl = data.find(fy => fy.id === parseInt(finYearFromUrl));
         setSelectedFinYear(fyFromUrl || data[0]);
       } else {
-        setSelectedFinYear(data[0]); // Most recent year
+        // Default to 2022/2023 (finYearId = 5) which has most projects
+        const defaultYear = data.find(fy => fy.id === 5) || data[0];
+        setSelectedFinYear(defaultYear);
       }
     } catch (err) {
       console.error('Error fetching financial years:', err);
@@ -219,6 +255,342 @@ const DashboardPage = () => {
               <StatCard {...card} />
             </Grid>
           ))}
+        </Grid>
+      </Box>
+
+      {/* Analytics Dashboard Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+          <BarChartIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+          Performance Analytics
+        </Typography>
+        
+        <Grid container spacing={3}>
+          {/* Project Completion Rate */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <CheckCircle color="success" sx={{ mr: 1 }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Project Completion Rate
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="h3" color="success.main" fontWeight="bold">
+                    {stats && stats.total_projects > 0 ? Math.round((stats.completed_projects / stats.total_projects) * 100) : 0}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {stats?.completed_projects || 0} of {stats?.total_projects || 0} projects completed
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={stats && stats.total_projects > 0 ? (stats.completed_projects / stats.total_projects) * 100 : 0}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Budget Utilization */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <TrendingUp color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Budget Utilization
+                  </Typography>
+                </Box>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="h3" color="primary.main" fontWeight="bold">
+                    {stats && stats.total_budget > 0 ? Math.round((stats.completed_budget / stats.total_budget) * 100) : 0}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatCurrency(stats?.completed_budget || 0)} of {formatCurrency(stats?.total_budget || 0)}
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={stats && stats.total_budget > 0 ? (stats.completed_budget / stats.total_budget) * 100 : 0}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Project Status Distribution */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <PieChart color="info" sx={{ mr: 1 }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Project Status Distribution
+                  </Typography>
+                </Box>
+                <List dense>
+                  <ListItem>
+                    <ListItemIcon>
+                      <CheckCircle color="success" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary="Completed" 
+                      secondary={`${stats?.completed_projects || 0} projects`}
+                    />
+                    <Chip 
+                      label={`${stats && stats.total_projects > 0 ? Math.round((stats.completed_projects / stats.total_projects) * 100) : 0}%`}
+                      color="success" 
+                      size="small"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemIcon>
+                      <Schedule color="warning" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary="Ongoing" 
+                      secondary={`${stats?.ongoing_projects || 0} projects`}
+                    />
+                    <Chip 
+                      label={`${stats && stats.total_projects > 0 ? Math.round((stats.ongoing_projects / stats.total_projects) * 100) : 0}%`}
+                      color="warning" 
+                      size="small"
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemIcon>
+                      <Warning color="error" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary="Stalled" 
+                      secondary={`${stats?.stalled_projects || 0} projects`}
+                    />
+                    <Chip 
+                      label={`${stats && stats.total_projects > 0 ? Math.round((stats.stalled_projects / stats.total_projects) * 100) : 0}%`}
+                      color="error" 
+                      size="small"
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Performance Metrics */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <Star color="secondary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Performance Metrics
+                  </Typography>
+                </Box>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="success.main" fontWeight="bold">
+                        {stats && stats.total_projects > 0 ? Math.round((stats.completed_projects / stats.total_projects) * 100) : 0}%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Success Rate
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="primary.main" fontWeight="bold">
+                        {stats && stats.total_budget > 0 ? Math.round((stats.completed_budget / stats.total_budget) * 100) : 0}%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Budget Efficiency
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="info.main" fontWeight="bold">
+                        {stats?.total_budget && stats?.total_projects > 0 ? formatCurrency(stats.total_budget / stats.total_projects) : 'N/A'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Avg Project Value
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="warning.main" fontWeight="bold">
+                        {stats?.total_projects || 0}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Projects
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Charts Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+          <Timeline sx={{ mr: 1, verticalAlign: 'middle' }} />
+          Visual Analytics
+        </Typography>
+        
+        <Grid container spacing={3}>
+          {/* Project Status Pie Chart */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Project Status Distribution
+                </Typography>
+                <Box sx={{ height: 300 }}>
+                  {stats ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Completed', value: stats.completed_projects || 0 },
+                            { name: 'Ongoing', value: stats.ongoing_projects || 0 },
+                            { name: 'Stalled', value: stats.stalled_projects || 0 },
+                            { name: 'Not Started', value: stats.not_started_projects || 0 },
+                            { name: 'Under Procurement', value: stats.under_procurement_projects || 0 }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'Completed', value: stats.completed_projects || 0 },
+                            { name: 'Ongoing', value: stats.ongoing_projects || 0 },
+                            { name: 'Stalled', value: stats.stalled_projects || 0 },
+                            { name: 'Not Started', value: stats.not_started_projects || 0 },
+                            { name: 'Under Procurement', value: stats.under_procurement_projects || 0 }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CircularProgress />
+                    </Box>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Budget Allocation Bar Chart */}
+          <Grid item xs={12} md={6}>
+            <Card elevation={2}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Budget Allocation by Status
+                </Typography>
+                <Box sx={{ height: 300 }}>
+                  {stats ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          { name: 'Completed', budget: stats.completed_budget || 0 },
+                          { name: 'Ongoing', budget: stats.ongoing_budget || 0 },
+                          { name: 'Stalled', budget: stats.stalled_budget || 0 },
+                          { name: 'Not Started', budget: stats.not_started_budget || 0 },
+                          { name: 'Under Procurement', budget: stats.under_procurement_budget || 0 }
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip formatter={(value) => [formatCurrency(value), 'Budget']} />
+                        <Bar dataKey="budget" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CircularProgress />
+                    </Box>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Project vs Budget Efficiency Chart */}
+          <Grid item xs={12}>
+            <Card elevation={2}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Project Count vs Budget Efficiency
+                </Typography>
+                <Box sx={{ height: 300 }}>
+                  {stats ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={[
+                          { 
+                            name: 'Completed', 
+                            projects: stats.completed_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.completed_budget / stats.total_budget) * 100) : 0
+                          },
+                          { 
+                            name: 'Ongoing', 
+                            projects: stats.ongoing_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.ongoing_budget / stats.total_budget) * 100) : 0
+                          },
+                          { 
+                            name: 'Stalled', 
+                            projects: stats.stalled_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.stalled_budget / stats.total_budget) * 100) : 0
+                          },
+                          { 
+                            name: 'Not Started', 
+                            projects: stats.not_started_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.not_started_budget / stats.total_budget) * 100) : 0
+                          },
+                          { 
+                            name: 'Under Procurement', 
+                            projects: stats.under_procurement_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.under_procurement_budget / stats.total_budget) * 100) : 0
+                          }
+                        ]}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis yAxisId="left" />
+                        <YAxis yAxisId="right" orientation="right" />
+                        <Tooltip />
+                        <Legend />
+                        <Bar yAxisId="left" dataKey="projects" fill="#8884d8" name="Project Count" />
+                        <Bar yAxisId="right" dataKey="budgetPercent" fill="#82ca9d" name="Budget %" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CircularProgress />
+                    </Box>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
       </Box>
 

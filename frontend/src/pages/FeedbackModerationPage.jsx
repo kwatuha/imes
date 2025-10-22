@@ -251,7 +251,7 @@ const FeedbackModerationPage = () => {
 
   const getModerationStatusColor = (status) => {
     const statusMap = {
-      'pending': { color: 'warning', icon: <Schedule />, label: 'Pending Review' },
+      'pending': { color: 'warning', icon: <Schedule />, label: 'Awaiting Response' },
       'approved': { color: 'success', icon: <CheckCircle />, label: 'Approved' },
       'rejected': { color: 'error', icon: <Cancel />, label: 'Rejected' },
       'flagged': { color: 'warning', icon: <Flag />, label: 'Flagged' }
@@ -394,7 +394,7 @@ const FeedbackModerationPage = () => {
                   boxShadow: 6
                 }
               }}
-              onClick={() => handleStatCardClick('pending', 'Pending Review')}
+              onClick={() => handleStatCardClick('pending', 'Awaiting Response')}
             >
               <CardContent sx={{ textAlign: 'center' }}>
                 <Schedule sx={{ fontSize: '2.5rem', mb: 1 }} />
@@ -402,7 +402,7 @@ const FeedbackModerationPage = () => {
                   {statistics.statistics.pending_count}
                 </Typography>
                 <Typography variant="body2">
-                  Pending Review
+                  Awaiting Response
                 </Typography>
               </CardContent>
             </Card>

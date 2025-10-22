@@ -198,7 +198,7 @@ const FeedbackManagementPage = () => {
 
   const getStatusInfo = (status) => {
     const statusMap = {
-      'pending': { label: 'Pending Review', color: '#ff9800', icon: <Schedule /> },
+      'pending': { label: 'Awaiting Response', color: '#ff9800', icon: <Schedule /> },
       'reviewed': { label: 'Under Review', color: '#2196f3', icon: <Schedule /> },
       'responded': { label: 'Responded', color: '#4caf50', icon: <CheckCircle /> },
       'archived': { label: 'Archived', color: '#757575', icon: <CheckCircle /> }
@@ -329,7 +329,7 @@ const FeedbackManagementPage = () => {
                 boxShadow: 6
               }
             }}
-            onClick={() => handleStatCardClick('all', 'Total Feedback')}
+            onClick={() => handleStatCardClick('all', 'Total Citizen Feedback')}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <Comment sx={{ fontSize: '2.5rem', mb: 1 }} />
@@ -337,7 +337,7 @@ const FeedbackManagementPage = () => {
                 {feedbacks.length}
               </Typography>
               <Typography variant="body2">
-                Total Feedback
+                Total Citizen Feedback
               </Typography>
             </CardContent>
           </Card>
@@ -355,7 +355,7 @@ const FeedbackManagementPage = () => {
                 boxShadow: 6
               }
             }}
-            onClick={() => handleStatCardClick('pending', 'Pending Review')}
+            onClick={() => handleStatCardClick('pending', 'Awaiting Response')}
           >
             <CardContent sx={{ textAlign: 'center' }}>
               <Schedule sx={{ fontSize: '2.5rem', mb: 1 }} />
@@ -363,7 +363,7 @@ const FeedbackManagementPage = () => {
                 {feedbacks.filter(f => f.status === 'pending').length}
               </Typography>
               <Typography variant="body2">
-                Pending Review
+                Awaiting Response
               </Typography>
             </CardContent>
           </Card>
@@ -457,7 +457,7 @@ const FeedbackManagementPage = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <MenuItem value="all">All Feedback</MenuItem>
-                <MenuItem value="pending">Pending Review</MenuItem>
+                <MenuItem value="pending">Awaiting Response</MenuItem>
                 <MenuItem value="reviewed">Under Review</MenuItem>
                 <MenuItem value="responded">Responded</MenuItem>
                 <MenuItem value="archived">Archived</MenuItem>

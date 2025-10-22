@@ -165,7 +165,7 @@ const PublicFeedbackPage = () => {
 
   const getStatusInfo = (status) => {
     const statusMap = {
-      'pending': { label: 'Pending Review', color: '#ff9800', icon: <Schedule /> },
+      'pending': { label: 'Awaiting Response', color: '#ff9800', icon: <Schedule /> },
       'reviewed': { label: 'Under Review', color: '#2196f3', icon: <Schedule /> },
       'responded': { label: 'Responded', color: '#4caf50', icon: <CheckCircle /> },
       'archived': { label: 'Archived', color: '#757575', icon: <CheckCircle /> }
@@ -207,7 +207,7 @@ const PublicFeedbackPage = () => {
                   {feedbackStats.total_feedback}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Total Feedback
+                  Total Citizen Feedback
                 </Typography>
               </Box>
             </Grid>
@@ -217,7 +217,7 @@ const PublicFeedbackPage = () => {
                   {feedbackStats.pending_feedback}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Pending Review
+                  Awaiting Response
                 </Typography>
               </Box>
             </Grid>
@@ -308,7 +308,7 @@ const PublicFeedbackPage = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <MenuItem value="all">All Feedback</MenuItem>
-                <MenuItem value="pending">Pending Review</MenuItem>
+                <MenuItem value="pending">Awaiting Response</MenuItem>
                 <MenuItem value="reviewed">Under Review</MenuItem>
                 <MenuItem value="responded">Responded</MenuItem>
               </Select>
@@ -339,7 +339,7 @@ const PublicFeedbackPage = () => {
                 {feedbacks.length}
               </Typography>
               <Typography variant="body2">
-                Total Feedback
+                Total Citizen Feedback
               </Typography>
               <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
                 Click to view all
@@ -368,7 +368,7 @@ const PublicFeedbackPage = () => {
                 {feedbacks.filter(f => f.status === 'pending').length}
               </Typography>
               <Typography variant="body2">
-                Pending Review
+                Awaiting Response
               </Typography>
               <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
                 Click to view pending
@@ -697,7 +697,7 @@ const PublicFeedbackPage = () => {
               <Box>
                 <Typography variant="h6" fontWeight="bold">
                   {modalStatus === 'all' && 'All Feedback'}
-                  {modalStatus === 'pending' && 'Pending Review'}
+                  {modalStatus === 'pending' && 'Awaiting Response'}
                   {modalStatus === 'responded' && 'Responded Feedback'}
                   {modalStatus === 'reviewed' && 'Under Review'}
                 </Typography>

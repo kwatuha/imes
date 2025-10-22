@@ -203,7 +203,7 @@ const HomePage = () => {
                     lineHeight: 1.2
                   }}
                 >
-                  Project Management System
+                  Integrated Monitoring and Evaluation System
                 </Typography>
                 <Typography 
                   variant="body1" 

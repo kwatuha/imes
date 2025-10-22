@@ -22,6 +22,7 @@ import {
   Email,
   Phone,
   LocationOn,
+  Language,
   Facebook,
   Twitter,
   LinkedIn,
@@ -98,7 +99,7 @@ function App() {
                   margin: 0
                 }}
               >
-                Project Management System
+                Integrated Monitoring and Evaluation System
               </Typography>
             </Grid>
           </Grid>
@@ -355,7 +356,7 @@ function App() {
               </Grid>
               
               <Typography variant="body2" color="rgba(255, 255, 255, 0.8)" sx={{ mb: 2, mt: 2 }}>
-                Project Management System
+                Integrated Monitoring and Evaluation System
               </Typography>
               <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
                 Empowering transparency, accountability, and efficient project delivery 
@@ -393,19 +394,25 @@ function App() {
                 <Box display="flex" alignItems="center" gap={1}>
                   <LocationOn sx={{ fontSize: 16, color: '#3498db' }} />
                   <Typography variant="body2" color="rgba(255, 255, 255, 0.8)">
-                    Kisumu County Headquarters
+                    Prosperity House (Former Nyanza Provincial Headquarters Building) P.O. Box 2738-40100, Kisumu
                   </Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Phone sx={{ fontSize: 16, color: '#3498db' }} />
                   <Typography variant="body2" color="rgba(255, 255, 255, 0.8)">
-                    +254 57 202 0000
+                    0572025366
                   </Typography>
                 </Box>
                 <Box display="flex" alignItems="center" gap={1}>
                   <Email sx={{ fontSize: 16, color: '#3498db' }} />
                   <Typography variant="body2" color="rgba(255, 255, 255, 0.8)">
                     info@kisumu.go.ke
+                  </Typography>
+                </Box>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Language sx={{ fontSize: 16, color: '#3498db' }} />
+                  <Typography variant="body2" color="rgba(255, 255, 255, 0.8)">
+                    www.kisumu.go.ke
                   </Typography>
                 </Box>
               </Box>
