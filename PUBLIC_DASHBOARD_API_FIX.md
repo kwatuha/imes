@@ -288,3 +288,10 @@ docker inspect public_dashboard | grep -A 5 Networks
 
 
 
+
+
+
+
+
+
+

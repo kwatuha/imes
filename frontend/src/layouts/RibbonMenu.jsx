@@ -17,6 +17,25 @@ import BusinessIcon from '@mui/icons-material/Business';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../configs/appConfig.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { getFilteredMenuCategories } from '../configs/menuConfigUtils.js';
+
+// Icon mapping for Material-UI icons
+const ICON_MAP = {
+  DashboardIcon,
+  AssessmentIcon,
+  SettingsIcon,
+  GroupIcon,
+  CloudUploadIcon,
+  MapIcon,
+  PaidIcon,
+  AdminPanelSettingsIcon,
+  PeopleIcon,
+  AccountTreeIcon,
+  ApprovalIcon,
+  FeedbackIcon,
+  StorageIcon,
+  BusinessIcon,
+};
 
 // Simple ribbon-like top menu with grouped actions
 export default function RibbonMenu({ isAdmin = false }) {
@@ -26,6 +45,9 @@ export default function RibbonMenu({ isAdmin = false }) {
   const [tab, setTab] = useState(3); // Default to Admin tab
   const { hasPrivilege, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  
+  // Get filtered menu categories based on user permissions
+  const menuCategories = getFilteredMenuCategories(isAdmin, hasPrivilege, user);
 
   const go = (to) => () => navigate(to);
 
@@ -60,11 +82,14 @@ export default function RibbonMenu({ isAdmin = false }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [isAdmin]);
 
-  const Btn = ({ title, icon, to, onClick }) => {
-    const isActive = to && location.pathname.includes(String(to).split('?')[0]);
+  const Btn = ({ title, icon, to, route, onClick }) => {
+    const IconComponent = ICON_MAP[icon] || DashboardIcon;
+    const targetRoute = route && ROUTES[route] ? ROUTES[route] : to;
+    const isActive = targetRoute && location.pathname.includes(String(targetRoute).split('?')[0]);
+    
     return (
       <Tooltip title={title} arrow>
-        <Button size="small" variant="contained" onClick={onClick || go(to)}
+        <Button size="small" variant="contained" onClick={onClick || go(targetRoute)}
           sx={{
             px: 1,
             minWidth: 60,
@@ -106,7 +131,9 @@ export default function RibbonMenu({ isAdmin = false }) {
             backgroundColor: 'rgba(255,255,255,0.35)',
             boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.2)'
           }}>
-            <Box sx={{ lineHeight: 0, fontSize: 16, color: isActive ? '#00FFFF' : '#FFD700' }}>{icon}</Box>
+            <Box sx={{ lineHeight: 0, fontSize: 16, color: isActive ? '#00FFFF' : '#FFD700' }}>
+              <IconComponent fontSize="small" />
+            </Box>
           </Box>
           <Box component="span" className="label" sx={{ display: { xs: 'none', sm: 'inline' } }}>{title}</Box>
         </Button>
@@ -140,16 +167,13 @@ export default function RibbonMenu({ isAdmin = false }) {
         py: 0.5,
         minHeight: collapsed ? 26 : 30,
       }}>
-        {[
-          { label: 'Dashboard', icon: <DashboardIcon fontSize="small" /> },
-          { label: 'Reporting', icon: <AssessmentIcon fontSize="small" /> },
-          { label: 'Management', icon: <SettingsIcon fontSize="small" /> },
-          ...(isAdmin ? [{ label: 'Admin', icon: <GroupIcon fontSize="small" /> }] : [])
-        ].map((g, idx, arr) => (
-          <Button
-            key={g.label}
+        {menuCategories.map((category, idx, arr) => {
+          const IconComponent = ICON_MAP[category.icon] || DashboardIcon;
+          return (
+            <Button
+            key={category.label}
             onClick={() => setTab(idx)}
-            startIcon={g.icon}
+            startIcon={<IconComponent fontSize="small" />}
             disableElevation
             sx={{
               flex: 1,
@@ -176,63 +200,24 @@ export default function RibbonMenu({ isAdmin = false }) {
               borderRight: idx !== arr.length - 1 ? '1px solid rgba(255,255,255,0.25)' : 'none',
             }}
           >
-            {g.label}
+            {category.label}
           </Button>
-        ))}
+          );
+        })}
       </Box>
 
       {/* Ribbon group row (hidden when collapsed to maximize space) */}
       {!collapsed && (
       <Box sx={{ display: 'flex', gap: 0.5, px: 1, py: 0.25, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}` }}>
-        {tab === 0 && (
-          <>
-            <Btn title="Dashboard" icon={<DashboardIcon />} to={ROUTES.DASHBOARD} />
-            <Btn title="Raw Data" icon={<AssessmentIcon />} to={ROUTES.RAW_DATA} />
-            <Btn title="Projects" icon={<PaidIcon />} to={ROUTES.PROJECTS} />
-            <Btn title="Contractor Dashboard" icon={<PaidIcon />} to={ROUTES.CONTRACTOR_DASHBOARD} />
-          </>
-        )}
-        {tab === 1 && (
-          <>
-            <Btn title="Reports" icon={<AssessmentIcon />} to={ROUTES.REPORTS} />
-            <Btn title="Project Dashboards" icon={<AssessmentIcon />} to={ROUTES.REPORTING_OVERVIEW} />
-            <Btn title="Regional Rpts" icon={<AssessmentIcon />} to={ROUTES.REGIONAL_DASHBOARD} />
-            <Btn title="Regional Dashboards" icon={<AssessmentIcon />} to={ROUTES.REGIONAL_REPORTING} />
-            <Btn title="Absorption Report" icon={<AssessmentIcon />} to={ROUTES.ABSORPTION_REPORT} />
-            <Btn title="Performance Mgmt" icon={<AssessmentIcon />} to={ROUTES.PERFORMANCE_MANAGEMENT_REPORT} />
-            <Btn title="CAPR Report" icon={<AssessmentIcon />} to={ROUTES.CAPR_REPORT} />
-            <Btn title="Quarterly Impl." icon={<AssessmentIcon />} to={ROUTES.QUARTERLY_IMPLEMENTATION_REPORT} />
-          </>
-        )}
-        {tab === 2 && (
-          <>
-            <Btn title="Central Import" icon={<CloudUploadIcon />} to={'/data-import'} />
-            <Btn title="GIS Mapping" icon={<MapIcon />} to={ROUTES.GIS_MAPPING} />
-            <Btn title="Map Import" icon={<CloudUploadIcon />} to={ROUTES.MAP_DATA_IMPORT} />
-            <Btn title="Strategic Planning" icon={<SettingsIcon />} to={ROUTES.STRATEGIC_PLANNING} />
-            <Btn title="Import Strategic Data" icon={<CloudUploadIcon />} to={ROUTES.STRATEGIC_DATA_IMPORT} />
-            {(hasPrivilege?.('hr.access') || user?.roleName === 'admin') && (
-              <Btn title="HR Module" icon={<GroupIcon />} to={ROUTES.HR} />
-            )}
-          </>
-        )}
-        {isAdmin && tab === 3 && (
-          <>
-            <Btn title="Admin" icon={<AdminPanelSettingsIcon />} to={ROUTES.ADMIN} />
-            <Btn title="User management" icon={<PeopleIcon />} to={ROUTES.USER_MANAGEMENT} />
-            {(hasPrivilege?.('project_workflow.read') || user?.roleName === 'admin') && (
-              <Btn title="Workflow mgmt" icon={<AccountTreeIcon />} to={ROUTES.WORKFLOW_MANAGEMENT} />
-            )}
-            {(hasPrivilege?.('approval_levels.read') || user?.roleName === 'admin') && (
-              <Btn title="Approval levels" icon={<ApprovalIcon />} to={ROUTES.APPROVAL_LEVELS_MANAGEMENT} />
-            )}
-            {(hasPrivilege?.('feedback.respond') || user?.roleName === 'admin') && (
-              <Btn title="Citizen feedback" icon={<FeedbackIcon />} to={ROUTES.FEEDBACK_MANAGEMENT} />
-            )}
-            <Btn title="Metadata mgmt" icon={<StorageIcon />} to={ROUTES.METADATA_MANAGEMENT} />
-            <Btn title="Contractor mgmt" icon={<BusinessIcon />} to={ROUTES.CONTRACTOR_MANAGEMENT} />
-          </>
-        )}
+        {menuCategories[tab] && menuCategories[tab].submenus.map((submenu, subIdx) => (
+          <Btn 
+            key={subIdx}
+            title={submenu.title} 
+            icon={submenu.icon} 
+            route={submenu.route}
+            to={submenu.to}
+          />
+        ))}
       </Box>
       )}
     </Box>

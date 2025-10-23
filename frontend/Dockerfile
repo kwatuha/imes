@@ -17,4 +17,4 @@ EXPOSE 5173
 # Command to start the application with a watcher for development
 # This assumes your package.json has a "dev" script that starts your dev server.
 # The volume mounted in docker-compose.yml will handle code synchronization.
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npm run dev"]

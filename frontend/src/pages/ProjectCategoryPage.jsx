@@ -154,7 +154,7 @@ const ProjectCategoryPage = () => {
   
   const handleMilestoneFormChange = (e) => {
       const { name, value } = e.target;
-      setDialogState(prev => ({ ...prev, milestoneFormData: { ...prev.milestoneFormData, [name]: value } }));
+      setDialogStateValue('milestoneFormData', { ...milestoneFormData, [name]: value });
   };
 
   const validateMilestoneForm = () => {
@@ -173,6 +173,9 @@ const ProjectCategoryPage = () => {
     setLoading(true);
     try {
       const { categoryId, ...milestoneDataToSubmit } = milestoneFormData;
+      console.log('Submitting milestone data:', milestoneDataToSubmit);
+      console.log('Category ID:', categoryId);
+      
       if (currentMilestoneToEdit) {
         await apiService.projectCategories.updateMilestone(categoryId, currentMilestoneToEdit.milestoneId, milestoneDataToSubmit);
         setSnackbar({ open: true, message: 'Milestone updated successfully!', severity: 'success' });
@@ -183,6 +186,7 @@ const ProjectCategoryPage = () => {
       handleCloseMilestoneDialog();
       fetchCategoriesAndMilestones();
     } catch (error) {
+      console.error('Error saving milestone:', error);
       setSnackbar({ open: true, message: error.response?.data?.message || 'Failed to save milestone.', severity: 'error' });
     } finally {
       setLoading(false);
