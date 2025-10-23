@@ -93,9 +93,9 @@ export default function RibbonMenu({ isAdmin = false }) {
           sx={{
             px: 1,
             minWidth: 60,
-            lineHeight: 1.1,
-            fontSize: 9,
-            height: 36,
+            lineHeight: 1.2,
+            fontSize: 11,
+            height: 46,
             borderRadius: 0,
             display: 'flex',
             flexDirection: 'column',
@@ -103,7 +103,7 @@ export default function RibbonMenu({ isAdmin = false }) {
             justifyContent: 'center',
             gap: 0.5,
             textTransform: 'none',
-            letterSpacing: 0.4,
+            letterSpacing: 0.3,
             color: '#fff',
             background: isActive
               ? 'linear-gradient(180deg, #1e40af, #1e3a8a)'
@@ -123,15 +123,15 @@ export default function RibbonMenu({ isAdmin = false }) {
             }
           }}>
           <Box sx={{
-            width: 20,
-            height: 20,
+            width: 22,
+            height: 22,
             borderRadius: '50%',
             display: 'grid',
             placeItems: 'center',
             backgroundColor: 'rgba(255,255,255,0.35)',
             boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.2)'
           }}>
-            <Box sx={{ lineHeight: 0, fontSize: 16, color: isActive ? '#00FFFF' : '#FFD700' }}>
+            <Box sx={{ lineHeight: 0, fontSize: 18, color: isActive ? '#00FFFF' : '#FFD700' }}>
               <IconComponent fontSize="small" />
             </Box>
           </Box>
@@ -208,7 +208,7 @@ export default function RibbonMenu({ isAdmin = false }) {
 
       {/* Ribbon group row (hidden when collapsed to maximize space) */}
       {!collapsed && (
-      <Box sx={{ display: 'flex', gap: 0.5, px: 1, py: 0.25, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}` }}>
+      <Box sx={{ display: 'flex', gap: 0.5, px: 1, py: 0.5, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}`, minHeight: 50 }}>
         {menuCategories[tab] && menuCategories[tab].submenus.map((submenu, subIdx) => (
           <Btn 
             key={subIdx}
