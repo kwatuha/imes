@@ -57,6 +57,9 @@ import PerformanceManagementReport from './components/PerformanceManagementRepor
 import CAPRReport from './components/CAPRReport';
 // ✨ NEW: Import the QuarterlyImplementationReport component
 import QuarterlyImplementationReport from './components/QuarterlyImplementationReport';
+// ✨ NEW: Import the County Proposed Projects and Announcements management pages
+import CountyProposedProjectsManagementPage from './pages/CountyProposedProjectsManagementPage';
+import ProjectAnnouncementsManagementPage from './pages/ProjectAnnouncementsManagementPage';
  
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
@@ -206,6 +209,14 @@ const router = createBrowserRouter([
       {
         path: 'projects-dashboard/view',
         element: <ProjectDashboardPage />,
+      },
+      {
+        path: 'county-proposed-projects',
+        element: <CountyProposedProjectsManagementPage />,
+      },
+      {
+        path: 'project-announcements',
+        element: <ProjectAnnouncementsManagementPage />,
       },
     ],
   },

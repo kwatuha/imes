@@ -16,6 +16,8 @@ export const ICON_MAP = {
   FeedbackIcon: () => import('@mui/icons-material/Feedback').then(m => m.default),
   StorageIcon: () => import('@mui/icons-material/Storage').then(m => m.default),
   BusinessIcon: () => import('@mui/icons-material/Business').then(m => m.default),
+  AssignmentIcon: () => import('@mui/icons-material/Assignment').then(m => m.default),
+  AnnouncementIcon: () => import('@mui/icons-material/Announcement').then(m => m.default),
 };
 
 // Get icon component by name

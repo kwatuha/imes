@@ -1094,5 +1094,510 @@ router.get('/feedback/admin', async (req, res) => {
     }
 });
 
+// ==================== CITIZEN PROPOSALS ====================
+
+/**
+ * @route GET /api/public/citizen-proposals
+ * @description Get all citizen proposals with optional filtering
+ * @access Public
+ */
+router.get('/citizen-proposals', async (req, res) => {
+    try {
+        const { status, category, page = 1, limit = 20 } = req.query;
+        
+        let whereConditions = ['voided = 0'];
+        const queryParams = [];
+        
+        if (status && status !== 'all') {
+            whereConditions.push('status = ?');
+            queryParams.push(status);
+        }
+        
+        if (category && category !== 'all') {
+            whereConditions.push('category = ?');
+            queryParams.push(category);
+        }
+        
+        const whereClause = whereConditions.join(' AND ');
+        const offset = (page - 1) * limit;
+        
+        // Get total count
+        const countQuery = `SELECT COUNT(*) as total FROM citizen_proposals WHERE ${whereClause}`;
+        const [countResult] = await pool.query(countQuery, queryParams);
+        const total = countResult[0].total;
+        
+        // Get proposals
+        const query = `
+            SELECT 
+                id,
+                title,
+                description,
+                category,
+                location,
+                estimated_cost,
+                proposer_name,
+                proposer_email,
+                proposer_phone,
+                proposer_address,
+                justification,
+                expected_benefits,
+                timeline,
+                status,
+                submission_date,
+                created_at,
+                updated_at
+            FROM citizen_proposals
+            WHERE ${whereClause}
+            ORDER BY submission_date DESC
+            LIMIT ? OFFSET ?
+        `;
+        
+        queryParams.push(parseInt(limit), offset);
+        const [proposals] = await pool.query(query, queryParams);
+        
+        res.json({
+            proposals,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching citizen proposals:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch proposals',
+            details: error.message || 'Database error occurred'
+        });
+    }
+});
+
+/**
+ * @route POST /api/public/citizen-proposals
+ * @description Submit a new citizen proposal
+ * @access Public
+ */
+router.post('/citizen-proposals', async (req, res) => {
+    try {
+        const {
+            title,
+            description,
+            category,
+            location,
+            estimatedCost,
+            proposerName,
+            proposerEmail,
+            proposerPhone,
+            proposerAddress,
+            justification,
+            expectedBenefits,
+            timeline
+        } = req.body;
+        
+        // Validate required fields
+        if (!title || !description || !category || !location || estimatedCost === undefined || estimatedCost === null || 
+            !proposerName || !proposerEmail || !proposerPhone || !justification || 
+            !expectedBenefits || !timeline) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                details: {
+                    title: !title,
+                    description: !description,
+                    category: !category,
+                    location: !location,
+                    estimatedCost: estimatedCost === undefined || estimatedCost === null,
+                    proposerName: !proposerName,
+                    proposerEmail: !proposerEmail,
+                    proposerPhone: !proposerPhone,
+                    justification: !justification,
+                    expectedBenefits: !expectedBenefits,
+                    timeline: !timeline
+                }
+            });
+        }
+        
+        // Validate estimatedCost is a valid number
+        const cost = parseFloat(estimatedCost);
+        if (isNaN(cost) || cost <= 0) {
+            return res.status(400).json({ error: 'Estimated cost must be a valid positive number' });
+        }
+        
+        const query = `
+            INSERT INTO citizen_proposals (
+                title, description, category, location, estimated_cost,
+                proposer_name, proposer_email, proposer_phone, proposer_address,
+                justification, expected_benefits, timeline, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Under Review')
+        `;
+        
+        const [result] = await pool.query(query, [
+            title, description, category, location, cost,
+            proposerName, proposerEmail, proposerPhone, proposerAddress || '',
+            justification, expectedBenefits, timeline
+        ]);
+        
+        res.status(201).json({
+            message: 'Proposal submitted successfully',
+            id: result.insertId
+        });
+    } catch (error) {
+        console.error('Error submitting proposal:', error);
+        res.status(500).json({ 
+            error: 'Failed to submit proposal',
+            details: error.message || 'Database error occurred'
+        });
+    }
+});
+
+/**
+ * @route GET /api/public/citizen-proposals/:id
+ * @description Get a specific citizen proposal by ID
+ * @access Public
+ */
+router.get('/citizen-proposals/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const query = `
+            SELECT 
+                id,
+                title,
+                description,
+                category,
+                location,
+                estimated_cost,
+                proposer_name,
+                proposer_email,
+                proposer_phone,
+                proposer_address,
+                justification,
+                expected_benefits,
+                timeline,
+                status,
+                submission_date,
+                review_notes,
+                created_at,
+                updated_at
+            FROM citizen_proposals
+            WHERE id = ? AND voided = 0
+        `;
+        
+        const [proposals] = await pool.query(query, [id]);
+        
+        if (proposals.length === 0) {
+            return res.status(404).json({ error: 'Proposal not found' });
+        }
+        
+        res.json(proposals[0]);
+    } catch (error) {
+        console.error('Error fetching proposal:', error);
+        res.status(500).json({ error: 'Failed to fetch proposal' });
+    }
+});
+
+// ==================== COUNTY PROPOSED PROJECTS ====================
+
+/**
+ * @route GET /api/public/county-proposed-projects
+ * @description Get all county proposed projects with optional filtering
+ * @access Public
+ */
+router.get('/county-proposed-projects', async (req, res) => {
+    try {
+        const { category, status, priority, page = 1, limit = 20 } = req.query;
+        
+        let whereConditions = ['cpp.voided = 0'];
+        const queryParams = [];
+        
+        if (category && category !== 'All') {
+            whereConditions.push('cpp.category = ?');
+            queryParams.push(category);
+        }
+        
+        if (status && status !== 'All') {
+            whereConditions.push('cpp.status = ?');
+            queryParams.push(status);
+        }
+        
+        if (priority && priority !== 'All') {
+            whereConditions.push('cpp.priority = ?');
+            queryParams.push(priority);
+        }
+        
+        const whereClause = whereConditions.join(' AND ');
+        const offset = (page - 1) * limit;
+        
+        // Get total count
+        const countQuery = `SELECT COUNT(*) as total FROM county_proposed_projects cpp WHERE ${whereClause}`;
+        const [countResult] = await pool.query(countQuery, queryParams);
+        const total = countResult[0].total;
+        
+        // Get projects with milestones
+        const query = `
+            SELECT 
+                cpp.id,
+                cpp.title,
+                cpp.description,
+                cpp.category,
+                cpp.location,
+                cpp.estimated_cost,
+                cpp.justification,
+                cpp.expected_benefits,
+                cpp.timeline,
+                cpp.status,
+                cpp.priority,
+                cpp.department,
+                cpp.project_manager,
+                cpp.contact,
+                cpp.start_date,
+                cpp.end_date,
+                cpp.progress,
+                cpp.budget_allocated,
+                cpp.budget_utilized,
+                cpp.stakeholders,
+                cpp.risks,
+                cpp.created_at,
+                cpp.updated_at
+            FROM county_proposed_projects cpp
+            WHERE ${whereClause}
+            ORDER BY cpp.created_at DESC
+            LIMIT ? OFFSET ?
+        `;
+        
+        queryParams.push(parseInt(limit), offset);
+        const [projects] = await pool.query(query, queryParams);
+        
+        // Get milestones for each project
+        for (let project of projects) {
+            const milestonesQuery = `
+                SELECT 
+                    id,
+                    name,
+                    description,
+                    target_date,
+                    completed,
+                    completed_date,
+                    sequence_order
+                FROM county_proposed_project_milestones
+                WHERE project_id = ?
+                ORDER BY sequence_order, target_date
+            `;
+            const [milestones] = await pool.query(milestonesQuery, [project.id]);
+            project.milestones = milestones;
+        }
+        
+        res.json({
+            projects,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching county proposed projects:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch projects',
+            details: error.message || 'Database error occurred'
+        });
+    }
+});
+
+/**
+ * @route GET /api/public/county-proposed-projects/:id
+ * @description Get a specific county proposed project by ID
+ * @access Public
+ */
+router.get('/county-proposed-projects/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const query = `
+            SELECT 
+                cpp.id,
+                cpp.title,
+                cpp.description,
+                cpp.category,
+                cpp.location,
+                cpp.estimated_cost,
+                cpp.justification,
+                cpp.expected_benefits,
+                cpp.timeline,
+                cpp.status,
+                cpp.priority,
+                cpp.department,
+                cpp.project_manager,
+                cpp.contact,
+                cpp.start_date,
+                cpp.end_date,
+                cpp.progress,
+                cpp.budget_allocated,
+                cpp.budget_utilized,
+                cpp.stakeholders,
+                cpp.risks,
+                cpp.created_at,
+                cpp.updated_at
+            FROM county_proposed_projects cpp
+            WHERE cpp.id = ? AND cpp.voided = 0
+        `;
+        
+        const [projects] = await pool.query(query, [id]);
+        
+        if (projects.length === 0) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+        
+        const project = projects[0];
+        
+        // Get milestones
+        const milestonesQuery = `
+            SELECT 
+                id,
+                name,
+                description,
+                target_date,
+                completed,
+                completed_date,
+                sequence_order
+            FROM county_proposed_project_milestones
+            WHERE project_id = ?
+            ORDER BY sequence_order, target_date
+        `;
+        const [milestones] = await pool.query(milestonesQuery, [id]);
+        project.milestones = milestones;
+        
+        res.json(project);
+    } catch (error) {
+        console.error('Error fetching project:', error);
+        res.status(500).json({ error: 'Failed to fetch project' });
+    }
+});
+
+// ==================== PROJECT ANNOUNCEMENTS ====================
+
+/**
+ * @route GET /api/public/announcements
+ * @description Get all project announcements with optional filtering
+ * @access Public
+ */
+router.get('/announcements', async (req, res) => {
+    try {
+        const { category, status, page = 1, limit = 20 } = req.query;
+        
+        let whereConditions = ['voided = 0'];
+        const queryParams = [];
+        
+        if (category && category !== 'All') {
+            whereConditions.push('category = ?');
+            queryParams.push(category);
+        }
+        
+        if (status && status !== 'All') {
+            whereConditions.push('status = ?');
+            queryParams.push(status);
+        }
+        
+        const whereClause = whereConditions.join(' AND ');
+        const offset = (page - 1) * limit;
+        
+        // Get total count
+        const countQuery = `SELECT COUNT(*) as total FROM project_announcements WHERE ${whereClause}`;
+        const [countResult] = await pool.query(countQuery, queryParams);
+        const total = countResult[0].total;
+        
+        // Get announcements
+        const query = `
+            SELECT 
+                id,
+                title,
+                description,
+                content,
+                category,
+                type,
+                date,
+                time,
+                location,
+                organizer,
+                status,
+                priority,
+                image_url,
+                attendees,
+                max_attendees,
+                created_at,
+                updated_at
+            FROM project_announcements
+            WHERE ${whereClause}
+            ORDER BY date DESC, time DESC
+            LIMIT ? OFFSET ?
+        `;
+        
+        queryParams.push(parseInt(limit), offset);
+        const [announcements] = await pool.query(query, queryParams);
+        
+        res.json({
+            announcements,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching announcements:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch announcements',
+            details: error.message || 'Database error occurred'
+        });
+    }
+});
+
+/**
+ * @route GET /api/public/announcements/:id
+ * @description Get a specific announcement by ID
+ * @access Public
+ */
+router.get('/announcements/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const query = `
+            SELECT 
+                id,
+                title,
+                description,
+                content,
+                category,
+                type,
+                date,
+                time,
+                location,
+                organizer,
+                status,
+                priority,
+                image_url,
+                attendees,
+                max_attendees,
+                created_at,
+                updated_at
+            FROM project_announcements
+            WHERE id = ? AND voided = 0
+        `;
+        
+        const [announcements] = await pool.query(query, [id]);
+        
+        if (announcements.length === 0) {
+            return res.status(404).json({ error: 'Announcement not found' });
+        }
+        
+        res.json(announcements[0]);
+    } catch (error) {
+        console.error('Error fetching announcement:', error);
+        res.status(500).json({ error: 'Failed to fetch announcement' });
+    }
+});
+
 module.exports = router;
 

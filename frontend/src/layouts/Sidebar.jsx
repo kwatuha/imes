@@ -44,6 +44,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import Comment from '@mui/icons-material/Comment';
 import StarIcon from '@mui/icons-material/Star';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import AnnouncementIcon from '@mui/icons-material/Announcement';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
@@ -264,6 +265,8 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
     { title: "Feedback Management", to: ROUTES.FEEDBACK_MANAGEMENT, icon: <Comment />, privilege: () => hasPrivilege('feedback.respond') || user?.roleName === 'admin' },
     { title: "Metadata Management", to: ROUTES.METADATA_MANAGEMENT, icon: <SettingsIcon /> },
     { title: "Contractor Management", to: ROUTES.CONTRACTOR_MANAGEMENT, icon: <BusinessIcon /> },
+    { title: "County Proposed Projects", to: ROUTES.COUNTY_PROPOSED_PROJECTS, icon: <AssignmentIcon /> },
+    { title: "Project Announcements", to: ROUTES.PROJECT_ANNOUNCEMENTS, icon: <AnnouncementIcon /> },
   ];
 
   const contractorItems = [

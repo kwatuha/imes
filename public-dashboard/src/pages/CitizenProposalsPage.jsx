@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -47,14 +47,17 @@ import {
   Visibility as ViewIcon
 } from '@mui/icons-material';
 import { formatCurrency } from '../utils/formatters';
+import { getCitizenProposals, submitCitizenProposal } from '../services/publicApi';
 
 const CitizenProposalsPage = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [fetchingProposals, setFetchingProposals] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
+  const [proposals, setProposals] = useState([]);
 
   // Form state for new proposal
   const [proposalForm, setProposalForm] = useState({
@@ -73,8 +76,31 @@ const CitizenProposalsPage = () => {
     attachments: []
   });
 
-  // Mock data for existing proposals
-  const [proposals] = useState([
+  // Fetch proposals on component mount
+  useEffect(() => {
+    fetchProposals();
+  }, []);
+
+  const fetchProposals = async () => {
+    try {
+      setFetchingProposals(true);
+      const data = await getCitizenProposals();
+      setProposals(data.proposals || []);
+      if (data.proposals && data.proposals.length === 0) {
+        console.log('No proposals found in database');
+      }
+    } catch (error) {
+      console.error('Error fetching proposals:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Failed to load proposals. Please try again later.';
+      setErrorMessage(errorMsg);
+      setProposals([]);
+    } finally {
+      setFetchingProposals(false);
+    }
+  };
+
+  // Mock data for existing proposals (removed - now using API)
+  const mockProposals = [
     {
       id: 1,
       title: 'Construction of Modern Market in Kondele',
@@ -123,7 +149,7 @@ const CitizenProposalsPage = () => {
       expectedBenefits: 'Improved health, reduced waterborne diseases',
       timeline: '24 months'
     }
-  ]);
+  ];
 
   const categories = [
     'Infrastructure',
@@ -155,8 +181,26 @@ const CitizenProposalsPage = () => {
   const handleSubmitProposal = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const cost = parseFloat(proposalForm.estimatedCost);
+      if (isNaN(cost) || cost <= 0) {
+        setErrorMessage('Please enter a valid estimated cost');
+        return;
+      }
+
+      await submitCitizenProposal({
+        title: proposalForm.title,
+        description: proposalForm.description,
+        category: proposalForm.category,
+        location: proposalForm.location,
+        estimatedCost: cost,
+        proposerName: proposalForm.proposerName,
+        proposerEmail: proposalForm.proposerEmail,
+        proposerPhone: proposalForm.proposerPhone,
+        proposerAddress: proposalForm.proposerAddress,
+        justification: proposalForm.justification,
+        expectedBenefits: proposalForm.expectedBenefits,
+        timeline: proposalForm.timeline
+      });
       
       setSuccessMessage('Proposal submitted successfully! It will be reviewed by the relevant department.');
       setProposalForm({
@@ -174,8 +218,13 @@ const CitizenProposalsPage = () => {
         timeline: '',
         attachments: []
       });
+      
+      // Refresh proposals list
+      fetchProposals();
     } catch (error) {
-      setErrorMessage('Failed to submit proposal. Please try again.');
+      console.error('Error submitting proposal:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Failed to submit proposal. Please try again.';
+      setErrorMessage(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -195,26 +244,27 @@ const CitizenProposalsPage = () => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 2 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
           View Citizen Proposals
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" color="text.secondary">
           Browse community project proposals submitted by citizens
         </Typography>
       </Box>
 
       {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
+      <Paper sx={{ mb: 2 }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', px: 2 }}>
+          <Box sx={{ display: 'flex', px: 1.5, py: 0.5 }}>
             <Button
               variant={activeTab === 0 ? 'contained' : 'text'}
               onClick={() => setActiveTab(0)}
               startIcon={<AddIcon />}
-              sx={{ mr: 2, borderRadius: 2 }}
+              size="small"
+              sx={{ mr: 1, borderRadius: 1 }}
             >
               Submit Proposal
             </Button>
@@ -222,7 +272,8 @@ const CitizenProposalsPage = () => {
               variant={activeTab === 1 ? 'contained' : 'text'}
               onClick={() => setActiveTab(1)}
               startIcon={<ViewIcon />}
-              sx={{ borderRadius: 2 }}
+              size="small"
+              sx={{ borderRadius: 1 }}
             >
               View Proposals
             </Button>
@@ -254,15 +305,15 @@ const CitizenProposalsPage = () => {
       {/* Tab Content */}
       {activeTab === 0 ? (
         // Submit Proposal Tab
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 1.5 }}>
             Submit New Project Proposal
           </Typography>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={2}>
             {/* Project Details */}
             <Grid item xs={12}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
                 Project Information
               </Typography>
             </Grid>
@@ -270,6 +321,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Project Title"
                 value={proposalForm.title}
                 onChange={handleInputChange('title')}
@@ -279,7 +331,7 @@ const CitizenProposalsPage = () => {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
+              <FormControl fullWidth size="small" required>
                 <InputLabel>Category</InputLabel>
                 <Select
                   value={proposalForm.category}
@@ -298,11 +350,12 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
+                size="small"
                 label="Project Description"
                 value={proposalForm.description}
                 onChange={handleInputChange('description')}
                 multiline
-                rows={4}
+                rows={3}
                 required
                 placeholder="Provide a detailed description of your project idea"
               />
@@ -311,6 +364,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Location"
                 value={proposalForm.location}
                 onChange={handleInputChange('location')}
@@ -322,6 +376,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Estimated Cost (KES)"
                 value={proposalForm.estimatedCost}
                 onChange={handleInputChange('estimatedCost')}
@@ -331,27 +386,29 @@ const CitizenProposalsPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Project Justification"
                 value={proposalForm.justification}
                 onChange={handleInputChange('justification')}
                 multiline
-                rows={3}
+                rows={2}
                 required
                 placeholder="Explain why this project is needed"
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Expected Benefits"
                 value={proposalForm.expectedBenefits}
                 onChange={handleInputChange('expectedBenefits')}
                 multiline
-                rows={3}
+                rows={2}
                 required
                 placeholder="Describe the expected benefits and impact"
               />
@@ -360,6 +417,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Proposed Timeline"
                 value={proposalForm.timeline}
                 onChange={handleInputChange('timeline')}
@@ -370,8 +428,8 @@ const CitizenProposalsPage = () => {
 
             {/* Proposer Information */}
             <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+              <Divider sx={{ my: 1.5 }} />
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
                 Your Information
               </Typography>
             </Grid>
@@ -379,6 +437,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Full Name"
                 value={proposalForm.proposerName}
                 onChange={handleInputChange('proposerName')}
@@ -389,6 +448,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Email Address"
                 value={proposalForm.proposerEmail}
                 onChange={handleInputChange('proposerEmail')}
@@ -400,6 +460,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Phone Number"
                 value={proposalForm.proposerPhone}
                 onChange={handleInputChange('proposerPhone')}
@@ -410,6 +471,7 @@ const CitizenProposalsPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                size="small"
                 label="Address"
                 value={proposalForm.proposerAddress}
                 onChange={handleInputChange('proposerAddress')}
@@ -419,17 +481,17 @@ const CitizenProposalsPage = () => {
 
             {/* Submit Button */}
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                 <Button
                   variant="contained"
-                  size="large"
+                  size="medium"
                   onClick={handleSubmitProposal}
                   disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : <SendIcon />}
+                  startIcon={loading ? <CircularProgress size={18} /> : <SendIcon />}
                   sx={{
-                    px: 4,
-                    py: 1.5,
-                    fontSize: '1.1rem',
+                    px: 3,
+                    py: 1,
+                    fontSize: '0.95rem',
                     fontWeight: 'bold',
                     borderRadius: 2
                   }}
@@ -447,8 +509,22 @@ const CitizenProposalsPage = () => {
             Community Project Proposals
           </Typography>
 
-          <Grid container spacing={3}>
-            {proposals.map((proposal) => (
+          {fetchingProposals ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+              <CircularProgress />
+            </Box>
+          ) : proposals.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No proposals found
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Be the first to submit a proposal!
+              </Typography>
+            </Paper>
+          ) : (
+            <Grid container spacing={3}>
+              {proposals.map((proposal) => (
               <Grid item xs={12} md={6} lg={4} key={proposal.id}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flexGrow: 1 }}>
@@ -491,7 +567,7 @@ const CitizenProposalsPage = () => {
                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <MoneyIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        {formatCurrency(proposal.estimatedCost)}
+                        {formatCurrency(proposal.estimated_cost)}
                       </Typography>
                     </Box>
 
@@ -505,14 +581,15 @@ const CitizenProposalsPage = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                       <Typography variant="body2" color="text.secondary">
-                        Submitted: {formatDate(proposal.submissionDate)}
+                        Submitted: {formatDate(proposal.submission_date || proposal.created_at)}
                       </Typography>
                     </Box>
                   </CardContent>
                 </Card>
               </Grid>
             ))}
-          </Grid>
+            </Grid>
+          )}
         </Box>
       )}
 
@@ -551,7 +628,7 @@ const CitizenProposalsPage = () => {
                     Estimated Cost
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    {formatCurrency(selectedProposal.estimatedCost)}
+                    {formatCurrency(selectedProposal.estimated_cost)}
                   </Typography>
 
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -567,21 +644,21 @@ const CitizenProposalsPage = () => {
                     Proposer
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    {selectedProposal.proposerName}
+                    {selectedProposal.proposer_name}
                   </Typography>
 
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Email
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    {selectedProposal.proposerEmail}
+                    {selectedProposal.proposer_email}
                   </Typography>
 
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Phone
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    {selectedProposal.proposerPhone}
+                    {selectedProposal.proposer_phone}
                   </Typography>
 
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>

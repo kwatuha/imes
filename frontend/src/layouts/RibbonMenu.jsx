@@ -14,6 +14,8 @@ import ApprovalIcon from '@mui/icons-material/Approval';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import StorageIcon from '@mui/icons-material/Storage';
 import BusinessIcon from '@mui/icons-material/Business';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import AnnouncementIcon from '@mui/icons-material/Announcement';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../configs/appConfig.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -35,6 +37,8 @@ const ICON_MAP = {
   FeedbackIcon,
   StorageIcon,
   BusinessIcon,
+  AssignmentIcon,
+  AnnouncementIcon,
 };
 
 // Simple ribbon-like top menu with grouped actions

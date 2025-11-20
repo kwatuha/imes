@@ -158,6 +158,20 @@
           "title": "Contractor mgmt",
           "icon": "BusinessIcon",
           "route": "CONTRACTOR_MANAGEMENT"
+        },
+        {
+          "title": "County Projects",
+          "icon": "AssignmentIcon",
+          "route": "COUNTY_PROPOSED_PROJECTS",
+          "permission": "county_proposed_projects.read",
+          "roles": ["admin"]
+        },
+        {
+          "title": "Announcements",
+          "icon": "AnnouncementIcon",
+          "route": "PROJECT_ANNOUNCEMENTS",
+          "permission": "project_announcements.read",
+          "roles": ["admin"]
         }
       ]
     }

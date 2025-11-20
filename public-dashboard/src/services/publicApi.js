@@ -145,5 +145,78 @@ export const getFeedbackStats = async () => {
   return response.data;
 };
 
+// Citizen Proposals
+export const getCitizenProposals = async (filters = {}) => {
+  try {
+    const response = await publicApi.get('/citizen-proposals', { params: filters });
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getCitizenProposals:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getCitizenProposal = async (id) => {
+  try {
+    const response = await publicApi.get(`/citizen-proposals/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getCitizenProposal:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const submitCitizenProposal = async (proposalData) => {
+  try {
+    const response = await publicApi.post('/citizen-proposals', proposalData);
+    return response.data;
+  } catch (error) {
+    console.error('API Error - submitCitizenProposal:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// County Proposed Projects
+export const getCountyProposedProjects = async (filters = {}) => {
+  try {
+    const response = await publicApi.get('/county-proposed-projects', { params: filters });
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getCountyProposedProjects:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getCountyProposedProject = async (id) => {
+  try {
+    const response = await publicApi.get(`/county-proposed-projects/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getCountyProposedProject:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+// Project Announcements
+export const getAnnouncements = async (filters = {}) => {
+  try {
+    const response = await publicApi.get('/announcements', { params: filters });
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getAnnouncements:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getAnnouncement = async (id) => {
+  try {
+    const response = await publicApi.get(`/announcements/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('API Error - getAnnouncement:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export default publicApi;
 

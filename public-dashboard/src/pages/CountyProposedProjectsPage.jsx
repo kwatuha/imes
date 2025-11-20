@@ -51,13 +51,10 @@ import {
   FilterList as FilterIcon
 } from '@mui/icons-material';
 import { formatCurrency } from '../utils/formatters';
+import { getCountyProposedProjects } from '../services/publicApi';
 
-// Mock API service for county proposed projects
-const countyProjectsService = {
-  getCountyProjects: async (filters = {}) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockProjects = [
+// Mock API service for county proposed projects (kept for reference)
+const mockProjectsData = [
           {
             id: 1,
             title: 'Kisumu Lakefront Development Phase II',
@@ -238,23 +235,7 @@ const countyProjectsService = {
               { name: 'Sanitation Facilities', completed: false, date: '2025-12-31' }
             ]
           }
-        ].filter(project => {
-          if (filters.category && filters.category !== 'All' && project.category !== filters.category) {
-            return false;
-          }
-          if (filters.status && filters.status !== 'All' && project.status !== filters.status) {
-            return false;
-          }
-          if (filters.priority && filters.priority !== 'All' && project.priority !== filters.priority) {
-            return false;
-          }
-          return true;
-        });
-        resolve(mockProjects);
-      }, 500);
-    });
-  },
-};
+        ];
 
 const categories = [
   'All',
@@ -342,10 +323,20 @@ const CountyProposedProjectsPage = () => {
   const fetchProjects = async () => {
     setLoading(true);
     try {
-      const data = await countyProjectsService.getCountyProjects(filters);
-      setProjects(data);
+      const data = await getCountyProposedProjects({
+        category: filters.category,
+        status: filters.status,
+        priority: filters.priority
+      });
+      setProjects(data.projects || []);
+      if (data.projects && data.projects.length === 0) {
+        console.log('No county proposed projects found in database');
+      }
     } catch (error) {
       console.error('Error fetching projects:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Failed to load projects';
+      console.error('Error details:', errorMsg);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -449,7 +440,9 @@ const CountyProposedProjectsPage = () => {
           {projects.map((project) => {
             const statusInfo = getStatusColor(project.status);
             const priorityInfo = getPriorityColor(project.priority);
-            const budgetUtilization = (project.budgetUtilized / project.budgetAllocated) * 100;
+            const budgetUtilization = project.budget_allocated > 0 
+              ? (project.budget_utilized / project.budget_allocated) * 100 
+              : 0;
 
             return (
               <Grid item xs={12} sm={6} md={4} key={project.id}>
@@ -516,7 +509,7 @@ const CountyProposedProjectsPage = () => {
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <AttachMoneyIcon sx={{ fontSize: 18, color: 'success.main' }} />
                       <Typography variant="body2" fontWeight="bold">
-                        {formatCurrency(project.estimatedCost)}
+                        {formatCurrency(project.estimated_cost)}
                       </Typography>
                     </Box>
 
@@ -617,7 +610,7 @@ const CountyProposedProjectsPage = () => {
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <AttachMoneyIcon sx={{ fontSize: 18, color: 'success.main' }} />
                       <Typography variant="body2" fontWeight="bold">
-                        <strong>Budget:</strong> {formatCurrency(selectedProject.estimatedCost)}
+                        <strong>Budget:</strong> {formatCurrency(selectedProject.estimated_cost)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -664,7 +657,7 @@ const CountyProposedProjectsPage = () => {
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
                     <PersonIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Project Manager:</strong> {selectedProject.projectManager}
+                      <strong>Project Manager:</strong> {selectedProject.project_manager}
                     </Typography>
                   </Box>
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
@@ -685,15 +678,17 @@ const CountyProposedProjectsPage = () => {
                   <Box sx={{ mb: 2 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                       <Typography variant="caption" color="text.secondary">
-                        Allocated: {formatCurrency(selectedProject.budgetAllocated)}
+                        Allocated: {formatCurrency(selectedProject.budget_allocated)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Utilized: {formatCurrency(selectedProject.budgetUtilized)}
+                        Utilized: {formatCurrency(selectedProject.budget_utilized)}
                       </Typography>
                     </Box>
                     <LinearProgress 
                       variant="determinate" 
-                      value={(selectedProject.budgetUtilized / selectedProject.budgetAllocated) * 100} 
+                      value={selectedProject.budget_allocated > 0 
+                        ? (selectedProject.budget_utilized / selectedProject.budget_allocated) * 100 
+                        : 0} 
                       color="success"
                       sx={{ height: 8, borderRadius: 4 }} 
                     />

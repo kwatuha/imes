@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -47,6 +47,7 @@ import {
   Search as SearchIcon
 } from '@mui/icons-material';
 import { formatCurrency } from '../utils/formatters';
+import { getAnnouncements } from '../services/publicApi';
 
 const AnnouncementsPage = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -54,9 +55,33 @@ const AnnouncementsPage = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState('All');
   const [loading, setLoading] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
 
-  // Mock data for announcements
-  const [announcements] = useState([
+  // Fetch announcements on component mount
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const data = await getAnnouncements();
+      setAnnouncements(data.announcements || []);
+      if (data.announcements && data.announcements.length === 0) {
+        console.log('No announcements found in database');
+      }
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Failed to load announcements';
+      console.error('Error details:', errorMsg);
+      setAnnouncements([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mock data for announcements (kept for reference)
+  const mockAnnouncements = [
     {
       id: 1,
       title: 'Public Participation Meeting - Kondele Market Project',
@@ -142,7 +167,7 @@ const AnnouncementsPage = () => {
       attendees: 0,
       maxAttendees: 0
     }
-  ]);
+  ];
 
   const categories = [
     'All',
@@ -207,11 +232,11 @@ const AnnouncementsPage = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h4" fontWeight="bold" sx={{ mb: 0.5 }}>
           Project Announcements
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 0 }}>
           Stay updated with project launches, public participation meetings, and important announcements
         </Typography>
       </Box>
@@ -241,19 +266,29 @@ const AnnouncementsPage = () => {
       </Paper>
 
       {/* Announcements Grid */}
-      <Grid container spacing={3}>
-        {filteredAnnouncements.map((announcement) => (
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredAnnouncements.map((announcement) => (
           <Grid item xs={12} md={6} lg={4} key={announcement.id}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardMedia
-                component="img"
-                height="200"
-                image={announcement.image}
-                alt={announcement.title}
-                sx={{ objectFit: 'cover' }}
-              />
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+              {announcement.image_url && announcement.image_url.startsWith('http') && (
+                <CardMedia
+                  component="img"
+                  height="200"
+                  image={announcement.image_url}
+                  alt=""
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                  sx={{ objectFit: 'cover' }}
+                />
+              )}
+              <CardContent sx={{ flexGrow: 1, pt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                   <Chip
                     label={announcement.status}
                     color={statusColors[announcement.status]}
@@ -267,11 +302,11 @@ const AnnouncementsPage = () => {
                   />
                 </Box>
 
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <Typography variant="h6" fontWeight="bold" sx={{ mb: 1, lineHeight: 1.3 }}>
                   {announcement.title}
                 </Typography>
 
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                   {announcement.description}
                 </Typography>
 
@@ -303,15 +338,15 @@ const AnnouncementsPage = () => {
                   </Typography>
                 </Box>
 
-                {announcement.maxAttendees > 0 && (
+                {announcement.max_attendees > 0 && (
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Attendance: {announcement.attendees}/{announcement.maxAttendees}
+                      Attendance: {announcement.attendees}/{announcement.max_attendees}
                     </Typography>
                     <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8 }}>
                       <Box
                         sx={{
-                          width: `${(announcement.attendees / announcement.maxAttendees) * 100}%`,
+                          width: `${(announcement.attendees / announcement.max_attendees) * 100}%`,
                           bgcolor: 'primary.main',
                           borderRadius: 1,
                           height: 8
@@ -334,7 +369,8 @@ const AnnouncementsPage = () => {
             </Card>
           </Grid>
         ))}
-      </Grid>
+        </Grid>
+      )}
 
       {/* No announcements message */}
       {filteredAnnouncements.length === 0 && (
@@ -420,18 +456,18 @@ const AnnouncementsPage = () => {
                     sx={{ mb: 2 }}
                   />
 
-                  {selectedAnnouncement.maxAttendees > 0 && (
+                  {selectedAnnouncement.max_attendees > 0 && (
                     <>
                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         Attendance
                       </Typography>
                       <Typography variant="body1" sx={{ mb: 1 }}>
-                        {selectedAnnouncement.attendees}/{selectedAnnouncement.maxAttendees} people
+                        {selectedAnnouncement.attendees}/{selectedAnnouncement.max_attendees} people
                       </Typography>
                       <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8, mb: 2 }}>
                         <Box
                           sx={{
-                            width: `${(selectedAnnouncement.attendees / selectedAnnouncement.maxAttendees) * 100}%`,
+                            width: `${(selectedAnnouncement.attendees / selectedAnnouncement.max_attendees) * 100}%`,
                             bgcolor: 'primary.main',
                             borderRadius: 1,
                             height: 8
