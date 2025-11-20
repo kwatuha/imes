@@ -11,16 +11,6 @@
           "route": "DASHBOARD"
         },
         {
-          "title": "Raw Data",
-          "icon": "AssessmentIcon",
-          "route": "RAW_DATA"
-        },
-        {
-          "title": "Projects",
-          "icon": "PaidIcon",
-          "route": "PROJECTS"
-        },
-        {
           "title": "Contractor Dashboard",
           "icon": "PaidIcon",
           "route": "CONTRACTOR_DASHBOARD"
@@ -33,9 +23,15 @@
       "icon": "AssessmentIcon",
       "submenus": [
         {
+          "title": "Projects",
+          "icon": "FolderOpenIcon",
+          "route": "PROJECTS"
+        },
+        {
           "title": "Reports",
           "icon": "AssessmentIcon",
-          "route": "REPORTS"
+          "route": "REPORTS",
+           "hidden": true
         },
         {
           "title": "Project Dashboards",
@@ -45,12 +41,14 @@
         {
           "title": "Regional Rpts",
           "icon": "AssessmentIcon",
-          "route": "REGIONAL_DASHBOARD"
+          "route": "REGIONAL_DASHBOARD",
+          "hidden": true
         },
         {
           "title": "Regional Dashboards",
           "icon": "AssessmentIcon",
-          "route": "REGIONAL_REPORTING"
+          "route": "REGIONAL_REPORTING",
+          "hidden": true
         },
         {
           "title": "Absorption Report",
@@ -70,7 +68,8 @@
         {
           "title": "Quarterly Impl.",
           "icon": "AssessmentIcon",
-          "route": "QUARTERLY_IMPLEMENTATION_REPORT"
+          "route": "QUARTERLY_IMPLEMENTATION_REPORT",
+          "hidden": true
         }
       ]
     },
@@ -82,7 +81,7 @@
         {
           "title": "Central Import",
           "icon": "CloudUploadIcon",
-          "route": "/data-import"
+          "route": "CENTRAL_IMPORT"
         },
         {
           "title": "GIS Mapping",

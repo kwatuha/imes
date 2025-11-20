@@ -92,24 +92,24 @@ const DashboardPage = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedFinYear) {
-      fetchStats();
-    }
+    // Fetch stats when selectedFinYear changes (including when it's null for "All")
+    fetchStats();
   }, [selectedFinYear, filters]);
 
   const fetchFinancialYears = async () => {
     try {
       const data = await getFinancialYears();
+      // Backend already filters to only return years with projects
       setFinancialYears(data || []);
       
       // Set initial financial year
       if (finYearFromUrl) {
         const fyFromUrl = data.find(fy => fy.id === parseInt(finYearFromUrl));
-        setSelectedFinYear(fyFromUrl || data[0]);
+        setSelectedFinYear(fyFromUrl || null); // null means "All"
       } else {
-        // Default to 2022/2023 (finYearId = 5) which has most projects
-        const defaultYear = data.find(fy => fy.id === 5) || data[0];
-        setSelectedFinYear(defaultYear);
+        // Default to "All Financial Years" so users can see all projects
+        // They can then select a specific year if needed (project counts are shown)
+        setSelectedFinYear(null);
       }
     } catch (err) {
       console.error('Error fetching financial years:', err);
@@ -120,7 +120,9 @@ const DashboardPage = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const data = await getOverviewStats(selectedFinYear?.id, filters);
+      // Pass null for finYearId when "All" is selected (selectedFinYear is null)
+      const finYearId = selectedFinYear === null ? null : selectedFinYear?.id;
+      const data = await getOverviewStats(finYearId, filters);
       setStats(data);
       setError(null);
     } catch (err) {
@@ -182,7 +184,7 @@ const DashboardPage = () => {
       budget: stats?.total_budget || 0,
       color: '#1976d2',
       icon: Assessment,
-      onClick: () => handleStatClick('finYearId', selectedFinYear?.id, 'All Projects')
+      onClick: () => handleStatClick('finYearId', selectedFinYear === null ? null : selectedFinYear?.id, 'All Projects')
     },
     {
       title: 'Completed Projects',
@@ -199,6 +201,14 @@ const DashboardPage = () => {
       color: '#2196f3',
       icon: Assessment,
       onClick: () => handleStatClick('status', 'Ongoing', 'Ongoing Projects')
+    },
+    {
+      title: 'Phased Projects',
+      count: stats?.phased_projects || 0,
+      budget: stats?.phased_budget || 0,
+      color: '#ff9800',
+      icon: Assessment,
+      onClick: () => handleStatClick('status', 'Phase', 'Phased Projects')
     },
     {
       title: 'Under Procurement',
@@ -237,7 +247,7 @@ const DashboardPage = () => {
       {/* Selected Financial Year Title */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" fontWeight="bold" color="primary">
-          {selectedFinYear?.name} FY Public Dashboard
+          {selectedFinYear ? `${selectedFinYear.name} FY` : 'All Financial Years'} Public Dashboard
         </Typography>
       </Box>
 
@@ -249,13 +259,19 @@ const DashboardPage = () => {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Click on any statistic card below to view detailed project information
         </Typography>
-        <Grid container spacing={3}>
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { 
+            xs: '1fr', 
+            sm: 'repeat(2, 1fr)', 
+            md: 'repeat(5, 1fr)' 
+          }, 
+          gap: 3 
+        }}>
           {statsCards.map((card, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <StatCard {...card} />
-            </Grid>
+            <StatCard key={index} {...card} />
           ))}
-        </Grid>
+        </Box>
       </Box>
 
       {/* Analytics Dashboard Section */}
@@ -618,13 +634,13 @@ const DashboardPage = () => {
 
         <Box sx={{ p: 4 }}>
           {activeTab === 0 && (
-            <DepartmentSummaryTable finYearId={selectedFinYear?.id} filters={filters} />
+            <DepartmentSummaryTable finYearId={selectedFinYear === null ? null : selectedFinYear?.id} filters={filters} />
           )}
           {activeTab === 1 && (
-            <SubCountySummaryTable finYearId={selectedFinYear?.id} filters={filters} />
+            <SubCountySummaryTable finYearId={selectedFinYear === null ? null : selectedFinYear?.id} filters={filters} />
           )}
           {activeTab === 2 && (
-            <WardSummaryTable finYearId={selectedFinYear?.id} filters={filters} />
+            <WardSummaryTable finYearId={selectedFinYear === null ? null : selectedFinYear?.id} filters={filters} />
           )}
           {activeTab === 3 && (
             <YearlyTrendsTable filters={filters} />

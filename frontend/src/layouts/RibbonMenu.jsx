@@ -208,7 +208,7 @@ export default function RibbonMenu({ isAdmin = false }) {
 
       {/* Ribbon group row (hidden when collapsed to maximize space) */}
       {!collapsed && (
-      <Box sx={{ display: 'flex', gap: 0.5, px: 1, py: 0.5, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}`, minHeight: 50 }}>
+      <Box sx={{ display: 'flex', gap: 0, px: 1, py: 0.5, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}`, minHeight: 50 }}>
         {menuCategories[tab] && menuCategories[tab].submenus.map((submenu, subIdx) => (
           <Btn 
             key={subIdx}

@@ -13,7 +13,6 @@ import MainLayout from './layouts/MainLayout';
 // Lazy load all page components
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const DashboardLandingPage = lazy(() => import('./pages/DashboardLandingPage'));
-const RawDataPage = lazy(() => import('./pages/RawDataPage'));
 const ProjectManagementPage = lazy(() => import('./pages/ProjectManagementPage'));
 const ProjectImportPage = lazy(() => import('./pages/ProjectImportPage'));
 const CentralImportPage = lazy(() => import('./pages/CentralImportPage'));
@@ -92,10 +91,6 @@ const router = createBrowserRouter([
       {
         path: 'contractor-management',
         element: <LazyRoute component={ContractorManagementPage} />,
-      },
-      {
-        path: 'raw-data',
-        element: <LazyRoute component={RawDataPage} />,
       },
       {
         path: 'projects',

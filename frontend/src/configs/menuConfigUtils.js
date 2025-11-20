@@ -39,6 +39,11 @@ export const getFilteredMenuCategories = (isAdmin = false, hasPrivilege = null, 
   }).map(category => ({
     ...category,
     submenus: category.submenus.filter(submenu => {
+      // Check if item is hidden
+      if (submenu.hidden === true) {
+        return false;
+      }
+      
       // Check permission-based visibility
       if (submenu.permission && hasPrivilege && !hasPrivilege(submenu.permission)) {
         return false;

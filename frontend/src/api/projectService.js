@@ -48,6 +48,10 @@ const projectService = {
       });
       return response.data;
     },
+    checkMetadataMapping: async (importData) => {
+      const response = await axiosInstance.post('/projects/check-metadata-mapping', importData);
+      return response.data;
+    },
     confirmProjectImport: async (importData) => {
       const response = await axiosInstance.post('/projects/confirm-import-data', importData);
       return response.data;

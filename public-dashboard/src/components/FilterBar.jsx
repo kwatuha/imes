@@ -132,11 +132,15 @@ const FilterBar = ({
             <InputLabel id="financial-year-label">Financial Year</InputLabel>
             <Select
               labelId="financial-year-label"
-              value={selectedFinYear?.id || ''}
+              value={selectedFinYear === null ? 'all' : (selectedFinYear?.id || '')}
               label="Financial Year"
               onChange={(e) => {
-                const fy = financialYears.find(f => f.id === e.target.value);
-                onFinYearChange(fy);
+                if (e.target.value === 'all') {
+                  onFinYearChange(null); // null means "All"
+                } else {
+                  const fy = financialYears.find(f => f.id === e.target.value);
+                  onFinYearChange(fy);
+                }
               }}
               startAdornment={
                 <InputAdornment position="start">
@@ -144,10 +148,15 @@ const FilterBar = ({
                 </InputAdornment>
               }
             >
+              <MenuItem value="all">
+                <Typography variant="body2" fontWeight="bold">
+                  All Financial Years
+                </Typography>
+              </MenuItem>
               {financialYears.map((fy) => (
                 <MenuItem key={fy.id} value={fy.id}>
                   <Typography variant="body2">
-                    {fy.name}
+                    {fy.name} ({fy.project_count || 0} projects)
                   </Typography>
                 </MenuItem>
               ))}

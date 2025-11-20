@@ -84,5 +84,6 @@ export const ROUTES = {
     MAP_DATA_IMPORT: '/maps/import-data',
     STRATEGIC_PLAN_DETAILS: '/strategic-planning/:planId',
     STRATEGIC_DATA_IMPORT: '/strategic-planning/import',
+    CENTRAL_IMPORT: '/data-import', // ✨ NEW: Central Import route
     NEW_DASHBOARD: '/projects-dashboard/view',
 };

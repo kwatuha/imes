@@ -42,8 +42,22 @@ export const formatPercentage = (value) => {
   return `${num.toFixed(1)}%`;
 };
 
-// Get status color
+// Get status color (case-insensitive)
 export const getStatusColor = (status) => {
+  if (!status) return '#757575';
+  
+  // Normalize status to title case for consistent matching
+  const normalizeStatus = (s) => {
+    if (!s) return '';
+    // Convert to lowercase first, then capitalize first letter of each word
+    return s.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
+  const normalizedStatus = normalizeStatus(status);
+  
   const statusColors = {
     'Completed': '#4caf50',
     'Ongoing': '#2196f3',
@@ -51,9 +65,55 @@ export const getStatusColor = (status) => {
     'Under Procurement': '#9c27b0',
     'Stalled': '#f44336',
     'Cancelled': '#757575',
+    'In Progress': '#2196f3',
+    'At Risk': '#f44336',
+    'Delayed': '#f44336',
+    'Initiated': '#ff9800',
+    'Closed': '#757575',
+    // Handle phased statuses (will be matched via normalized status)
+    'Phase I Completed': '#4caf50',
+    'Phase Ii Completed': '#4caf50',
+    'Phase Iii Completed': '#4caf50',
+    'Phase Iv Completed': '#4caf50',
+    'Phase I Ongoing': '#2196f3',
+    'Phase Ii Ongoing': '#2196f3',
+    'Phase Iii Ongoing': '#2196f3',
+    'Phase Iv Ongoing': '#2196f3',
+    'Phase I Ongoing (Foundation)': '#2196f3',
   };
   
-  return statusColors[status] || '#757575';
+  // Try exact match first, then normalized match
+  return statusColors[status] || statusColors[normalizedStatus] || '#757575';
+};
+
+// Format status to sentence case (Title Case) for better display
+export const formatStatus = (status) => {
+  if (!status) return '';
+  
+  // Convert to title case: first letter of each word capitalized, rest lowercase
+  return status
+    .toLowerCase()
+    .split(' ')
+    .map((word, index, array) => {
+      // Handle special cases like "I", "II", "III", "IV" in phased statuses
+      // Check if previous word is "phase" to identify Roman numerals
+      const isRomanNumeral = (index > 0 && array[index - 1] === 'phase') && 
+                             (word === 'i' || word === 'ii' || word === 'iii' || word === 'iv');
+      
+      if (isRomanNumeral) {
+        return word.toUpperCase();
+      }
+      
+      // Handle words in parentheses - capitalize first letter after opening paren
+      if (word.startsWith('(')) {
+        const afterParen = word.slice(1);
+        return '(' + afterParen.charAt(0).toUpperCase() + afterParen.slice(1);
+      }
+      
+      // Capitalize first letter of word
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
 };
 
 // Truncate text

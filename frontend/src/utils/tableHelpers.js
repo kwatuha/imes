@@ -83,10 +83,23 @@ export const numberFormatter = new Intl.NumberFormat('en-US', {
 
 // --- Status Color Helpers ---
 /**
- * Returns the background color for a given project status.
+ * Returns the background color for a given project status (case-insensitive).
  */
 export const getProjectStatusBackgroundColor = (status) => {
-  switch (status) {
+  if (!status) return '#f1f5f9'; // slate-100
+  
+  // Normalize status to title case for consistent matching
+  const normalizeStatus = (s) => {
+    if (!s) return '';
+    return s.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
+  const normalizedStatus = normalizeStatus(status);
+  
+  switch (normalizedStatus) {
     case 'Completed': return '#dcfce7'; // green-100
     case 'In Progress': return '#e0f2fe'; // light-blue-100
     case 'On Hold': return '#fef3c7'; // yellow-100
@@ -98,15 +111,30 @@ export const getProjectStatusBackgroundColor = (status) => {
     case 'Initiated': return '#dbeafe'; // blue-100
     case 'Closed': return '#e5e7eb'; // gray-200
     case 'Not Started':
+    case 'Ongoing': return '#e0f2fe'; // light-blue-100 (for Ongoing status)
+    case 'Under Procurement': return '#eef2ff'; // indigo-100
     default: return '#f1f5f9'; // slate-100
   }
 };
 
 /**
- * Returns the text color for a given project status.
+ * Returns the text color for a given project status (case-insensitive).
  */
 export const getProjectStatusTextColor = (status) => {
-  switch (status) {
+  if (!status) return '#475569'; // slate-600
+  
+  // Normalize status to title case for consistent matching
+  const normalizeStatus = (s) => {
+    if (!s) return '';
+    return s.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
+  const normalizedStatus = normalizeStatus(status);
+  
+  switch (normalizedStatus) {
     case 'Completed': return '#16a34a'; // green-600
     case 'In Progress': return '#0369a1'; // light-blue-600
     case 'On Hold': return '#a16207'; // yellow-600
@@ -120,4 +148,36 @@ export const getProjectStatusTextColor = (status) => {
     case 'Not Started':
     default: return '#64748b'; // slate-600
   }
+};
+
+/**
+ * Format status to sentence case (Title Case) for better display
+ */
+export const formatStatus = (status) => {
+  if (!status) return '';
+  
+  // Convert to title case: first letter of each word capitalized, rest lowercase
+  return status
+    .toLowerCase()
+    .split(' ')
+    .map((word, index, array) => {
+      // Handle special cases like "I", "II", "III", "IV" in phased statuses
+      // Check if previous word is "phase" to identify Roman numerals
+      const isRomanNumeral = (index > 0 && array[index - 1] === 'phase') && 
+                             (word === 'i' || word === 'ii' || word === 'iii' || word === 'iv');
+      
+      if (isRomanNumeral) {
+        return word.toUpperCase();
+      }
+      
+      // Handle words in parentheses - capitalize first letter after opening paren
+      if (word.startsWith('(')) {
+        const afterParen = word.slice(1);
+        return '(' + afterParen.charAt(0).toUpperCase() + afterParen.slice(1);
+      }
+      
+      // Capitalize first letter of word
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
 };

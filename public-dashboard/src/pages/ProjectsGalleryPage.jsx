@@ -7,7 +7,6 @@ import {
   Paper,
   Card,
   CardContent,
-  CardMedia,
   CardActions,
   Button,
   Chip,
@@ -37,8 +36,9 @@ import {
   getDepartments,
   getProjectTypes
 } from '../services/publicApi';
-import { formatCurrency, formatDate, getStatusColor, truncateText } from '../utils/formatters';
+import { formatCurrency, formatDate, getStatusColor, truncateText, formatStatus } from '../utils/formatters';
 import ProjectFeedbackModal from '../components/ProjectFeedbackModal';
+import ProjectDetailsModal from '../components/ProjectDetailsModal';
 
 const ProjectsGalleryPage = () => {
   const [projects, setProjects] = useState([]);
@@ -47,6 +47,8 @@ const ProjectsGalleryPage = () => {
   const [error, setError] = useState(null);
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedProjectForDetails, setSelectedProjectForDetails] = useState(null);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,6 +147,11 @@ const ProjectsGalleryPage = () => {
     console.log('Modal state set to true');
   };
 
+  const handleViewDetails = (project) => {
+    setSelectedProjectForDetails(project);
+    setDetailsModalOpen(true);
+  };
+
   const ProjectCard = ({ project }) => (
     <Card 
       sx={{ 
@@ -158,35 +165,9 @@ const ProjectsGalleryPage = () => {
         }
       }}
     >
-      {project.thumbnail ? (
-        <CardMedia
-          component="img"
-          height="200"
-          image={`http://165.22.227.234:3000/uploads/${project.thumbnail}`}
-          alt={project.project_name || project.projectName}
-          sx={{ objectFit: 'cover' }}
-        />
-      ) : (
-        <Box
-          sx={{
-            height: 200,
-            backgroundColor: '#e0e0e0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white'
-          }}
-        >
-          <Typography variant="h4" fontWeight="bold">
-            {(project.project_name || project.projectName)?.charAt(0) || 'P'}
-          </Typography>
-        </Box>
-      )}
-      
-      <CardContent sx={{ flexGrow: 1 }}>
+      <CardContent sx={{ flexGrow: 1, pt: 2 }}>
         <Chip 
-          label={project.status}
+          label={formatStatus(project.status)}
           size="small"
           sx={{
             mb: 1,
@@ -254,6 +235,7 @@ const ProjectsGalleryPage = () => {
         <Button 
           size="small" 
           startIcon={<Visibility />}
+          onClick={() => handleViewDetails(project)}
           sx={{ textTransform: 'none' }}
         >
           View Details
@@ -499,6 +481,17 @@ const ProjectsGalleryPage = () => {
         open={feedbackModalOpen}
         onClose={() => setFeedbackModalOpen(false)}
         project={selectedProject}
+      />
+
+      {/* Project Details Modal */}
+      <ProjectDetailsModal
+        open={detailsModalOpen}
+        onClose={() => {
+          setDetailsModalOpen(false);
+          setSelectedProjectForDetails(null);
+        }}
+        project={selectedProjectForDetails}
+        projectId={selectedProjectForDetails?.id}
       />
     </Container>
   );

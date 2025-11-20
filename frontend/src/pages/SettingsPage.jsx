@@ -1,14 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
   Alert, Snackbar, Stack, Collapse, Accordion, AccordionSummary, AccordionDetails,
-  Grid, useTheme
+  Grid, useTheme, Tabs, Tab, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon, LocationCity as LocationCityIcon, Map as MapIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
+import metaDataService from '../api/metaDataService';
 import useDepartmentData from '../hooks/useDepartmentData';
 
 // Reusable Delete Confirmation Dialog
@@ -617,4 +618,883 @@ const DepartmentAndSectionManagement = () => {
   );
 };
 
-export default DepartmentAndSectionManagement;
+// Subcounty Management Component (with nested Wards)
+const SubcountyManagement = () => {
+  const { hasPrivilege, user } = useAuth();
+  const theme = useTheme();
+  const [subcounties, setSubcounties] = useState([]);
+  const [counties, setCounties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [openSubcountyDialog, setOpenSubcountyDialog] = useState(false);
+  const [openWardDialog, setOpenWardDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [currentSubcounty, setCurrentSubcounty] = useState(null);
+  const [currentWard, setCurrentWard] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [subcountyFormData, setSubcountyFormData] = useState({ name: '', countyId: '', geoLat: '', geoLon: '', remarks: '' });
+  const [wardFormData, setWardFormData] = useState({ name: '', subcountyId: '', geoLat: '', geoLon: '', remarks: '' });
+  const [subcountyFormErrors, setSubcountyFormErrors] = useState({});
+  const [wardFormErrors, setWardFormErrors] = useState({});
+
+  const fetchSubcounties = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [subcountiesData, countiesData] = await Promise.all([
+        metaDataService.subcounties.getAllSubcounties(),
+        metaDataService.counties.getAllCounties()
+      ]);
+      
+      // Fetch wards for each subcounty
+      const subcountiesWithWards = await Promise.all(
+        subcountiesData.map(async (subcounty) => {
+          try {
+            const wards = await metaDataService.subcounties.getWardsBySubcounty(subcounty.subcountyId);
+            return { ...subcounty, wards: wards || [] };
+          } catch (error) {
+            console.error(`Error fetching wards for subcounty ${subcounty.subcountyId}:`, error);
+            return { ...subcounty, wards: [] };
+          }
+        })
+      );
+      
+      setSubcounties(subcountiesWithWards);
+      setCounties(countiesData);
+    } catch (error) {
+      console.error('Error fetching subcounties:', error);
+      setSnackbar({ open: true, message: 'Failed to load subcounties.', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSubcounties();
+  }, [fetchSubcounties]);
+
+  // Subcounty handlers
+  const handleOpenCreateSubcountyDialog = () => {
+    setCurrentSubcounty(null);
+    setSubcountyFormData({ name: '', countyId: '', geoLat: '', geoLon: '', remarks: '' });
+    setSubcountyFormErrors({});
+    setOpenSubcountyDialog(true);
+  };
+
+  const handleOpenEditSubcountyDialog = (subcounty) => {
+    setCurrentSubcounty(subcounty);
+    setSubcountyFormData({
+      name: subcounty.name || '',
+      countyId: subcounty.countyId || '',
+      geoLat: subcounty.geoLat || '',
+      geoLon: subcounty.geoLon || '',
+      remarks: subcounty.remarks || ''
+    });
+    setSubcountyFormErrors({});
+    setOpenSubcountyDialog(true);
+  };
+
+  const handleSubcountyFormChange = (e) => {
+    const { name, value } = e.target;
+    setSubcountyFormData(prev => ({ ...prev, [name]: value }));
+    if (subcountyFormErrors[name]) {
+      setSubcountyFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateSubcountyForm = () => {
+    let errors = {};
+    if (!subcountyFormData.name?.trim()) {
+      errors.name = 'Name is required.';
+    }
+    if (!subcountyFormData.countyId) {
+      errors.countyId = 'County is required.';
+    }
+    setSubcountyFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubcountySubmit = async () => {
+    if (!validateSubcountyForm()) {
+      setSnackbar({ open: true, message: 'Please correct the form errors.', severity: 'error' });
+      return;
+    }
+    setLoading(true);
+    try {
+      if (currentSubcounty) {
+        await metaDataService.subcounties.updateSubcounty(currentSubcounty.subcountyId, subcountyFormData);
+        setSnackbar({ open: true, message: 'Subcounty updated successfully!', severity: 'success' });
+      } else {
+        await metaDataService.subcounties.createSubcounty(subcountyFormData);
+        setSnackbar({ open: true, message: 'Subcounty created successfully!', severity: 'success' });
+      }
+      setOpenSubcountyDialog(false);
+      fetchSubcounties();
+    } catch (error) {
+      console.error('Subcounty save error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save subcounty.';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Ward handlers
+  const handleOpenCreateWardDialog = (subcountyId) => {
+    setCurrentWard(null);
+    setWardFormData({ name: '', subcountyId, geoLat: '', geoLon: '', remarks: '' });
+    setWardFormErrors({});
+    setOpenWardDialog(true);
+  };
+
+  const handleOpenEditWardDialog = (ward) => {
+    setCurrentWard(ward);
+    setWardFormData({
+      name: ward.name || '',
+      subcountyId: ward.subcountyId || '',
+      geoLat: ward.geoLat || '',
+      geoLon: ward.geoLon || '',
+      remarks: ward.remarks || ''
+    });
+    setWardFormErrors({});
+    setOpenWardDialog(true);
+  };
+
+  const handleWardFormChange = (e) => {
+    const { name, value } = e.target;
+    setWardFormData(prev => ({ ...prev, [name]: value }));
+    if (wardFormErrors[name]) {
+      setWardFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateWardForm = () => {
+    let errors = {};
+    if (!wardFormData.name?.trim()) {
+      errors.name = 'Name is required.';
+    }
+    if (!wardFormData.subcountyId) {
+      errors.subcountyId = 'Subcounty is required.';
+    }
+    setWardFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleWardSubmit = async () => {
+    if (!validateWardForm()) {
+      setSnackbar({ open: true, message: 'Please correct the form errors.', severity: 'error' });
+      return;
+    }
+    setLoading(true);
+    try {
+      if (currentWard) {
+        await metaDataService.wards.updateWard(currentWard.wardId, wardFormData);
+        setSnackbar({ open: true, message: 'Ward updated successfully!', severity: 'success' });
+      } else {
+        await metaDataService.wards.createWard(wardFormData);
+        setSnackbar({ open: true, message: 'Ward created successfully!', severity: 'success' });
+      }
+      setOpenWardDialog(false);
+      fetchSubcounties();
+    } catch (error) {
+      console.error('Ward save error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save ward.';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete handlers
+  const handleOpenDeleteDialog = (item, type) => {
+    setItemToDelete({ ...item, type });
+    setOpenDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    setLoading(true);
+    setOpenDeleteDialog(false);
+    try {
+      if (itemToDelete.type === 'subcounty') {
+        await metaDataService.subcounties.deleteSubcounty(itemToDelete.subcountyId);
+        setSnackbar({ open: true, message: 'Subcounty deleted successfully!', severity: 'success' });
+      } else if (itemToDelete.type === 'ward') {
+        await metaDataService.wards.deleteWard(itemToDelete.wardId);
+        setSnackbar({ open: true, message: 'Ward deleted successfully!', severity: 'success' });
+      }
+      fetchSubcounties();
+    } catch (error) {
+      console.error('Delete error:', error);
+      const errorMessage = error.response?.data?.message || error.message || `Failed to delete ${itemToDelete.type}.`;
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+      setItemToDelete(null);
+    }
+  };
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  if (loading && subcounties.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>
+          Subcounties & Wards
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleOpenCreateSubcountyDialog}
+          sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' }, color: 'white', fontWeight: 'semibold', borderRadius: '8px' }}
+        >
+          Add New Subcounty
+        </Button>
+      </Box>
+
+      {subcounties.length === 0 ? (
+        <Alert severity="info">No subcounties found. Add a new subcounty to get started.</Alert>
+      ) : (
+        <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Subcounty</TableCell>
+                <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {subcounties.map((subcounty) => {
+                const county = counties.find(c => c.countyId === subcounty.countyId);
+                return (
+                  <TableRow key={subcounty.subcountyId}>
+                    <TableCell colSpan={2} sx={{ p: 0, borderBottom: 'none' }}>
+                      <Accordion sx={{ boxShadow: 'none', '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Grid container alignItems="center">
+                            <Grid item xs={8}>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{subcounty.name}</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {county?.name || 'N/A'} {subcounty.geoLat && subcounty.geoLon ? `• ${subcounty.geoLat}, ${subcounty.geoLon}` : ''}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                              <IconButton onClick={(e) => { e.stopPropagation(); handleOpenEditSubcountyDialog(subcounty); }} color="primary">
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton onClick={(e) => { e.stopPropagation(); handleOpenDeleteDialog(subcounty, 'subcounty'); }} color="error">
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Grid>
+                          </Grid>
+                        </AccordionSummary>
+                        <AccordionDetails sx={{ py: 1 }}>
+                          <Box sx={{ pl: 4, pr: 2, pt: 2, pb: 4 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Wards for {subcounty.name}</Typography>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={() => handleOpenCreateWardDialog(subcounty.subcountyId)}
+                              >
+                                Add Ward
+                              </Button>
+                            </Box>
+                            <TableContainer component={Paper} sx={{ mb: 2, boxShadow: theme.shadows[1] }}>
+                              <Table size="small">
+                                <TableHead>
+                                  <TableRow sx={{ backgroundColor: theme.palette.secondary.main }}>
+                                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Name</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Coordinates</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {subcounty.wards && subcounty.wards.length > 0 ? (
+                                    subcounty.wards.map((ward) => (
+                                      <TableRow key={ward.wardId}>
+                                        <TableCell>{ward.wardId}</TableCell>
+                                        <TableCell>{ward.name}</TableCell>
+                                        <TableCell>
+                                          {ward.geoLat && ward.geoLon 
+                                            ? `${ward.geoLat}, ${ward.geoLon}` 
+                                            : 'N/A'}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                            <IconButton onClick={() => handleOpenEditWardDialog(ward)} color="primary">
+                                              <EditIcon fontSize="small" />
+                                            </IconButton>
+                                            <IconButton onClick={() => handleOpenDeleteDialog(ward, 'ward')} color="error">
+                                              <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                          </Stack>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))
+                                  ) : (
+                                    <TableRow>
+                                      <TableCell colSpan={4} align="center">
+                                        <Typography variant="body2" color="text.secondary">
+                                          No wards found. Add a ward to get started.
+                                        </Typography>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </TableContainer>
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* Add/Edit Subcounty Dialog */}
+      <Dialog open={openSubcountyDialog} onClose={() => setOpenSubcountyDialog(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+          {currentSubcounty ? 'Edit Subcounty' : 'Add New Subcounty'}
+        </DialogTitle>
+        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default, pt: 2 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="name"
+            label="Subcounty Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={subcountyFormData.name}
+            onChange={handleSubcountyFormChange}
+            error={!!subcountyFormErrors.name}
+            helperText={subcountyFormErrors.name}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>County</InputLabel>
+            <Select
+              name="countyId"
+              value={subcountyFormData.countyId}
+              onChange={handleSubcountyFormChange}
+              label="County"
+              error={!!subcountyFormErrors.countyId}
+            >
+              {counties.map((county) => (
+                <MenuItem key={county.countyId} value={county.countyId}>
+                  {county.name}
+                </MenuItem>
+              ))}
+            </Select>
+            {subcountyFormErrors.countyId && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                {subcountyFormErrors.countyId}
+              </Typography>
+            )}
+          </FormControl>
+          <TextField
+            margin="dense"
+            name="geoLat"
+            label="Latitude"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={subcountyFormData.geoLat}
+            onChange={handleSubcountyFormChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="geoLon"
+            label="Longitude"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={subcountyFormData.geoLon}
+            onChange={handleSubcountyFormChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="remarks"
+            label="Remarks"
+            type="text"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={3}
+            value={subcountyFormData.remarks}
+            onChange={handleSubcountyFormChange}
+            sx={{ mb: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button onClick={() => setOpenSubcountyDialog(false)} color="primary" variant="outlined">Cancel</Button>
+          <Button onClick={handleSubcountySubmit} color="primary" variant="contained" disabled={loading}>
+            {currentSubcounty ? 'Update Subcounty' : 'Create Subcounty'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Ward Dialog */}
+      <Dialog open={openWardDialog} onClose={() => setOpenWardDialog(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+          {currentWard ? 'Edit Ward' : 'Add New Ward'}
+        </DialogTitle>
+        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default, pt: 2 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="name"
+            label="Ward Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={wardFormData.name}
+            onChange={handleWardFormChange}
+            error={!!wardFormErrors.name}
+            helperText={wardFormErrors.name}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Subcounty</InputLabel>
+            <Select
+              name="subcountyId"
+              value={wardFormData.subcountyId}
+              onChange={handleWardFormChange}
+              label="Subcounty"
+              error={!!wardFormErrors.subcountyId}
+            >
+              {subcounties.map((subcounty) => (
+                <MenuItem key={subcounty.subcountyId} value={subcounty.subcountyId}>
+                  {subcounty.name}
+                </MenuItem>
+              ))}
+            </Select>
+            {wardFormErrors.subcountyId && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                {wardFormErrors.subcountyId}
+              </Typography>
+            )}
+          </FormControl>
+          <TextField
+            margin="dense"
+            name="geoLat"
+            label="Latitude"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={wardFormData.geoLat}
+            onChange={handleWardFormChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="geoLon"
+            label="Longitude"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={wardFormData.geoLon}
+            onChange={handleWardFormChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="remarks"
+            label="Remarks"
+            type="text"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={3}
+            value={wardFormData.remarks}
+            onChange={handleWardFormChange}
+            sx={{ mb: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button onClick={() => setOpenWardDialog(false)} color="primary" variant="outlined">Cancel</Button>
+          <Button onClick={handleWardSubmit} color="primary" variant="contained" disabled={loading}>
+            {currentWard ? 'Update Ward' : 'Create Ward'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <DeleteConfirmDialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+        onConfirm={handleConfirmDelete}
+        itemToDeleteName={itemToDelete?.name || ''}
+        itemType={itemToDelete?.type || ''}
+      />
+
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
+// Financial Year Management Component
+const FinancialYearManagement = () => {
+  const { hasPrivilege } = useAuth();
+  const theme = useTheme();
+  const [financialYears, setFinancialYears] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [openDialog, setOpenDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [currentFinancialYear, setCurrentFinancialYear] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [formData, setFormData] = useState({ finYearName: '', startDate: '', endDate: '', remarks: '' });
+  const [formErrors, setFormErrors] = useState({});
+
+  const fetchFinancialYears = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await metaDataService.financialYears.getAllFinancialYears();
+      setFinancialYears(data || []);
+    } catch (error) {
+      console.error('Error fetching financial years:', error);
+      setSnackbar({ open: true, message: 'Failed to load financial years.', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFinancialYears();
+  }, [fetchFinancialYears]);
+
+  const handleOpenCreateDialog = () => {
+    if (!hasPrivilege('financialyear.create')) {
+      setSnackbar({ open: true, message: "Permission denied to create financial years.", severity: 'error' });
+      return;
+    }
+    setCurrentFinancialYear(null);
+    setFormData({ finYearName: '', startDate: '', endDate: '', remarks: '' });
+    setFormErrors({});
+    setOpenDialog(true);
+  };
+
+  const handleOpenEditDialog = (financialYear) => {
+    if (!hasPrivilege('financialyear.update')) {
+      setSnackbar({ open: true, message: "Permission denied to update financial years.", severity: 'error' });
+      return;
+    }
+    setCurrentFinancialYear(financialYear);
+    // Format dates for input fields (YYYY-MM-DD)
+    const formatDateForInput = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    };
+    setFormData({
+      finYearName: financialYear.finYearName || '',
+      startDate: formatDateForInput(financialYear.startDate),
+      endDate: formatDateForInput(financialYear.endDate),
+      remarks: financialYear.remarks || ''
+    });
+    setFormErrors({});
+    setOpenDialog(true);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    let errors = {};
+    if (!formData.finYearName?.trim()) {
+      errors.finYearName = 'Financial Year Name is required.';
+    }
+    if (!formData.startDate) {
+      errors.startDate = 'Start Date is required.';
+    }
+    if (!formData.endDate) {
+      errors.endDate = 'End Date is required.';
+    }
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      if (start >= end) {
+        errors.endDate = 'End Date must be after Start Date.';
+      }
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      setSnackbar({ open: true, message: 'Please correct the form errors.', severity: 'error' });
+      return;
+    }
+    setLoading(true);
+    try {
+      if (currentFinancialYear) {
+        await metaDataService.financialYears.updateFinancialYear(currentFinancialYear.finYearId, formData);
+        setSnackbar({ open: true, message: 'Financial year updated successfully!', severity: 'success' });
+      } else {
+        await metaDataService.financialYears.createFinancialYear(formData);
+        setSnackbar({ open: true, message: 'Financial year created successfully!', severity: 'success' });
+      }
+      setOpenDialog(false);
+      fetchFinancialYears();
+    } catch (error) {
+      console.error('Financial year save error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save financial year.';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenDeleteDialog = (financialYear) => {
+    if (!hasPrivilege('financialyear.delete')) {
+      setSnackbar({ open: true, message: "Permission denied to delete financial years.", severity: 'error' });
+      return;
+    }
+    setItemToDelete({ id: financialYear.finYearId, name: financialYear.finYearName, type: 'financial year' });
+    setOpenDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    setLoading(true);
+    setOpenDeleteDialog(false);
+    try {
+      await metaDataService.financialYears.deleteFinancialYear(itemToDelete.id);
+      setSnackbar({ open: true, message: 'Financial year deleted successfully!', severity: 'success' });
+      fetchFinancialYears();
+    } catch (error) {
+      console.error('Delete error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete financial year.';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+      setItemToDelete(null);
+    }
+  };
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  if (loading && financialYears.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ color: theme.palette.primary.main, fontWeight: 'bold' }}>
+          Financial Years
+        </Typography>
+        {hasPrivilege('financialyear.create') && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreateDialog}
+            sx={{ backgroundColor: '#16a34a', '&:hover': { backgroundColor: '#15803d' }, color: 'white', fontWeight: 'semibold', borderRadius: '8px' }}
+          >
+            Add New Financial Year
+          </Button>
+        )}
+      </Box>
+
+      {financialYears.length === 0 ? (
+        <Alert severity="info">No financial years found. Add a new financial year to get started.</Alert>
+      ) : (
+        <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Financial Year Name</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Start Date</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>End Date</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
+                <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {financialYears.map((fy) => (
+                <TableRow key={fy.finYearId} sx={{ '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
+                  <TableCell>{fy.finYearId}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{fy.finYearName}</TableCell>
+                  <TableCell>{formatDate(fy.startDate)}</TableCell>
+                  <TableCell>{formatDate(fy.endDate)}</TableCell>
+                  <TableCell>{fy.remarks || 'N/A'}</TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      {hasPrivilege('financialyear.update') && (
+                        <IconButton onClick={() => handleOpenEditDialog(fy)} color="primary">
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {hasPrivilege('financialyear.delete') && (
+                        <IconButton onClick={() => handleOpenDeleteDialog(fy)} color="error">
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* Add/Edit Financial Year Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ backgroundColor: theme.palette.primary.main, color: 'white' }}>
+          {currentFinancialYear ? 'Edit Financial Year' : 'Add New Financial Year'}
+        </DialogTitle>
+        <DialogContent dividers sx={{ backgroundColor: theme.palette.background.default, pt: 2 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="finYearName"
+            label="Financial Year Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.finYearName}
+            onChange={handleFormChange}
+            error={!!formErrors.finYearName}
+            helperText={formErrors.finYearName || 'e.g., FY2024/2025 or 2024/2025'}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="startDate"
+            label="Start Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={formData.startDate}
+            onChange={handleFormChange}
+            error={!!formErrors.startDate}
+            helperText={formErrors.startDate}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="endDate"
+            label="End Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            value={formData.endDate}
+            onChange={handleFormChange}
+            error={!!formErrors.endDate}
+            helperText={formErrors.endDate}
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="remarks"
+            label="Remarks"
+            type="text"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={3}
+            value={formData.remarks}
+            onChange={handleFormChange}
+            sx={{ mb: 2 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button onClick={() => setOpenDialog(false)} color="primary" variant="outlined">Cancel</Button>
+          <Button onClick={handleSubmit} color="primary" variant="contained" disabled={loading}>
+            {currentFinancialYear ? 'Update Financial Year' : 'Create Financial Year'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <DeleteConfirmDialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+        onConfirm={handleConfirmDelete}
+        itemToDeleteName={itemToDelete?.name || ''}
+        itemType={itemToDelete?.type || ''}
+      />
+
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
+
+// Main Settings Page with Tabs
+const SettingsPage = () => {
+  const theme = useTheme();
+  const [currentTab, setCurrentTab] = useState(0);
+
+  const handleTabChange = (event, newValue) => {
+    setCurrentTab(newValue);
+  };
+
+  return (
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={currentTab} onChange={handleTabChange} aria-label="metadata management tabs">
+          <Tab icon={<LocationCityIcon />} label="Departments & Sections" iconPosition="start" />
+          <Tab icon={<MapIcon />} label="Subcounties & Wards" iconPosition="start" />
+          <Tab icon={<CalendarTodayIcon />} label="Financial Years" iconPosition="start" />
+        </Tabs>
+      </Box>
+      {currentTab === 0 && <DepartmentAndSectionManagement />}
+      {currentTab === 1 && <SubcountyManagement />}
+      {currentTab === 2 && <FinancialYearManagement />}
+    </Box>
+  );
+};
+
+export default SettingsPage;

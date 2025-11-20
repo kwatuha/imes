@@ -3,18 +3,23 @@ import {
   Box, Typography, Button, Paper, CircularProgress, Alert, Snackbar, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid,
   FormControl, InputLabel, Select, MenuItem, FormHelperText, Card, CardContent,
-  CardActions, Chip, Divider
+  CardActions, Chip, Divider, Accordion, AccordionSummary, AccordionDetails,
+  List, ListItem, ListItemText, ListItemIcon
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import WarningIcon from '@mui/icons-material/Warning';
 import { 
   CloudUpload as CloudUploadIcon, 
   Download as DownloadIcon, 
-  CheckCircle as CheckCircleIcon, 
   Cancel as CancelIcon, 
   Add as AddIcon,
   Business as BusinessIcon,
   Assessment as AssessmentIcon,
   Map as MapIcon,
-  AccountTree as AccountTreeIcon
+  AccountTree as AccountTreeIcon,
+  CalendarToday as CalendarTodayIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../api';
@@ -139,6 +144,8 @@ function CentralImportPage() {
   const [previewData, setPreviewData] = useState(null);
   const [parsedHeaders, setParsedHeaders] = useState([]);
   const [fullParsedData, setFullParsedData] = useState([]);
+  const [mappingSummary, setMappingSummary] = useState(null);
+  const [showMappingPreview, setShowMappingPreview] = useState(false);
   
   const fileInputRef = useRef(null);
 
@@ -228,6 +235,20 @@ function CentralImportPage() {
         }
       });
 
+      // Check metadata mapping for projects import
+      if (currentImportType.id === 'projects' && response.fullData && response.fullData.length > 0) {
+        try {
+          const mappingResponse = await apiService.projects.checkMetadataMapping({ dataToImport: response.fullData });
+          if (mappingResponse.success) {
+            setMappingSummary(mappingResponse.mappingSummary);
+            setShowMappingPreview(true);
+          }
+        } catch (mappingErr) {
+          console.error('Metadata mapping check error:', mappingErr);
+          // Don't block import if mapping check fails, just log it
+        }
+      }
+
     } catch (err) {
       console.error('File parsing error:', err);
       setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to parse file for preview.', severity: 'error' });
@@ -307,8 +328,14 @@ function CentralImportPage() {
 
     } catch (err) {
       console.error('Import confirmation error:', err);
-      setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to confirm import.', severity: 'error' });
-      setImportReport({ success: false, message: err.response?.data?.message || 'Failed to confirm import.' });
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to confirm import.';
+      const errorDetails = err.response?.data?.details || (err.response?.data?.errors ? { errors: err.response.data.errors } : null);
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      setImportReport({ 
+        success: false, 
+        message: errorMessage,
+        details: errorDetails
+      });
     } finally {
       setLoading(false);
     }
@@ -320,6 +347,8 @@ function CentralImportPage() {
     setParsedHeaders([]);
     setFullParsedData([]);
     setImportReport(null);
+    setMappingSummary(null);
+    setShowMappingPreview(false);
     setSnackbar({ open: true, message: 'Import process cancelled.', severity: 'info' });
   };
 
@@ -556,8 +585,8 @@ function CentralImportPage() {
                 </Button>
               )}
 
-              {previewData && (
-                <Box sx={{ display: 'flex', gap: 1 }}>
+              {previewData && !showMappingPreview && (
+                <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
                   <Button
                     variant="contained"
                     color="primary"
@@ -566,7 +595,7 @@ function CentralImportPage() {
                     disabled={loading || !checkUserPrivilege(user, currentImportType.privilege)}
                     fullWidth
                   >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
+                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Import'}
                   </Button>
                   <Button
                     variant="outlined"
@@ -583,6 +612,309 @@ function CentralImportPage() {
             </Grid>
           </Grid>
           
+          {/* Metadata Mapping Preview - Only for Projects */}
+          {showMappingPreview && mappingSummary && currentImportType.id === 'projects' && (
+            <Box sx={{ mt: 3 }}>
+              <Paper elevation={3} sx={{ p: 3, borderRadius: '8px', border: '2px solid', borderColor: 'primary.main' }}>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AssessmentIcon color="primary" />
+                  Metadata Mapping Preview
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Review how your data will be mapped to existing metadata. Items marked as "Will be Created" need to be created manually before importing, or they will be skipped during import.
+                </Typography>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Note:</strong> The system checks both names and aliases when matching metadata. 
+                    Items not found will be skipped during import. Please create missing metadata in the Metadata Management section before proceeding.
+                  </Typography>
+                </Alert>
+
+                <Grid container spacing={2}>
+                  {/* Departments */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                          Departments ({mappingSummary.departments.existing.length + mappingSummary.departments.new.length})
+                        </Typography>
+                        {mappingSummary.departments.existing.length > 0 && (
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CheckCircleIcon fontSize="small" /> {mappingSummary.departments.existing.length} Existing
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.departments.existing.map((dept, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <CheckCircleIcon fontSize="small" color="success" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                        {mappingSummary.departments.new.length > 0 && (
+                          <Box>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.departments.new.length} Need to be Created (will be skipped if not)
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.departments.new.map((dept, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <AddCircleIcon fontSize="small" color="warning" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Directorates (Sections) */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                          Directorates ({mappingSummary.directorates.existing.length + mappingSummary.directorates.new.length})
+                        </Typography>
+                        {mappingSummary.directorates.existing.length > 0 && (
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CheckCircleIcon fontSize="small" /> {mappingSummary.directorates.existing.length} Existing
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.directorates.existing.map((dir, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <CheckCircleIcon fontSize="small" color="success" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                        {mappingSummary.directorates.new.length > 0 && (
+                          <Box>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.directorates.new.length} Need to be Created (will be skipped if not)
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.directorates.new.map((dir, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <AddCircleIcon fontSize="small" color="warning" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Sub-counties */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                          Sub-counties ({mappingSummary.subcounties.existing.length + mappingSummary.subcounties.new.length})
+                        </Typography>
+                        {mappingSummary.subcounties.existing.length > 0 && (
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CheckCircleIcon fontSize="small" /> {mappingSummary.subcounties.existing.length} Existing
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.subcounties.existing.map((sc, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <CheckCircleIcon fontSize="small" color="success" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                        {mappingSummary.subcounties.new.length > 0 && (
+                          <Box>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.subcounties.new.length} Need to be Created (will be skipped if not)
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.subcounties.new.map((sc, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <AddCircleIcon fontSize="small" color="warning" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Wards */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                          Wards ({mappingSummary.wards.existing.length + mappingSummary.wards.new.length})
+                        </Typography>
+                        {mappingSummary.wards.existing.length > 0 && (
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CheckCircleIcon fontSize="small" /> {mappingSummary.wards.existing.length} Existing
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.wards.existing.map((ward, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <CheckCircleIcon fontSize="small" color="success" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                        {mappingSummary.wards.new.length > 0 && (
+                          <Box>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.wards.new.length} Need to be Created (will be skipped if not)
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.wards.new.map((ward, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <AddCircleIcon fontSize="small" color="warning" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Financial Years */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <CalendarTodayIcon fontSize="small" />
+                          Financial Years ({mappingSummary.financialYears?.existing.length + mappingSummary.financialYears?.new.length || 0})
+                        </Typography>
+                        {mappingSummary.financialYears?.existing.length > 0 && (
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CheckCircleIcon fontSize="small" /> {mappingSummary.financialYears.existing.length} Existing
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.financialYears.existing.map((fy, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <CheckCircleIcon fontSize="small" color="success" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                        {mappingSummary.financialYears?.new.length > 0 && (
+                          <Box>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.financialYears.new.length} Need to be Created (will be skipped if not)
+                            </Typography>
+                            <List dense>
+                              {mappingSummary.financialYears.new.map((fy, idx) => (
+                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
+                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                    <AddCircleIcon fontSize="small" color="warning" />
+                                  </ListItemIcon>
+                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'body2' }} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        )}
+                        {(!mappingSummary.financialYears || (mappingSummary.financialYears.existing.length === 0 && mappingSummary.financialYears.new.length === 0)) && (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            No financial years found in import data
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Warnings for unmatched metadata */}
+                {mappingSummary.rowsWithUnmatchedMetadata.length > 0 && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      <WarningIcon sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                      Warning: {mappingSummary.rowsWithUnmatchedMetadata.length} row(s) contain metadata that cannot be matched
+                    </Typography>
+                    <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+                      {mappingSummary.rowsWithUnmatchedMetadata.slice(0, 10).map((row, idx) => (
+                        <li key={idx}>
+                          <Typography variant="body2">
+                            Row {row.rowNumber} ({row.projectName}): {row.unmatched.join(', ')}
+                          </Typography>
+                        </li>
+                      ))}
+                      {mappingSummary.rowsWithUnmatchedMetadata.length > 10 && (
+                        <li>
+                          <Typography variant="body2" color="text.secondary">
+                            ... and {mappingSummary.rowsWithUnmatchedMetadata.length - 10} more
+                          </Typography>
+                        </li>
+                      )}
+                    </Box>
+                    <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                      These rows will be imported, but the unmatched metadata will not be linked. Please ensure metadata names match exactly.
+                    </Typography>
+                  </Alert>
+                )}
+
+                <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setShowMappingPreview(false);
+                      setMappingSummary(null);
+                    }}
+                  >
+                    Back to Preview
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<CheckCircleIcon />}
+                    onClick={() => setShowMappingPreview(false)}
+                  >
+                    Proceed to Import
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+          )}
+
           {importReport && (
             <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: importReport.success ? 'success.main' : 'error.main', borderRadius: '8px' }}>
               <Typography variant="h6" color={importReport.success ? 'success.main' : 'error.main'}>
@@ -590,11 +922,51 @@ function CentralImportPage() {
               </Typography>
               <Typography variant="body1">{importReport.message}</Typography>
               {importReport.details && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="body2">Details:</Typography>
-                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '0.8rem' }}>
-                    {JSON.stringify(importReport.details, null, 2)}
-                  </pre>
+                <Box sx={{ mt: 2 }}>
+                  {importReport.details.errors && Array.isArray(importReport.details.errors) && importReport.details.errors.length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" fontWeight="bold" color="error.main">
+                        Errors ({importReport.details.errorCount || importReport.details.errors.length} of {importReport.details.totalRows || 'unknown'} rows):
+                      </Typography>
+                      <Box component="ul" sx={{ pl: 2, mt: 1, maxHeight: '300px', overflow: 'auto' }}>
+                        {importReport.details.errors.map((error, idx) => (
+                          <li key={idx}>
+                            <Typography variant="body2" component="span">{error}</Typography>
+                          </li>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                  {importReport.details.error && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" fontWeight="bold" color="error.main">Error Details:</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', mt: 0.5 }}>
+                        {importReport.details.error}
+                      </Typography>
+                    </Box>
+                  )}
+                  {!importReport.details.errors && !importReport.details.error && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Check the browser console for more details.
+                      </Typography>
+                    </Box>
+                  )}
+                  {importReport.details.projectsCreated !== undefined && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2">Projects Created: {importReport.details.projectsCreated}</Typography>
+                      <Typography variant="body2">Projects Updated: {importReport.details.projectsUpdated}</Typography>
+                      <Typography variant="body2">Links Created: {importReport.details.linksCreated}</Typography>
+                    </Box>
+                  )}
+                  {importReport.details && !importReport.details.errors && !importReport.details.error && importReport.details.projectsCreated === undefined && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2">Details:</Typography>
+                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '0.8rem' }}>
+                        {JSON.stringify(importReport.details, null, 2)}
+                      </pre>
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>

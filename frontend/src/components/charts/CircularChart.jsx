@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { getProjectStatusBackgroundColor } from '../../utils/projectStatusColors';
 
 // Custom Tooltip for better readability
@@ -19,6 +19,43 @@ const CustomTooltip = ({ active, payload }) => {
     return null;
 };
 
+// Custom Legend Component that wraps
+const CustomLegend = ({ data }) => {
+    return (
+        <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            justifyContent: 'center', 
+            gap: '6px 10px',
+            px: 0.5
+        }}>
+            {data.map((entry, index) => (
+                <Box 
+                    key={`legend-${index}`}
+                    sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 0.4,
+                    }}
+                >
+                    <Box 
+                        sx={{ 
+                            width: 9, 
+                            height: 9, 
+                            backgroundColor: entry.color,
+                            borderRadius: '2px',
+                            flexShrink: 0
+                        }} 
+                    />
+                    <Typography variant="caption" sx={{ fontSize: '9px', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                        {entry.name}
+                    </Typography>
+                </Box>
+            ))}
+        </Box>
+    );
+};
+
 const CircularChart = ({ title, data, type }) => {
     const chartData = data.map((item) => ({
         ...item,
@@ -29,43 +66,65 @@ const CircularChart = ({ title, data, type }) => {
         color: item.color || (item.name && getProjectStatusBackgroundColor(item.name)) || '#8884d8'
     }));
 
-    const innerRadius = type === 'donut' ? 10 : 0;
-    const outerRadius = 80;
+    // Calculate responsive radius based on container size
+    const innerRadius = type === 'donut' ? 15 : 0;
     const colors = chartData.map(item => item.color);
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="h6" align="center" gutterBottom>{title}</Typography>
+        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', overflow: 'visible', p: 0.5 }}>
+            {title && (
+                <Typography variant="h6" align="center" sx={{ mb: 1, flexShrink: 0 }}>
+                    {title}
+                </Typography>
+            )}
             
-            <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                    <Pie
-                        data={chartData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={innerRadius}
-                        outerRadius={outerRadius}
-                        fill="#8884d8"
-                        paddingAngle={5}
-                        // Only show labels for donut chart if desired, or adjust for pie chart
-                        label={type === 'donut' ? ({ name, percent }) => `${(percent * 100).toFixed(0)}%` : undefined} 
-                    >
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                        ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    {/* Legend correctly positioned */}
-                    <Legend
-                        wrapperStyle={{ paddingTop: '20px' }} // Add padding to separate from chart
-                        layout="horizontal"
-                        align="center"
-                        verticalAlign="bottom"
-                    />
-                </PieChart>
-            </ResponsiveContainer>
+            <Box sx={{ 
+                width: '100%', 
+                flex: '1 1 auto', 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'stretch', 
+                justifyContent: 'space-between', 
+                minHeight: 0,
+                overflow: 'visible',
+                position: 'relative'
+            }}>
+                <Box sx={{ 
+                    width: '100%', 
+                    flex: '1 1 auto', 
+                    minHeight: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    py: 1
+                }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                            <Pie
+                                data={chartData}
+                                dataKey="value"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius="40%"
+                                outerRadius="75%"
+                                fill="#8884d8"
+                                paddingAngle={3}
+                                // Only show labels for donut chart if desired, or adjust for pie chart
+                                label={type === 'donut' ? ({ name, percent }) => `${(percent * 100).toFixed(0)}%` : undefined} 
+                            >
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </Box>
+                <Box sx={{ flexShrink: 0, mt: 1 }}>
+                    <CustomLegend data={chartData} />
+                </Box>
+            </Box>
         </Box>
     );
 };

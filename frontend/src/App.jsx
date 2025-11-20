@@ -10,7 +10,6 @@ import { ChatProvider } from './context/ChatContext';
 import MainLayout from './layouts/MainLayout';
 import DashboardPage from './pages/DashboardPage';
 import DashboardLandingPage from './pages/DashboardLandingPage';
-import RawDataPage from './pages/RawDataPage';
 import ProjectManagementPage from './pages/ProjectManagementPage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import ProjectGanttChartPage from './pages/ProjectGanttChartPage';
@@ -99,10 +98,6 @@ const router = createBrowserRouter([
       {
         path: 'contractor-management',
         element: <ContractorManagementPage />,
-      },
-      {
-        path: 'raw-data',
-        element: <RawDataPage />,
       },
       {
         path: 'projects',

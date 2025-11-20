@@ -529,7 +529,8 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={5}>
                     <Fade in timeout={1200}>
                         <Card sx={{ 
-                            height: '340px',
+                            height: '100%',
+                            minHeight: '420px',
                             borderRadius: '12px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -537,7 +538,9 @@ const ProjectOverviewDashboard = () => {
                             backdropFilter: 'blur(10px)',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             position: 'relative',
-                            overflow: 'hidden',
+                            overflow: 'visible',
+                            display: 'flex',
+                            flexDirection: 'column',
                             '&:hover': {
                                 boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                                 transform: 'translateY(-4px) scale(1.01)',
@@ -559,14 +562,14 @@ const ProjectOverviewDashboard = () => {
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                         <PieChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
                                         <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
-                                            Project Status
+                                            Project Status Overview
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                sx={{ pb: 1, px: 2, pt: 1.5, flexShrink: 0 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                <Box sx={{ height: '240px', minWidth: '300px' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 1, pb: 1.5, overflow: 'visible', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                                <Box sx={{ width: '100%', height: '100%', minHeight: '340px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto' }}>
                                 {dashboardData.projectStatus.length > 0 ? (
                                     <CircularChart
                                             title=""
@@ -586,7 +589,8 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={4}>
                     <Fade in timeout={1400}>
                         <Card sx={{ 
-                            height: '340px',
+                            height: '100%',
+                            minHeight: '420px',
                             borderRadius: '12px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -704,7 +708,8 @@ const ProjectOverviewDashboard = () => {
                             display: 'flex', 
                             flexDirection: 'column', 
                             gap: 1.5, 
-                            height: '340px',
+                            height: '100%',
+                            minHeight: '420px',
                             justifyContent: 'space-between'
                         }}>
                             <KPICard

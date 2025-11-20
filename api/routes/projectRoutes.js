@@ -72,27 +72,27 @@ const BASE_PROJECT_SELECT_JOINS = `
     LEFT JOIN
         kemri_staff s ON p.principalInvestigatorStaffId = s.staffId
     LEFT JOIN
-        kemri_departments cd ON p.departmentId = cd.departmentId
+        kemri_departments cd ON p.departmentId = cd.departmentId AND (cd.voided IS NULL OR cd.voided = 0)
     LEFT JOIN
-        kemri_sections ds ON p.sectionId = ds.sectionId
+        kemri_sections ds ON p.sectionId = ds.sectionId AND (ds.voided IS NULL OR ds.voided = 0)
     LEFT JOIN
-        kemri_financialyears fy ON p.finYearId = fy.finYearId
+        kemri_financialyears fy ON p.finYearId = fy.finYearId AND (fy.voided IS NULL OR fy.voided = 0)
     LEFT JOIN
         kemri_programs pr ON p.programId = pr.programId
     LEFT JOIN
         kemri_subprograms spr ON p.subProgramId = spr.subProgramId
     LEFT JOIN
-        kemri_project_counties pc ON p.id = pc.projectId
+        kemri_project_counties pc ON p.id = pc.projectId AND (pc.voided IS NULL OR pc.voided = 0)
     LEFT JOIN
         kemri_counties c ON pc.countyId = c.countyId
     LEFT JOIN
-        kemri_project_subcounties psc ON p.id = psc.projectId
+        kemri_project_subcounties psc ON p.id = psc.projectId AND (psc.voided IS NULL OR psc.voided = 0)
     LEFT JOIN
-        kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
+        kemri_subcounties sc ON psc.subcountyId = sc.subcountyId AND (sc.voided IS NULL OR sc.voided = 0)
     LEFT JOIN
-        kemri_project_wards pw ON p.id = pw.projectId
+        kemri_project_wards pw ON p.id = pw.projectId AND (pw.voided IS NULL OR pw.voided = 0)
     LEFT JOIN
-        kemri_wards w ON pw.wardId = w.wardId
+        kemri_wards w ON pw.wardId = w.wardId AND (w.voided IS NULL OR w.voided = 0)
     LEFT JOIN
         kemri_project_milestone_implementations projCat ON p.categoryId = projCat.categoryId
     LEFT JOIN
@@ -175,17 +175,18 @@ const projectHeaderMap = {
     // Canonical -> Variants (normalized)
     projectName: ['projectname', 'name', 'title', 'project', 'project_name', 'project name'],
     ProjectDescription: ['projectdescription', 'description', 'details', 'projectdesc'],
-    ProjectRefNum: ['projectrefnum', 'ref', 'refnum', 'reference', 'projectreference', 'projectref'],
+    ProjectRefNum: ['projectrefnum', 'projectrefnumber', 'ref', 'refnum', 'refnumber', 'reference', 'projectreference', 'projectref', 'project ref num', 'project ref number'],
     Status: ['status', 'projectstatus', 'currentstatus'],
     budget: ['budget', 'estimatedcost', 'budgetkes', 'projectcost', 'costofproject'],
-    amountPaid: ['amountpaid', 'disbursed', 'expenditure', 'paidout'],
+    amountPaid: ['amountpaid', 'disbursed', 'expenditure', 'paidout', 'amount paid'],
     financialYear: ['financialyear', 'financial-year', 'financial year', 'fy', 'adp', 'year'],
-    department: ['department', 'implementingdepartment', 'directorate'],
-    'sub-county': ['subcounty', 'subcountyname', 'subcountyid', 'sub-county', 'subcounty_'],
+    department: ['department', 'implementingdepartment'],
+    directorate: ['directorate'],
+    'sub-county': ['subcounty', 'subcountyname', 'subcountyid', 'sub-county', 'subcounty_', 'sub county'],
     ward: ['ward', 'wardname', 'wardid'],
     Contracted: ['contracted', 'contractamount', 'contractedamount', 'contractsum', 'contract value', 'contract value (kes)'],
-    StartDate: ['startdate', 'projectstartdate', 'commencementdate', 'start'],
-    EndDate: ['enddate', 'projectenddate', 'completiondate', 'end']
+    StartDate: ['startdate', 'projectstartdate', 'commencementdate', 'start', 'start date'],
+    EndDate: ['enddate', 'projectenddate', 'completiondate', 'end', 'end date']
 };
 
 // Reverse lookup: normalized variant -> canonical
@@ -207,15 +208,55 @@ const parseDateToYMD = (value) => {
     }
     if (typeof value !== 'string') return value;
     const s = value.trim();
+    
+    // Fix common typos in month names (e.g., "0ct" -> "Oct", "0CT" -> "OCT")
+    let normalized = s.replace(/\b0ct\b/gi, 'Oct').replace(/\b0ctober\b/gi, 'October');
+    
+    // Try to parse as text date (e.g., "6 Oct 2025", "6 October 2025", "Oct 6, 2025")
+    const monthNames = {
+        'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3,
+        'apr': 4, 'april': 4, 'may': 5, 'jun': 6, 'june': 6,
+        'jul': 7, 'july': 7, 'aug': 8, 'august': 8, 'sep': 9, 'september': 9,
+        'oct': 10, 'october': 10, 'nov': 11, 'november': 11, 'dec': 12, 'december': 12
+    };
+    
+    // Pattern: DD Month YYYY or Month DD, YYYY or DD-Month-YYYY
+    let m = normalized.match(/\b(\d{1,2})\s+([a-z]+)\s+(\d{4})\b/i);
+    if (m) {
+        const day = parseInt(m[1], 10);
+        const monthName = m[2].toLowerCase();
+        const year = parseInt(m[3], 10);
+        if (monthNames[monthName] && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+            const mm = String(monthNames[monthName]).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            return `${year}-${mm}-${dd}`;
+        }
+    }
+    
+    // Pattern: Month DD, YYYY or Month DD YYYY
+    m = normalized.match(/\b([a-z]+)\s+(\d{1,2}),?\s+(\d{4})\b/i);
+    if (m) {
+        const monthName = m[1].toLowerCase();
+        const day = parseInt(m[2], 10);
+        const year = parseInt(m[3], 10);
+        if (monthNames[monthName] && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+            const mm = String(monthNames[monthName]).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            return `${year}-${mm}-${dd}`;
+        }
+    }
+    
     // Replace multiple separators with a single dash for easier parsing
-    const norm = s.replace(/[\.\/]/g, '-');
+    const norm = normalized.replace(/[\.\/]/g, '-');
     // Try YYYY-MM-DD
-    let m = norm.match(/^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/);
+    m = norm.match(/^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/);
     if (m) {
         const yyyy = parseInt(m[1], 10);
         const mm = String(parseInt(m[2], 10)).padStart(2, '0');
         const dd = String(parseInt(m[3], 10)).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
+        if (yyyy >= 1900 && yyyy <= 2100 && parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
+            return `${yyyy}-${mm}-${dd}`;
+        }
     }
     // Try DD-MM-YYYY
     m = norm.match(/^\s*(\d{1,2})-(\d{1,2})-(\d{4})\s*$/);
@@ -223,7 +264,9 @@ const parseDateToYMD = (value) => {
         const dd = String(parseInt(m[1], 10)).padStart(2, '0');
         const mm = String(parseInt(m[2], 10)).padStart(2, '0');
         const yyyy = parseInt(m[3], 10);
-        return `${yyyy}-${mm}-${dd}`;
+        if (yyyy >= 1900 && yyyy <= 2100 && parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
+            return `${yyyy}-${mm}-${dd}`;
+        }
     }
     // Try MM-DD-YYYY
     m = norm.match(/^\s*(\d{1,2})-(\d{1,2})-(\d{4})\s*$/);
@@ -231,9 +274,14 @@ const parseDateToYMD = (value) => {
         const mm = String(parseInt(m[1], 10)).padStart(2, '0');
         const dd = String(parseInt(m[2], 10)).padStart(2, '0');
         const yyyy = parseInt(m[3], 10);
-        return `${yyyy}-${mm}-${dd}`;
+        if (yyyy >= 1900 && yyyy <= 2100 && parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
+            return `${yyyy}-${mm}-${dd}`;
+        }
     }
-    return s; // leave as-is if not parsed
+    
+    // If all parsing fails, return null instead of the original string to avoid database errors
+    console.warn(`Could not parse date: "${s}"`);
+    return null;
 };
 
 const mapRowUsingHeaderMap = (headers, row) => {
@@ -309,6 +357,377 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
 });
 
 /**
+ * @route POST /api/projects/check-metadata-mapping
+ * @description Check metadata mappings for import data (departments, directorates, wards, subcounties)
+ */
+router.post('/check-metadata-mapping', async (req, res) => {
+    const { dataToImport } = req.body || {};
+    if (!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) {
+        return res.status(400).json({ success: false, message: 'No data provided for metadata mapping check.' });
+    }
+
+    // Enhanced normalization: trim, normalize spaces/slashes, handle apostrophes, collapse multiple spaces
+    const normalizeStr = (v) => {
+        if (typeof v !== 'string') return v;
+        let normalized = v.trim();
+        // Remove apostrophes (handle different apostrophe characters: ', ', ', `, and Unicode variants)
+        // Use a more comprehensive pattern to catch all apostrophe-like characters
+        normalized = normalized.replace(/[''"`\u0027\u2018\u2019\u201A\u201B\u2032\u2035]/g, '');
+        // Normalize slashes: remove spaces around existing slashes
+        normalized = normalized.replace(/\s*\/\s*/g, '/');
+        // Collapse multiple spaces to single space
+        normalized = normalized.replace(/\s+/g, ' ');
+        // Don't automatically convert spaces to slashes - this causes issues with names like "Kisumu Central"
+        // The matching logic will handle both space and slash variations
+        return normalized;
+    };
+
+    let connection;
+    const mappingSummary = {
+        departments: { existing: [], new: [], unmatched: [] },
+        directorates: { existing: [], new: [], unmatched: [] },
+        wards: { existing: [], new: [], unmatched: [] },
+        subcounties: { existing: [], new: [], unmatched: [] },
+        financialYears: { existing: [], new: [], unmatched: [] },
+        totalRows: dataToImport.length,
+        rowsWithUnmatchedMetadata: []
+    };
+
+    try {
+        connection = await pool.getConnection();
+
+        // Collect unique values from all rows
+        const uniqueDepartments = new Set();
+        const uniqueDirectorates = new Set();
+        const uniqueWards = new Set();
+        const uniqueSubcounties = new Set();
+        const uniqueFinancialYears = new Set();
+
+        dataToImport.forEach((row, index) => {
+            const dept = normalizeStr(row.department || row.Department);
+            const directorate = normalizeStr(row.directorate || row.Directorate);
+            const ward = normalizeStr(row.ward || row.Ward || row['Ward Name']);
+            const subcounty = normalizeStr(row['sub-county'] || row.SubCounty || row['Sub County'] || row.Subcounty);
+            const finYear = normalizeStr(row.financialYear || row.FinancialYear || row['Financial Year'] || row.ADP || row.Year);
+
+            if (dept) uniqueDepartments.add(dept);
+            if (directorate) uniqueDirectorates.add(directorate);
+            if (ward) uniqueWards.add(ward);
+            if (subcounty) uniqueSubcounties.add(subcounty);
+            if (finYear) uniqueFinancialYears.add(finYear);
+        });
+
+        // Check departments (by name and alias)
+        if (uniqueDepartments.size > 0) {
+            const deptList = Array.from(uniqueDepartments);
+            // Get all departments and check manually (to handle comma-separated aliases properly)
+            const [allDepts] = await connection.query(
+                `SELECT name, alias FROM kemri_departments 
+                 WHERE (voided IS NULL OR voided = 0)`
+            );
+            const existingNames = new Set();
+            const existingAliases = new Set();
+            const aliasMap = new Map(); // Map alias -> name for tracking
+            
+            allDepts.forEach(d => {
+                if (d.name) existingNames.add(normalizeStr(d.name));
+                if (d.alias) {
+                    // Handle comma-separated aliases - split and add each part
+                    const aliases = d.alias.split(',').map(a => normalizeStr(a));
+                    aliases.forEach(a => {
+                        existingAliases.add(a);
+                        aliasMap.set(a, d.name);
+                    });
+                    // Also check if the full alias string matches
+                    const fullAlias = normalizeStr(d.alias);
+                    existingAliases.add(fullAlias);
+                    aliasMap.set(fullAlias, d.name);
+                }
+            });
+            
+            deptList.forEach(dept => {
+                const normalizedDept = normalizeStr(dept);
+                if (existingNames.has(normalizedDept) || existingAliases.has(normalizedDept)) {
+                    mappingSummary.departments.existing.push(dept);
+                } else {
+                    mappingSummary.departments.new.push(dept);
+                }
+            });
+        }
+
+        // Check directorates (sections) - by name and alias
+        if (uniqueDirectorates.size > 0) {
+            const dirList = Array.from(uniqueDirectorates);
+            // Get all sections and check manually (to handle comma-separated aliases properly)
+            const [allSections] = await connection.query(
+                `SELECT name, alias FROM kemri_sections 
+                 WHERE (voided IS NULL OR voided = 0)`
+            );
+            const existingNames = new Set();
+            const existingAliases = new Set();
+            
+            allSections.forEach(d => {
+                if (d.name) existingNames.add(normalizeStr(d.name));
+                if (d.alias) {
+                    // Handle comma-separated aliases - split and add each part
+                    const aliases = d.alias.split(',').map(a => normalizeStr(a));
+                    aliases.forEach(a => existingAliases.add(a));
+                    // Also check if the full alias string matches
+                    const fullAlias = normalizeStr(d.alias);
+                    existingAliases.add(fullAlias);
+                }
+            });
+            
+            dirList.forEach(dir => {
+                const normalizedDir = normalizeStr(dir);
+                if (existingNames.has(normalizedDir) || existingAliases.has(normalizedDir)) {
+                    mappingSummary.directorates.existing.push(dir);
+                } else {
+                    mappingSummary.directorates.new.push(dir);
+                }
+            });
+        }
+
+        // Check wards (case-insensitive matching)
+        if (uniqueWards.size > 0) {
+            const wardList = Array.from(uniqueWards);
+            // Get all wards and do case-insensitive matching
+            const [allWards] = await connection.query(
+                `SELECT name FROM kemri_wards WHERE (voided IS NULL OR voided = 0)`
+            );
+            // Create a case-insensitive map: lowercase name -> actual name
+            // Store both the normalized version and variations (with/without slashes, word order variations)
+            const wardNameMap = new Map();
+            const wardWordSetMap = new Map(); // Map of sorted word sets -> actual name (for order-independent matching)
+            
+            allWards.forEach(w => {
+                if (w.name) {
+                    const normalized = normalizeStr(w.name).toLowerCase();
+                    wardNameMap.set(normalized, w.name);
+                    // Also store with space converted to slash and vice versa for flexible matching
+                    const withSlash = normalized.replace(/\s+/g, '/');
+                    if (withSlash !== normalized) {
+                        wardNameMap.set(withSlash, w.name);
+                    }
+                    const withSpace = normalized.replace(/\//g, ' ');
+                    if (withSpace !== normalized) {
+                        wardNameMap.set(withSpace, w.name);
+                    }
+                    
+                    // Create a word set for order-independent matching
+                    const words = normalized.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                    if (words) {
+                        wardWordSetMap.set(words, w.name);
+                    }
+                }
+            });
+            
+            wardList.forEach(ward => {
+                const normalizedWard = normalizeStr(ward).toLowerCase();
+                let found = false;
+                
+                // Try exact match first
+                if (wardNameMap.has(normalizedWard)) {
+                    mappingSummary.wards.existing.push(ward);
+                    found = true;
+                } else {
+                    // Try with space converted to slash (for compound names like "Masogo Nyangoma" -> "Masogo/Nyangoma")
+                    const withSlash = normalizedWard.replace(/\s+/g, '/');
+                    if (wardNameMap.has(withSlash)) {
+                        mappingSummary.wards.existing.push(ward);
+                        found = true;
+                    } else {
+                        // Try with slash converted to space (for cases like "KISUMU/CENTRAL" -> "KISUMU CENTRAL")
+                        const withSpace = normalizedWard.replace(/\//g, ' ');
+                        if (wardNameMap.has(withSpace)) {
+                            mappingSummary.wards.existing.push(ward);
+                            found = true;
+                        } else {
+                            // Try order-independent matching (e.g., "Nyangoma Masogo" matches "Masogo/Nyangoma")
+                            const words = normalizedWard.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                            if (words && wardWordSetMap.has(words)) {
+                                mappingSummary.wards.existing.push(ward);
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                
+                if (!found) {
+                    mappingSummary.wards.new.push(ward);
+                }
+            });
+        }
+
+        // Check subcounties (case-insensitive matching)
+        if (uniqueSubcounties.size > 0) {
+            const subcountyList = Array.from(uniqueSubcounties);
+            // Get all subcounties and do case-insensitive matching
+            const [allSubcounties] = await connection.query(
+                `SELECT name FROM kemri_subcounties WHERE (voided IS NULL OR voided = 0)`
+            );
+            // Create a case-insensitive map: lowercase name -> actual name
+            // Store both the normalized version and variations (with/without slashes, word order variations)
+            const subcountyNameMap = new Map();
+            const subcountyWordSetMap = new Map(); // Map of sorted word sets -> actual name (for order-independent matching)
+            
+            allSubcounties.forEach(s => {
+                if (s.name) {
+                    const normalized = normalizeStr(s.name).toLowerCase();
+                    subcountyNameMap.set(normalized, s.name);
+                    // Also store with space converted to slash and vice versa for flexible matching
+                    const withSlash = normalized.replace(/\s+/g, '/');
+                    if (withSlash !== normalized) {
+                        subcountyNameMap.set(withSlash, s.name);
+                    }
+                    const withSpace = normalized.replace(/\//g, ' ');
+                    if (withSpace !== normalized) {
+                        subcountyNameMap.set(withSpace, s.name);
+                    }
+                    
+                    // Create a word set for order-independent matching
+                    const words = normalized.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                    if (words) {
+                        subcountyWordSetMap.set(words, s.name);
+                    }
+                }
+            });
+            
+            subcountyList.forEach(subcounty => {
+                const normalizedSubcounty = normalizeStr(subcounty).toLowerCase();
+                let found = false;
+                
+                // Try exact match first
+                if (subcountyNameMap.has(normalizedSubcounty)) {
+                    mappingSummary.subcounties.existing.push(subcounty);
+                    found = true;
+                } else {
+                    // Try with space converted to slash (for compound names)
+                    const withSlash = normalizedSubcounty.replace(/\s+/g, '/');
+                    if (subcountyNameMap.has(withSlash)) {
+                        mappingSummary.subcounties.existing.push(subcounty);
+                        found = true;
+                    } else {
+                        // Try with slash converted to space
+                        const withSpace = normalizedSubcounty.replace(/\//g, ' ');
+                        if (subcountyNameMap.has(withSpace)) {
+                            mappingSummary.subcounties.existing.push(subcounty);
+                            found = true;
+                        } else {
+                            // Try order-independent matching (e.g., "Nyangoma Masogo" matches "Masogo/Nyangoma")
+                            const words = normalizedSubcounty.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                            if (words && subcountyWordSetMap.has(words)) {
+                                mappingSummary.subcounties.existing.push(subcounty);
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                
+                if (!found) {
+                    mappingSummary.subcounties.new.push(subcounty);
+                }
+            });
+        }
+
+        // Check financial years (with flexible matching for formats like "FY2014/2015", "fy2014/2015", "2014/2015", "2014-2015", "fy 2014-2015")
+        if (uniqueFinancialYears.size > 0) {
+            const fyList = Array.from(uniqueFinancialYears);
+            // Get all financial years and do flexible matching (exclude voided)
+            const [allFYs] = await connection.query(
+                `SELECT finYearName FROM kemri_financialyears WHERE (voided IS NULL OR voided = 0)`
+            );
+            
+            // Normalize financial year name: strip FY prefix, normalize separators to slash, lowercase
+            const normalizeFinancialYear = (name) => {
+                if (!name) return '';
+                let normalized = normalizeStr(name).toLowerCase();
+                // Remove FY or fy prefix (with optional space)
+                normalized = normalized.replace(/^fy\s*/i, '');
+                // Normalize all separators (space, dash) to slash
+                normalized = normalized.replace(/[\s\-]/g, '/');
+                // Remove any extra slashes
+                normalized = normalized.replace(/\/+/g, '/');
+                return normalized.trim();
+            };
+            
+            // Create a map: normalized year (e.g., "2014/2015") -> actual database name (e.g., "FY2014/2015")
+            const fyNormalizedMap = new Map();
+            
+            allFYs.forEach(fy => {
+                if (fy.finYearName) {
+                    const normalized = normalizeFinancialYear(fy.finYearName);
+                    // Store the normalized version pointing to the actual database name
+                    fyNormalizedMap.set(normalized, fy.finYearName);
+                }
+            });
+            
+            fyList.forEach(fy => {
+                const normalizedFY = normalizeFinancialYear(fy);
+                let found = false;
+                
+                // Check if normalized version exists in database
+                if (normalizedFY && fyNormalizedMap.has(normalizedFY)) {
+                    mappingSummary.financialYears.existing.push(fy);
+                    found = true;
+                }
+                
+                if (!found) {
+                    mappingSummary.financialYears.new.push(fy);
+                }
+            });
+        }
+
+        // Identify rows with unmatched metadata (for warnings)
+        dataToImport.forEach((row, index) => {
+            const dept = normalizeStr(row.department || row.Department);
+            const ward = normalizeStr(row.ward || row.Ward || row['Ward Name']);
+            const subcounty = normalizeStr(row['sub-county'] || row.SubCounty || row['Sub County'] || row.Subcounty);
+            const finYear = normalizeStr(row.financialYear || row.FinancialYear || row['Financial Year'] || row.ADP || row.Year);
+            
+            const unmatched = [];
+            if (dept && !mappingSummary.departments.existing.includes(dept) && !mappingSummary.departments.new.includes(dept)) {
+                unmatched.push(`Department: ${dept}`);
+            }
+            if (ward && !mappingSummary.wards.existing.includes(ward) && !mappingSummary.wards.new.includes(ward)) {
+                unmatched.push(`Ward: ${ward}`);
+            }
+            if (subcounty && !mappingSummary.subcounties.existing.includes(subcounty) && !mappingSummary.subcounties.new.includes(subcounty)) {
+                unmatched.push(`Sub-county: ${subcounty}`);
+            }
+            if (finYear && !mappingSummary.financialYears.existing.includes(finYear) && !mappingSummary.financialYears.new.includes(finYear)) {
+                unmatched.push(`Financial Year: ${finYear}`);
+            }
+            
+            if (unmatched.length > 0) {
+                mappingSummary.rowsWithUnmatchedMetadata.push({
+                    rowNumber: index + 2, // +2 because index is 0-based and Excel rows start at 2 (header + 1)
+                    projectName: normalizeStr(row.projectName || row.Project_Name || row['Project Name']) || 
+                                normalizeStr(row.ProjectRefNum || row.Project_Ref_Num || row['Project Ref Num']) || 
+                                `Row ${index + 2}`,
+                    unmatched: unmatched
+                });
+            }
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Metadata mapping check completed',
+            mappingSummary
+        });
+    } catch (err) {
+        console.error('Metadata mapping check error:', err);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to check metadata mappings',
+            error: err.message 
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+/**
  * @route POST /api/projects/confirm-import-data
  * @description Confirm and import project data
  */
@@ -328,10 +747,36 @@ router.post('/confirm-import-data', async (req, res) => {
         return false;
     };
 
-    const normalizeStr = (v) => (typeof v === 'string' ? v.trim() : v);
+    // Enhanced normalization: trim, normalize spaces/slashes, handle apostrophes, collapse multiple spaces
+    const normalizeStr = (v) => {
+        if (typeof v !== 'string') return v;
+        let normalized = v.trim();
+        // Remove apostrophes (handle different apostrophe characters: ', ', ', `, and Unicode variants)
+        // Use a more comprehensive pattern to catch all apostrophe-like characters
+        normalized = normalized.replace(/[''"`\u0027\u2018\u2019\u201A\u201B\u2032\u2035]/g, '');
+        // Normalize slashes: remove spaces around existing slashes
+        normalized = normalized.replace(/\s*\/\s*/g, '/');
+        // Collapse multiple spaces to single space
+        normalized = normalized.replace(/\s+/g, ' ');
+        // Don't automatically convert spaces to slashes - this causes issues with names like "Kisumu Central"
+        // The matching logic will handle both space and slash variations
+        return normalized;
+    };
 
     let connection;
-    const summary = { projectsCreated: 0, projectsUpdated: 0, linksCreated: 0, errors: [] };
+    const summary = { 
+        projectsCreated: 0, 
+        projectsUpdated: 0, 
+        linksCreated: 0, 
+        errors: [],
+        skippedMetadata: {
+            departments: [],
+            directorates: [],
+            wards: [],
+            subcounties: [],
+            financialYears: []
+        }
+    };
 
     try {
         connection = await pool.getConnection();
@@ -346,34 +791,174 @@ router.post('/confirm-import-data', async (req, res) => {
                     throw new Error('Missing projectName and ProjectRefNum');
                 }
 
-                // Resolve departmentId by name (create if missing)
+                // Resolve departmentId by name or alias (DO NOT create if missing)
                 const departmentName = normalizeStr(row.department || row.Department);
                 let departmentId = null;
                 if (departmentName) {
-                    const [deptRows] = await connection.query('SELECT departmentId FROM kemri_departments WHERE name = ?', [departmentName]);
-                    if (deptRows.length > 0) {
-                        departmentId = deptRows[0].departmentId;
-                    } else {
-                        const [insDept] = await connection.query('INSERT INTO kemri_departments (name) VALUES (?)', [departmentName]);
-                        departmentId = insDept.insertId;
+                    // Get all departments and check manually (to handle comma-separated aliases properly)
+                    const [allDepts] = await connection.query(
+                        `SELECT departmentId, name, alias FROM kemri_departments 
+                         WHERE (voided IS NULL OR voided = 0)`
+                    );
+                    let found = false;
+                    for (const dept of allDepts) {
+                        // Check name
+                        if (dept.name && normalizeStr(dept.name) === departmentName) {
+                            departmentId = dept.departmentId;
+                            found = true;
+                            break;
+                        }
+                        // Check alias - both full alias and split parts
+                        if (dept.alias) {
+                            const fullAlias = normalizeStr(dept.alias);
+                            if (fullAlias === departmentName) {
+                                departmentId = dept.departmentId;
+                                found = true;
+                                break;
+                            }
+                            // Check split aliases
+                            const aliases = dept.alias.split(',').map(a => normalizeStr(a));
+                            if (aliases.includes(departmentName)) {
+                                departmentId = dept.departmentId;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!found) {
+                        // Track skipped metadata
+                        if (!summary.skippedMetadata.departments.includes(departmentName)) {
+                            summary.skippedMetadata.departments.push(departmentName);
+                        }
                     }
                 }
 
-                // Resolve financial year id by name (create if missing)
+                // Resolve sectionId (directorate) by name or alias (DO NOT create if missing)
+                const directorateName = normalizeStr(row.directorate || row.Directorate);
+                let sectionId = null;
+                if (directorateName) {
+                    // Get all sections and check manually (to handle comma-separated aliases properly)
+                    const [allSections] = await connection.query(
+                        `SELECT sectionId, name, alias, departmentId FROM kemri_sections 
+                         WHERE (voided IS NULL OR voided = 0)`
+                    );
+                    let matchingSections = [];
+                    
+                    for (const section of allSections) {
+                        let matches = false;
+                        // Check name
+                        if (section.name && normalizeStr(section.name) === directorateName) {
+                            matches = true;
+                        }
+                        // Check alias - both full alias and split parts
+                        if (!matches && section.alias) {
+                            const fullAlias = normalizeStr(section.alias);
+                            if (fullAlias === directorateName) {
+                                matches = true;
+                            } else {
+                                // Check split aliases
+                                const aliases = section.alias.split(',').map(a => normalizeStr(a));
+                                if (aliases.includes(directorateName)) {
+                                    matches = true;
+                                }
+                            }
+                        }
+                        
+                        if (matches) {
+                            matchingSections.push(section);
+                        }
+                    }
+                    
+                    if (matchingSections.length > 0) {
+                        // If we have a departmentId, prefer sections that belong to that department
+                        if (departmentId) {
+                            const matchingInDept = matchingSections.find(s => s.departmentId === departmentId);
+                            if (matchingInDept) {
+                                sectionId = matchingInDept.sectionId;
+                            } else {
+                                // If no match in department, use the first matching section
+                                sectionId = matchingSections[0].sectionId;
+                            }
+                        } else {
+                            // No departmentId, use the first matching section
+                            sectionId = matchingSections[0].sectionId;
+                        }
+                    } else {
+                        // Track skipped metadata
+                        if (!summary.skippedMetadata.directorates.includes(directorateName)) {
+                            summary.skippedMetadata.directorates.push(directorateName);
+                        }
+                    }
+                }
+
+                // Resolve financial year id by name (DO NOT create if missing) - with flexible matching
                 const finYearName = normalizeStr(row.financialYear || row.FinancialYear || row['Financial Year'] || row.ADP || row.Year);
                 let finYearId = null;
                 if (finYearName) {
-                    const [fyRows] = await connection.query('SELECT finYearId FROM kemri_financialyears WHERE finYearName = ?', [finYearName]);
+                    // Normalize financial year name: strip FY prefix, normalize separators
+                    const normalizeFinancialYear = (name) => {
+                        if (!name) return '';
+                        let normalized = normalizeStr(name).toLowerCase();
+                        // Remove FY or fy prefix (with optional space)
+                        normalized = normalized.replace(/^fy\s*/i, '');
+                        // Normalize all separators (space, dash) to slash
+                        normalized = normalized.replace(/[\s\-]/g, '/');
+                        // Remove any extra slashes
+                        normalized = normalized.replace(/\/+/g, '/');
+                        return normalized.trim();
+                    };
+                    
+                    const normalizedFYName = normalizeFinancialYear(finYearName);
+                    
+                    // Fetch all financial years and match using normalized names
+                    const [allFYs] = await connection.query(
+                        'SELECT finYearId, finYearName FROM kemri_financialyears WHERE (voided IS NULL OR voided = 0)'
+                    );
+                    
+                    let fyRows = [];
+                    for (const fy of allFYs) {
+                        if (fy.finYearName) {
+                            const dbNormalized = normalizeFinancialYear(fy.finYearName);
+                            if (dbNormalized === normalizedFYName) {
+                                fyRows = [{ finYearId: fy.finYearId }];
+                                break;
+                            }
+                        }
+                    }
+                    
                     if (fyRows.length > 0) {
                         finYearId = fyRows[0].finYearId;
                     } else {
-                        const [insFy] = await connection.query('INSERT INTO kemri_financialyears (finYearName) VALUES (?)', [finYearName]);
-                        finYearId = insFy.insertId;
+                        // Track skipped metadata
+                        if (!summary.skippedMetadata.financialYears.includes(finYearName)) {
+                            summary.skippedMetadata.financialYears.push(finYearName);
+                        }
                     }
                 }
 
                 // Prepare project payload
                 const toMoney = (v) => (v != null ? Number(String(v).replace(/,/g, '')) : null);
+                // Ensure dates are in YYYY-MM-DD format
+                const normalizeDate = (dateValue) => {
+                    if (!dateValue) return null;
+                    try {
+                        // If already in YYYY-MM-DD format, return as-is
+                        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+                            return dateValue.split(' ')[0]; // Take only date part if there's time
+                        }
+                        // Try to parse if it's a date string or object
+                        const parsed = parseDateToYMD(dateValue);
+                        // Validate the parsed date is in correct format
+                        if (parsed && typeof parsed === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
+                            return parsed;
+                        }
+                        // If parsing failed or returned invalid format, return null
+                        return null;
+                    } catch (dateErr) {
+                        console.warn(`Date parsing error for value "${dateValue}":`, dateErr.message);
+                        return null;
+                    }
+                };
                 const projectPayload = {
                     projectName: projectName || null,
                     ProjectRefNum: projectRef || null,
@@ -381,9 +966,10 @@ router.post('/confirm-import-data', async (req, res) => {
                     status: normalizeStr(row.Status) || null,
                     costOfProject: toMoney(row.budget),
                     paidOut: toMoney(row.amountPaid),
-                    startDate: row.StartDate || null,
-                    endDate: row.EndDate || null,
+                    startDate: normalizeDate(row.StartDate),
+                    endDate: normalizeDate(row.EndDate),
                     directorate: normalizeStr(row.directorate || row.Directorate) || null,
+                    sectionId: sectionId, // Store sectionId when directorate is resolved
                     departmentId: departmentId,
                     finYearId: finYearId,
                     Contracted: toMoney(row.Contracted),
@@ -413,46 +999,268 @@ router.post('/confirm-import-data', async (req, res) => {
                     summary.projectsCreated++;
                 }
 
-                // Link Subcounty
+                // Link Subcounty (DO NOT create if missing) - case-insensitive matching with flexible space/slash/word-order handling
                 const subCountyName = normalizeStr(row['sub-county'] || row.SubCounty || row['Sub County'] || row.Subcounty);
                 if (subCountyName) {
-                    const [scRows] = await connection.query('SELECT subcountyId FROM kemri_subcounties WHERE name = ?', [subCountyName]);
-                    if (scRows.length > 0) {
-                        const subcountyId = scRows[0].subcountyId;
+                    // Use case-insensitive matching with normalized spaces around slashes and apostrophes
+                    const normalizedSubCountyName = normalizeStr(subCountyName).toLowerCase();
+                    // Split into words and create sorted word set for order-independent matching
+                    const inputWords = normalizedSubCountyName.split(/[\s\/]+/).filter(w => w.length > 0).sort();
+                    const inputWordSet = inputWords.join(' ');
+                    
+                    // Try exact match first, then try with space/slash variations, then word-order independent
+                    const normalizedDbName = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(name), ' / ', '/'), ' /', '/'), '/ ', '/'), '''', ''))`;
+                    
+                    // For word-order matching, we need to fetch and check in JavaScript
+                    const [scRows] = await connection.query(
+                        `SELECT subcountyId, ${normalizedDbName} as normalized_name FROM kemri_subcounties 
+                         WHERE (${normalizedDbName} = ? OR ${normalizedDbName} = REPLACE(?, ' ', '/') OR ${normalizedDbName} = REPLACE(?, '/', ' '))
+                         AND (voided IS NULL OR voided = 0)`, 
+                        [normalizedSubCountyName, normalizedSubCountyName, normalizedSubCountyName]
+                    );
+                    
+                    // If no exact match, try word-order independent matching
+                    let matchedRow = scRows[0];
+                    if (!matchedRow) {
+                        const [allScRows] = await connection.query(
+                            `SELECT subcountyId, ${normalizedDbName} as normalized_name FROM kemri_subcounties 
+                             WHERE (voided IS NULL OR voided = 0)`
+                        );
+                        for (const row of allScRows) {
+                            if (row.normalized_name) {
+                                const dbWords = row.normalized_name.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                                if (dbWords === inputWordSet) {
+                                    matchedRow = row;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (matchedRow) {
+                        const subcountyId = matchedRow.subcountyId;
                         await connection.query('INSERT IGNORE INTO kemri_project_subcounties (projectId, subcountyId) VALUES (?, ?)', [projectId, subcountyId]);
                         summary.linksCreated++;
+                    } else {
+                        // Track skipped metadata
+                        if (!summary.skippedMetadata.subcounties.includes(subCountyName)) {
+                            summary.skippedMetadata.subcounties.push(subCountyName);
+                        }
                     }
                 }
 
-                // Link Ward
+                // Link Ward (DO NOT create if missing) - case-insensitive matching with flexible space/slash/word-order handling
                 const wardName = normalizeStr(row.ward || row.Ward || row['Ward Name']);
                 if (wardName) {
-                    const [wRows] = await connection.query('SELECT wardId FROM kemri_wards WHERE name = ?', [wardName]);
-                    if (wRows.length > 0) {
-                        const wardId = wRows[0].wardId;
+                    // Use case-insensitive matching with normalized spaces around slashes and apostrophes
+                    const normalizedWardName = normalizeStr(wardName).toLowerCase();
+                    // Split into words and create sorted word set for order-independent matching
+                    const inputWords = normalizedWardName.split(/[\s\/]+/).filter(w => w.length > 0).sort();
+                    const inputWordSet = inputWords.join(' ');
+                    
+                    // Try exact match first, then try with space/slash variations, then word-order independent
+                    const normalizedDbName = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(name), ' / ', '/'), ' /', '/'), '/ ', '/'), '''', ''))`;
+                    
+                    // For word-order matching, we need to fetch and check in JavaScript
+                    const [wRows] = await connection.query(
+                        `SELECT wardId, ${normalizedDbName} as normalized_name FROM kemri_wards 
+                         WHERE (${normalizedDbName} = ? OR ${normalizedDbName} = REPLACE(?, ' ', '/') OR ${normalizedDbName} = REPLACE(?, '/', ' '))
+                         AND (voided IS NULL OR voided = 0)`, 
+                        [normalizedWardName, normalizedWardName, normalizedWardName]
+                    );
+                    
+                    // If no exact match, try word-order independent matching
+                    let matchedRow = wRows[0];
+                    if (!matchedRow) {
+                        const [allWRows] = await connection.query(
+                            `SELECT wardId, ${normalizedDbName} as normalized_name FROM kemri_wards 
+                             WHERE (voided IS NULL OR voided = 0)`
+                        );
+                        for (const row of allWRows) {
+                            if (row.normalized_name) {
+                                const dbWords = row.normalized_name.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                                if (dbWords === inputWordSet) {
+                                    matchedRow = row;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (matchedRow) {
+                        const wardId = matchedRow.wardId;
                         await connection.query('INSERT IGNORE INTO kemri_project_wards (projectId, wardId) VALUES (?, ?)', [projectId, wardId]);
                         summary.linksCreated++;
+                    } else {
+                        // Track skipped metadata
+                        if (!summary.skippedMetadata.wards.includes(wardName)) {
+                            summary.skippedMetadata.wards.push(wardName);
+                        }
+                    }
+                }
+
+                // Link Contractor (AUTO-CREATE if not exists) - with careful validation
+                const contractorName = normalizeStr(row.contractor || row.Contractor || row.contractorName || row['Contractor Name']);
+                if (contractorName) {
+                    // Validate contractor name is not empty after normalization
+                    if (!contractorName.trim()) {
+                        console.warn(`Row ${i + 2}: Contractor name is empty after normalization, skipping contractor assignment`);
+                    } else {
+                        // Check if contractor exists by companyName (case-insensitive, normalized)
+                        const normalizedContractorName = normalizeStr(contractorName).trim();
+                        const [existingContractors] = await connection.query(
+                            `SELECT contractorId, companyName, email FROM kemri_contractors 
+                             WHERE LOWER(TRIM(REPLACE(REPLACE(companyName, '''', ''), ' ', ''))) = LOWER(REPLACE(REPLACE(?, '''', ''), ' ', ''))
+                             AND (voided IS NULL OR voided = 0)
+                             LIMIT 1`,
+                            [normalizedContractorName]
+                        );
+                        
+                        let contractorId = null;
+                        
+                        if (existingContractors.length > 0) {
+                            // Contractor exists, use it
+                            contractorId = existingContractors[0].contractorId;
+                        } else {
+                            // Contractor doesn't exist, create it with validation
+                            // Validate companyName is not empty
+                            if (!normalizedContractorName || normalizedContractorName.length < 2) {
+                                console.warn(`Row ${i + 2}: Contractor name "${contractorName}" is too short, skipping contractor creation`);
+                            } else {
+                                // Extract optional fields from import data
+                                const contractorEmail = normalizeStr(row.contractorEmail || row['Contractor Email'] || row.contractor_email);
+                                const contractorPhone = normalizeStr(row.contractorPhone || row['Contractor Phone'] || row.contractor_phone);
+                                const contactPerson = normalizeStr(row.contactPerson || row['Contact Person'] || row.contact_person);
+                                
+                                // Generate email if not provided (based on companyName)
+                                let finalEmail = contractorEmail;
+                                if (!finalEmail || !finalEmail.trim()) {
+                                    // Generate a safe email from company name
+                                    const emailBase = normalizedContractorName
+                                        .toLowerCase()
+                                        .replace(/[^a-z0-9]/g, '')
+                                        .substring(0, 50); // Limit length
+                                    finalEmail = `${emailBase}@contractor.local`;
+                                } else {
+                                    finalEmail = finalEmail.trim().toLowerCase();
+                                }
+                                
+                                // Check if email already exists (email has unique constraint)
+                                const [emailCheck] = await connection.query(
+                                    'SELECT contractorId FROM kemri_contractors WHERE email = ? AND (voided IS NULL OR voided = 0) LIMIT 1',
+                                    [finalEmail]
+                                );
+                                
+                                if (emailCheck.length > 0) {
+                                    // Email exists, use that contractor instead
+                                    contractorId = emailCheck[0].contractorId;
+                                    console.log(`Row ${i + 2}: Email "${finalEmail}" already exists, using existing contractor ID ${contractorId}`);
+                                } else {
+                                    // Create new contractor
+                                    const userId = 1; // TODO: Get from authenticated user
+                                    try {
+                                        const [insertResult] = await connection.query(
+                                            'INSERT INTO kemri_contractors (companyName, contactPerson, email, phone, userId) VALUES (?, ?, ?, ?, ?)',
+                                            [normalizedContractorName, contactPerson || null, finalEmail, contractorPhone || null, userId]
+                                        );
+                                        contractorId = insertResult.insertId;
+                                        console.log(`Row ${i + 2}: Created new contractor "${normalizedContractorName}" with ID ${contractorId}`);
+                                    } catch (createErr) {
+                                        // Handle unique constraint violation or other errors
+                                        if (createErr.code === 'ER_DUP_ENTRY') {
+                                            // Email or companyName might be duplicate, try to find existing
+                                            const [duplicateCheck] = await connection.query(
+                                                'SELECT contractorId FROM kemri_contractors WHERE companyName = ? AND (voided IS NULL OR voided = 0) LIMIT 1',
+                                                [normalizedContractorName]
+                                            );
+                                            if (duplicateCheck.length > 0) {
+                                                contractorId = duplicateCheck[0].contractorId;
+                                                console.log(`Row ${i + 2}: Found duplicate contractor "${normalizedContractorName}", using ID ${contractorId}`);
+                                            } else {
+                                                console.error(`Row ${i + 2}: Error creating contractor "${normalizedContractorName}":`, createErr.message);
+                                                // Continue without contractor assignment
+                                            }
+                                        } else {
+                                            console.error(`Row ${i + 2}: Error creating contractor "${normalizedContractorName}":`, createErr.message);
+                                            // Continue without contractor assignment
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Link contractor to project if we have a contractorId
+                        if (contractorId) {
+                            try {
+                                await connection.query(
+                                    'INSERT IGNORE INTO kemri_project_contractor_assignments (projectId, contractorId, assignmentDate, voided) VALUES (?, ?, NOW(), 0)',
+                                    [projectId, contractorId]
+                                );
+                                summary.linksCreated++;
+                            } catch (linkErr) {
+                                // Log but don't fail the import if linking fails
+                                console.warn(`Row ${i + 2}: Could not link contractor ${contractorId} to project ${projectId}:`, linkErr.message);
+                            }
+                        }
                     }
                 }
 
             } catch (rowErr) {
-                summary.errors.push(`Row ${i + 2}: ${rowErr.message}`);
+                console.error(`Error processing row ${i + 2}:`, rowErr);
+                const errorMsg = `Row ${i + 2}: ${rowErr.message || String(rowErr)}`;
+                summary.errors.push(errorMsg);
+                // Also log the full error for debugging
+                if (rowErr.stack) {
+                    console.error(`Row ${i + 2} error stack:`, rowErr.stack);
+                }
             }
         }
 
         if (summary.errors.length > 0) {
             await connection.rollback();
-            return res.status(400).json({ success: false, message: 'Import failed with errors. No changes committed.', details: summary.errors });
+            console.error('Import failed with errors:', summary.errors);
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Import failed with errors. No changes committed.', 
+                details: { 
+                    errors: summary.errors,
+                    errorCount: summary.errors.length,
+                    totalRows: dataToImport.length
+                } 
+            });
         }
 
         await connection.commit();
-        return res.status(200).json({ success: true, message: 'Projects imported successfully', details: summary });
+        
+        // Build a message about skipped metadata
+        const skippedMessages = [];
+        if (summary.skippedMetadata.departments.length > 0) {
+            skippedMessages.push(`${summary.skippedMetadata.departments.length} department(s): ${summary.skippedMetadata.departments.join(', ')}`);
+        }
+        if (summary.skippedMetadata.wards.length > 0) {
+            skippedMessages.push(`${summary.skippedMetadata.wards.length} ward(s): ${summary.skippedMetadata.wards.join(', ')}`);
+        }
+        if (summary.skippedMetadata.subcounties.length > 0) {
+            skippedMessages.push(`${summary.skippedMetadata.subcounties.length} sub-county(ies): ${summary.skippedMetadata.subcounties.join(', ')}`);
+        }
+        if (summary.skippedMetadata.financialYears.length > 0) {
+            skippedMessages.push(`${summary.skippedMetadata.financialYears.length} financial year(s): ${summary.skippedMetadata.financialYears.join(', ')}`);
+        }
+        
+        let message = 'Projects imported successfully';
+        if (skippedMessages.length > 0) {
+            message += `. Note: Some metadata was not found and was skipped: ${skippedMessages.join('; ')}. Please create these in Metadata Management.`;
+        }
+        
+        return res.status(200).json({ success: true, message, details: summary });
     } catch (err) {
         if (connection) {
             await connection.rollback();
         }
         console.error('Project import confirmation error:', err);
-        return res.status(500).json({ success: false, message: 'Failed to import projects' });
+        return res.status(500).json({ 
+            success: false, 
+            message: err.message || 'Failed to import projects',
+            details: { error: err.message, stack: process.env.NODE_ENV === 'development' ? err.stack : undefined }
+        });
     } finally {
         if (connection) connection.release();
     }
@@ -862,11 +1670,11 @@ router.get('/', async (req, res) => {
             LEFT JOIN
                 kemri_staff s ON p.principalInvestigatorStaffId = s.staffId
             LEFT JOIN
-                kemri_departments cd ON p.departmentId = cd.departmentId
+                kemri_departments cd ON p.departmentId = cd.departmentId AND (cd.voided IS NULL OR cd.voided = 0)
             LEFT JOIN
-                kemri_sections ds ON p.sectionId = ds.sectionId
+                kemri_sections ds ON p.sectionId = ds.sectionId AND (ds.voided IS NULL OR ds.voided = 0)
             LEFT JOIN
-                kemri_financialyears fy ON p.finYearId = fy.finYearId
+                kemri_financialyears fy ON p.finYearId = fy.finYearId AND (fy.voided IS NULL OR fy.voided = 0)
             LEFT JOIN
                 kemri_programs pr ON p.programId = pr.programId
             LEFT JOIN
@@ -875,31 +1683,36 @@ router.get('/', async (req, res) => {
                 kemri_project_milestone_implementations projCat ON p.categoryId = projCat.categoryId
             LEFT JOIN
                 kemri_users u ON p.userId = u.userId
+            LEFT JOIN
+                kemri_project_counties pc ON p.id = pc.projectId AND (pc.voided IS NULL OR pc.voided = 0)
+            LEFT JOIN
+                kemri_counties c ON pc.countyId = c.countyId
+            LEFT JOIN
+                kemri_project_subcounties psc ON p.id = psc.projectId AND (psc.voided IS NULL OR psc.voided = 0)
+            LEFT JOIN
+                kemri_subcounties sc ON psc.subcountyId = sc.subcountyId AND (sc.voided IS NULL OR sc.voided = 0)
+            LEFT JOIN
+                kemri_project_wards pw ON p.id = pw.projectId AND (pw.voided IS NULL OR pw.voided = 0)
+            LEFT JOIN
+                kemri_wards w ON pw.wardId = w.wardId AND (w.voided IS NULL OR w.voided = 0)
         `;
 
         let queryParams = [];
         let whereConditions = ['p.voided = 0'];
-        let locationJoinClauses = '';
-        let locationSelectClauses = '';
+        let locationSelectClauses = 'GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ", ") AS countyNames, GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ", ") AS subcountyNames, GROUP_CONCAT(DISTINCT w.name ORDER BY w.name SEPARATOR ", ") AS wardNames';
 
-        // Dynamically add joins and conditions for location filters
+        // Add location filters if provided
         if (countyId) {
-            fromAndJoinClauses += ' LEFT JOIN kemri_project_counties pc ON p.id = pc.projectId LEFT JOIN kemri_counties c ON pc.countyId = c.countyId';
             whereConditions.push('pc.countyId = ?');
             queryParams.push(parseInt(countyId));
-            locationSelectClauses += 'GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ", ") AS countyNames, ';
         }
         if (subcountyId) {
-            fromAndJoinClauses += ' LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId LEFT JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId';
             whereConditions.push('psc.subcountyId = ?');
             queryParams.push(parseInt(subcountyId));
-            locationSelectClauses += 'GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ", ") AS subcountyNames, ';
         }
         if (wardId) {
-            fromAndJoinClauses += ' LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId LEFT JOIN kemri_wards w ON pw.wardId = w.wardId';
             whereConditions.push('pw.wardId = ?');
             queryParams.push(parseInt(wardId));
-            locationSelectClauses += 'GROUP_CONCAT(DISTINCT w.name ORDER BY w.name SEPARATOR ", ") AS wardNames, ';
         }
 
         // Add other non-location filters
@@ -915,7 +1728,7 @@ router.get('/', async (req, res) => {
         if (categoryId) { whereConditions.push('p.categoryId = ?'); queryParams.push(parseInt(categoryId)); }
 
         // Build the final query
-        let query = `${BASE_PROJECT_SELECT}${locationSelectClauses ? `, ${locationSelectClauses.slice(0, -2)}` : ''} ${fromAndJoinClauses}`;
+        let query = `${BASE_PROJECT_SELECT}, ${locationSelectClauses} ${fromAndJoinClauses}`;
 
         if (whereConditions.length > 0) {
             query += ` WHERE ${whereConditions.join(' AND ')}`;

@@ -35,7 +35,7 @@ import {
     TrendingUp
 } from '@mui/icons-material';
 import { getProjects } from '../services/publicApi';
-import { formatCurrency, formatDate, getStatusColor } from '../utils/formatters';
+import { formatCurrency, formatDate, getStatusColor, formatStatus } from '../utils/formatters';
 import ProjectFeedbackModal from './ProjectFeedbackModal';
 
 const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
@@ -60,7 +60,12 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
             const filters = { page: 1, limit: 100 };
             
             if (filterType === 'status') {
-                filters.status = filterValue;
+                // Handle phased projects filter
+                if (filterValue === 'Phase') {
+                    filters.status = 'Phase'; // Special value that backend will handle
+                } else {
+                    filters.status = filterValue;
+                }
             } else if (filterType === 'department') {
                 filters.department = filterValue;
             } else if (filterType === 'finYearId') {
@@ -306,7 +311,7 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
                                                 <TableCell>
                                                     <Chip 
                                                         icon={getStatusIcon(project.status)}
-                                                        label={project.status}
+                                                        label={formatStatus(project.status)}
                                                         size="small"
                                                         sx={{
                                                             backgroundColor: getStatusColor(project.status),

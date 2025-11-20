@@ -44,6 +44,9 @@ cd /projects
 echo "Building frontend with production optimizations..."
 docker-compose -f docker-compose.prod.yml build --no-cache frontend
 
+echo "Building public-dashboard with production optimizations..."
+docker-compose -f docker-compose.prod.yml build --no-cache public-dashboard
+
 echo "Starting all services..."
 docker-compose -f docker-compose.prod.yml up -d
 

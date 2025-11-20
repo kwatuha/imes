@@ -18,9 +18,24 @@ const PROJECT_STATUS_COLORS = {
 
 
 /////////////////////////
-// This function determines the background color for a given status
+// This function determines the background color for a given status (case-insensitive)
 export function getProjectStatusBackgroundColor(status) {
-  return PROJECT_STATUS_COLORS[status] || PROJECT_STATUS_COLORS['Default'];
+  if (!status) return PROJECT_STATUS_COLORS['Default'];
+  
+  // Normalize status to title case for consistent matching
+  const normalizeStatus = (s) => {
+    if (!s) return '';
+    // Convert to lowercase first, then capitalize first letter of each word
+    return s.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
+  const normalizedStatus = normalizeStatus(status);
+  
+  // Try exact match first, then normalized match
+  return PROJECT_STATUS_COLORS[status] || PROJECT_STATUS_COLORS[normalizedStatus] || PROJECT_STATUS_COLORS['Default'];
 }
 
 // This function returns CSS properties for better color rendering

@@ -5,7 +5,6 @@ import { usePageTitle } from '../context/PageTitleContext';
 // Route to title mapping
 const routeTitles = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Overview & Analytics' },
-  '/raw-data': { title: 'Raw Data', subtitle: 'Data Management' },
   '/projects': { title: 'Project Management', subtitle: 'Projects & Tasks' },
   '/contractor-dashboard': { title: 'Contractor Dashboard', subtitle: 'My Projects' },
   '/reports': { title: 'Reports', subtitle: 'Analytics & Insights' },

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Menu, MenuItem, ListItemIcon, Checkbox, ListItemText, Box, Typography, Button, CircularProgress, IconButton,
@@ -9,11 +9,15 @@ import { getThemedDataGridSx } from '../utils/dataGridTheme';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewDetailsIcon, FilterList as FilterListIcon, BarChart as GanttChartIcon,
   ArrowForward as ArrowForwardIcon, ArrowBack as ArrowBackIcon, Settings as SettingsIcon, Category as CategoryIcon,
-  GroupAdd as GroupAddIcon, Upload as UploadIcon
+  GroupAdd as GroupAddIcon, FileDownload as FileDownloadIcon, PictureAsPdf as PictureAsPdfIcon
 } from '@mui/icons-material';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+// Import autoTable directly (jspdf-autotable v5+ requires direct import)
+import autoTable from 'jspdf-autotable';
 
 import { useAuth } from '../context/AuthContext.jsx';
-import { checkUserPrivilege, currencyFormatter, getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/tableHelpers';
+import { checkUserPrivilege, currencyFormatter, getProjectStatusBackgroundColor, getProjectStatusTextColor, formatStatus } from '../utils/tableHelpers';
 import projectTableColumnsConfig from '../configs/projectTableConfig';
 import apiService from '../api';
 import { tokens } from "./dashboard/theme"; // Import tokens for color styling
@@ -56,6 +60,22 @@ function ProjectManagementPage() {
     setSnackbar, allMetadata, fetchProjects,
   } = useProjectData(user, authLoading, filterState);
 
+  // Debug: Log project data structure (remove after debugging)
+  useEffect(() => {
+    if (projects && projects.length > 0) {
+      console.log('Sample project data:', projects[0]);
+      console.log('Fields check:', {
+        departmentName: projects[0].departmentName,
+        financialYearName: projects[0].financialYearName,
+        subcountyNames: projects[0].subcountyNames,
+        wardNames: projects[0].wardNames,
+        directorate: projects[0].directorate,
+        sectionName: projects[0].sectionName,
+        Contracted: projects[0].Contracted
+      });
+    }
+  }, [projects]);
+
   // Custom hook for table sorting
   const { order, orderBy, handleRequestSort, sortedData: sortedProjects } = useTableSort(projects || []);
 
@@ -94,6 +114,10 @@ function ProjectManagementPage() {
     pageSize: 25,
     page: 0,
   });
+  
+  // State for export loading
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   
   // Calculate optimal height based on page size
   const calculateGridHeight = () => {
@@ -177,8 +201,157 @@ function ProjectManagementPage() {
 
   const handleCloseSnackbar = (event, reason) => { if (reason === 'clickaway') return; setSnackbar({ ...snackbar, open: false }); };
 
-  const handleImportProjects = () => {
-    navigate('/projects/import-data');
+  const handleExportToExcel = () => {
+    setExportingExcel(true);
+    try {
+      // Get visible columns, excluding actions column
+      const visibleColumns = columns.filter(col => 
+        columnVisibilityModel[col.field] !== false && col.field !== 'actions'
+      );
+      
+      // Prepare data for export
+      const dataToExport = projects.map((project, index) => {
+        const row = {};
+        visibleColumns.forEach(col => {
+          if (col.field === 'rowNumber') {
+            // Use index + 1 for row numbering
+            row[col.headerName] = index + 1;
+          } else {
+            // Get the value using valueGetter if available, otherwise use the field directly
+            let value = project[col.field];
+            if (col.valueGetter) {
+              try {
+                value = col.valueGetter({ row: project, value: project[col.field] });
+              } catch (e) {
+                // If valueGetter fails, use direct value
+                value = project[col.field];
+              }
+            }
+            // Format the value for display
+            if (value === null || value === undefined || value === '') {
+              value = 'N/A';
+            } else if (col.field === 'costOfProject' || col.field === 'paidOut' || col.field === 'Contracted') {
+              // Format currency values
+              if (!isNaN(parseFloat(value))) {
+                value = parseFloat(value);
+              }
+            } else if (col.field === 'startDate' || col.field === 'endDate') {
+              // Format dates
+              if (value) {
+                value = new Date(value).toLocaleDateString();
+              }
+            }
+            row[col.headerName] = value;
+          }
+        });
+        return row;
+      });
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Projects");
+      
+      // Generate filename with current date
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `projects_export_${dateStr}.xlsx`;
+      
+      // Write file
+      XLSX.writeFile(workbook, filename);
+      setSnackbar({ open: true, message: 'Projects exported to Excel successfully!', severity: 'success' });
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+      setSnackbar({ open: true, message: 'Failed to export to Excel. Please try again.', severity: 'error' });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExportToPDF = () => {
+    setExportingPdf(true);
+    try {
+      // Get visible columns (excluding actions)
+      const visibleColumns = columns.filter(col => 
+        columnVisibilityModel[col.field] !== false && col.field !== 'actions'
+      );
+      
+      // Prepare headers
+      const headers = visibleColumns.map(col => col.headerName);
+      
+      // Prepare data rows
+      const dataRows = projects.map((project, index) => {
+        return visibleColumns.map(col => {
+          if (col.field === 'rowNumber') {
+            return index + 1;
+          }
+          
+          // Get the value using valueGetter if available, otherwise use the field directly
+          let value = project[col.field];
+          if (col.valueGetter) {
+            try {
+              value = col.valueGetter({ row: project, value: project[col.field] });
+            } catch (e) {
+              value = project[col.field];
+            }
+          }
+          
+          // Format the value for display
+          if (value === null || value === undefined || value === '') {
+            return 'N/A';
+          } else if (col.field === 'costOfProject' || col.field === 'paidOut' || col.field === 'Contracted') {
+            // Format currency values
+            if (!isNaN(parseFloat(value))) {
+              return currencyFormatter.format(parseFloat(value));
+            }
+            return String(value);
+          } else if (col.field === 'startDate' || col.field === 'endDate') {
+            // Format dates
+            if (value) {
+              return new Date(value).toLocaleDateString();
+            }
+            return 'N/A';
+          }
+          
+          return String(value);
+        });
+      });
+      
+      // Create PDF - use the same pattern as other report components
+      const doc = new jsPDF('landscape', 'pt', 'a4');
+      
+      // Use autoTable directly (jspdf-autotable v5+ requires passing doc as first parameter)
+      autoTable(doc, {
+        head: [headers],
+        body: dataRows,
+        startY: 20,
+        styles: { 
+          fontSize: 8, 
+          cellPadding: 2,
+          overflow: 'linebreak',
+          halign: 'left'
+        },
+        headStyles: { 
+          fillColor: [41, 128, 185], 
+          textColor: 255, 
+          fontStyle: 'bold' 
+        },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 20, left: 40, right: 40 },
+      });
+      
+      // Generate filename with current date
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `projects_export_${dateStr}.pdf`;
+      
+      // Save PDF
+      doc.save(filename);
+      setSnackbar({ open: true, message: 'Projects exported to PDF successfully!', severity: 'success' });
+    } catch (err) {
+      console.error('Error exporting to PDF:', err);
+      setSnackbar({ open: true, message: err.message || 'Failed to export to PDF. Please try again.', severity: 'error' });
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleResetColumns = () => {
@@ -231,7 +404,7 @@ function ProjectManagementPage() {
           if (!params) return null;
           return (
             <Box sx={{ backgroundColor: getProjectStatusBackgroundColor(params.value), color: getProjectStatusTextColor(params.value), padding: '4px 8px', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontWeight: 'bold' }}>
-              {params.value}
+              {formatStatus(params.value)}
             </Box>
           );
         };
@@ -252,16 +425,79 @@ function ProjectManagementPage() {
         break;
       case 'directorate':
         dataGridColumn.valueGetter = (params) => {
-          if (!params) return 'N/A';
-          if (!params.row) return 'N/A';
+          if (!params || !params.row) return '';
           // Use directorate if available, otherwise fall back to section
-          return params.row.directorate || params.row.section || params.row.sectionName || 'N/A';
+          return params.row.directorate || params.row.section || params.row.sectionName || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          if (!params || !params.row) return 'N/A';
+          const value = params.row.directorate || params.row.section || params.row.sectionName;
+          return value || 'N/A';
+        };
+        break;
+      case 'Contracted':
+        dataGridColumn.valueGetter = (params) => {
+          return params?.row?.Contracted || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          if (!params || !params.row) return 'N/A';
+          const value = params.row.Contracted;
+          if (value === null || value === undefined) return 'N/A';
+          // Format as currency if it's a number
+          if (!isNaN(parseFloat(value))) {
+            return currencyFormatter.format(parseFloat(value));
+          }
+          return value || 'N/A';
+        };
+        break;
+      case 'departmentName':
+        dataGridColumn.valueGetter = (params) => {
+          return params?.row?.departmentName || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          const value = params?.row?.departmentName;
+          return value || 'N/A';
+        };
+        break;
+      case 'financialYearName':
+        dataGridColumn.valueGetter = (params) => {
+          return params?.row?.financialYearName || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          const value = params?.row?.financialYearName;
+          return value || 'N/A';
+        };
+        break;
+      case 'subcountyNames':
+        dataGridColumn.valueGetter = (params) => {
+          return params?.row?.subcountyNames || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          const value = params?.row?.subcountyNames;
+          return value || 'N/A';
+        };
+        break;
+      case 'wardNames':
+        dataGridColumn.valueGetter = (params) => {
+          return params?.row?.wardNames || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          const value = params?.row?.wardNames;
+          return value || 'N/A';
+        };
+        break;
+      case 'countyNames':
+        dataGridColumn.valueGetter = (params) => {
+          return params?.row?.countyNames || '';
+        };
+        dataGridColumn.renderCell = (params) => {
+          const value = params?.row?.countyNames;
+          return value || 'N/A';
         };
         break;
       case 'principalInvestigator':
         dataGridColumn.valueGetter = (params) => {
-          if (!params) return 'N/A';
-          if (!params.row) return 'N/A';
+          if (!params || !params.row) return 'N/A';
           return params.row.pi_firstName || params.row.principalInvestigator || 'N/A';
         };
         break;
@@ -269,30 +505,44 @@ function ProjectManagementPage() {
         dataGridColumn.renderCell = (params) => {
           if (!params) return null;
           if (!params.row) return null;
+          const canUpdate = checkUserPrivilege(user, 'project.update');
+          const canDelete = checkUserPrivilege(user, 'project.delete');
+          const canAssignContractor = checkUserPrivilege(user, 'projects.assign_contractor');
+          const canViewGantt = checkUserPrivilege(user, 'project.read_gantt_chart');
+          const canViewKdsp = checkUserPrivilege(user, 'project.read_kdsp_details');
+          
           return (
           <Stack direction="row" spacing={1} justifyContent="flex-end">
-            {checkUserPrivilege(user, 'projects.assign_contractor') && (
+            {canAssignContractor && (
               <Tooltip title="Assign Contractors">
                 <IconButton sx={{ color: ui.actionIcon }} onClick={() => handleOpenAssignModal(params.row)}>
                   <GroupAddIcon />
                 </IconButton>
               </Tooltip>
             )}
-            {checkUserPrivilege(user, 'project.update') && (
-              <Tooltip title="Edit">
-                <IconButton sx={{ color: ui.actionIcon }} onClick={() => handleOpenFormDialog(params.row)}>
+            <Tooltip title={canUpdate ? "Edit" : "You don't have permission to edit projects"}>
+              <span>
+                <IconButton 
+                  sx={{ color: ui.actionIcon }} 
+                  onClick={() => canUpdate && handleOpenFormDialog(params.row)}
+                  disabled={!canUpdate}
+                >
                   <EditIcon />
                 </IconButton>
+              </span>
               </Tooltip>
-            )}
-            {checkUserPrivilege(user, 'project.delete') && (
-              <Tooltip title="Delete">
-                <IconButton sx={{ color: ui.danger }} onClick={() => handleDeleteProject(params.row.id)}>
+            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete projects"}>
+              <span>
+                <IconButton 
+                  sx={{ color: ui.danger }} 
+                  onClick={() => canDelete && handleDeleteProject(params.row.id)}
+                  disabled={!canDelete}
+                >
                   <DeleteIcon />
                 </IconButton>
+              </span>
               </Tooltip>
-            )}
-            {checkUserPrivilege(user, 'project.read_gantt_chart') && (
+            {canViewGantt && (
               <Tooltip title="Gantt Chart">
                 <IconButton sx={{ color: ui.actionIcon }} onClick={() => handleViewGanttChart(params.row.id)}>
                   <GanttChartIcon />
@@ -304,7 +554,7 @@ function ProjectManagementPage() {
                 <ViewDetailsIcon />
               </IconButton>
             </Tooltip>
-            {checkUserPrivilege(user, 'project.read_kdsp_details') && (
+            {canViewKdsp && (
               <Tooltip title="View KDSP Details">
                 <Button variant="outlined" onClick={() => handleViewKdspDetails(params.row.id)} size="small" sx={{ whiteSpace: 'nowrap', color: ui.actionIcon, borderColor: ui.actionIcon }}>
                   KDSP
@@ -348,26 +598,53 @@ function ProjectManagementPage() {
             sx={{ color: isLight ? theme.palette.text.primary : colors.grey[100], borderColor: isLight ? theme.palette.divider : colors.grey[400], '&:hover': { backgroundColor: isLight ? theme.palette.action.hover : colors.primary[500], borderColor: isLight ? theme.palette.text.primary : colors.grey[100] } }}
           >Reset to Defaults</Button>
           {checkUserPrivilege(user, 'project.create') && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}
+              sx={{ backgroundColor: isLight ? theme.palette.success.main : colors.greenAccent[600], '&:hover': { backgroundColor: isLight ? theme.palette.success.dark : colors.greenAccent[700] }, color: '#fff' }}
+            >
+              Add New Project
+            </Button>
+          )}
+          {projects && projects.length > 0 && (
             <>
               <Button 
                 variant="outlined" 
-                startIcon={<UploadIcon />} 
-                onClick={handleImportProjects}
+                startIcon={exportingExcel ? <CircularProgress size={20} color="inherit" /> : <FileDownloadIcon />}
+                onClick={handleExportToExcel}
+                disabled={exportingExcel || exportingPdf || loading}
                 sx={{ 
-                  color: isLight ? theme.palette.info.main : colors.blueAccent[500], 
-                  borderColor: isLight ? theme.palette.info.main : colors.blueAccent[500], 
+                  color: isLight ? '#276E4B' : colors.greenAccent[500], 
+                  borderColor: isLight ? '#276E4B' : colors.greenAccent[500], 
                   '&:hover': { 
-                    backgroundColor: isLight ? theme.palette.info.light : colors.blueAccent[600], 
-                    borderColor: isLight ? theme.palette.info.dark : colors.blueAccent[400] 
-                  } 
+                    backgroundColor: isLight ? '#E8F5E9' : colors.greenAccent[600], 
+                    borderColor: isLight ? '#276E4B' : colors.greenAccent[400] 
+                  },
+                  '&:disabled': {
+                    borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
+                    color: isLight ? theme.palette.action.disabled : colors.grey[500]
+                  }
                 }}
               >
-                Import Projects
+                {exportingExcel ? 'Exporting...' : 'Export to Excel'}
               </Button>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenFormDialog()}
-                sx={{ backgroundColor: isLight ? theme.palette.success.main : colors.greenAccent[600], '&:hover': { backgroundColor: isLight ? theme.palette.success.dark : colors.greenAccent[700] }, color: '#fff' }}
+              <Button 
+                variant="outlined" 
+                startIcon={exportingPdf ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdfIcon />}
+                onClick={handleExportToPDF}
+                disabled={exportingExcel || exportingPdf || loading}
+                sx={{ 
+                  color: isLight ? '#E11D48' : colors.redAccent[500], 
+                  borderColor: isLight ? '#E11D48' : colors.redAccent[500], 
+                  '&:hover': { 
+                    backgroundColor: isLight ? '#FFEBEE' : colors.redAccent[600], 
+                    borderColor: isLight ? '#E11D48' : colors.redAccent[400] 
+                  },
+                  '&:disabled': {
+                    borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
+                    color: isLight ? theme.palette.action.disabled : colors.grey[500]
+                  }
+                }}
               >
-                Add New Project
+                {exportingPdf ? 'Generating PDF...' : 'Export to PDF'}
               </Button>
             </>
           )}

@@ -41,12 +41,28 @@ export const parseNumberFromFormattedInput = (value) => {
 };
 
 export const getStatusChipColor = (status) => {
-  switch (status) {
+  if (!status) return 'primary';
+  
+  // Normalize status to title case for consistent matching
+  const normalizeStatus = (s) => {
+    if (!s) return '';
+    return s.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
+  const normalizedStatus = normalizeStatus(status);
+  
+  switch (normalizedStatus) {
     case 'Completed': return 'success';
     case 'At Risk': return 'error';
     case 'In Progress': return 'info';
     case 'On Hold': return 'warning';
     case 'Draft': return 'default';
+    case 'Ongoing': return 'info';
+    case 'Stalled': return 'warning';
+    case 'Under Procurement': return 'info';
     default: return 'primary';
   }
 };

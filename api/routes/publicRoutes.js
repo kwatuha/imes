@@ -64,21 +64,52 @@ router.get('/stats/overview', async (req, res) => {
                 COUNT(*) as total_projects,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
                 
-                -- Status breakdown
-                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_projects,
-                COALESCE(SUM(CASE WHEN p.status = 'Completed' THEN p.costOfProject END), 0) as completed_budget,
+                -- Status breakdown (including phased statuses)
+                -- Completed: exact match or contains "completed" (case-insensitive)
+                COUNT(CASE 
+                    WHEN p.status = 'Completed' 
+                    OR LOWER(p.status) LIKE '%completed%'
+                    THEN 1 
+                END) as completed_projects,
+                COALESCE(SUM(CASE 
+                    WHEN p.status = 'Completed' 
+                    OR LOWER(p.status) LIKE '%completed%'
+                    THEN p.costOfProject 
+                END), 0) as completed_budget,
                 
-                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_projects,
-                COALESCE(SUM(CASE WHEN p.status = 'Ongoing' THEN p.costOfProject END), 0) as ongoing_budget,
+                -- Ongoing: exact match or contains "ongoing" (case-insensitive)
+                COUNT(CASE 
+                    WHEN p.status = 'Ongoing' 
+                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
+                    THEN 1 
+                END) as ongoing_projects,
+                COALESCE(SUM(CASE 
+                    WHEN p.status = 'Ongoing' 
+                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
+                    THEN p.costOfProject 
+                END), 0) as ongoing_budget,
                 
+                -- Not Started
                 COUNT(CASE WHEN p.status = 'Not Started' THEN 1 END) as not_started_projects,
                 COALESCE(SUM(CASE WHEN p.status = 'Not Started' THEN p.costOfProject END), 0) as not_started_budget,
                 
+                -- Under Procurement
                 COUNT(CASE WHEN p.status = 'Under Procurement' THEN 1 END) as under_procurement_projects,
                 COALESCE(SUM(CASE WHEN p.status = 'Under Procurement' THEN p.costOfProject END), 0) as under_procurement_budget,
                 
+                -- Stalled
                 COUNT(CASE WHEN p.status = 'Stalled' THEN 1 END) as stalled_projects,
-                COALESCE(SUM(CASE WHEN p.status = 'Stalled' THEN p.costOfProject END), 0) as stalled_budget
+                COALESCE(SUM(CASE WHEN p.status = 'Stalled' THEN p.costOfProject END), 0) as stalled_budget,
+                
+                -- Phased Projects: any status containing "Phase" (case-insensitive)
+                COUNT(CASE 
+                    WHEN LOWER(p.status) LIKE '%phase%' 
+                    THEN 1 
+                END) as phased_projects,
+                COALESCE(SUM(CASE 
+                    WHEN LOWER(p.status) LIKE '%phase%' 
+                    THEN p.costOfProject 
+                END), 0) as phased_budget
             FROM kemri_projects p
             WHERE ${whereClause}
         `;
@@ -110,7 +141,9 @@ router.get('/financial-years', async (req, res) => {
                 COALESCE(SUM(p.costOfProject), 0) as total_budget
             FROM kemri_financialyears fy
             LEFT JOIN kemri_projects p ON fy.finYearId = p.finYearId AND p.voided = 0
+            WHERE (fy.voided IS NULL OR fy.voided = 0)
             GROUP BY fy.finYearId, fy.finYearName, fy.startDate, fy.endDate
+            HAVING COUNT(p.id) > 0
             ORDER BY fy.startDate DESC
         `;
 
@@ -153,8 +186,14 @@ router.get('/projects', async (req, res) => {
         }
 
         if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
+            // Special handling for phased projects
+            if (status === 'Phase') {
+                whereConditions.push('LOWER(p.status) LIKE ?');
+                queryParams.push('%phase%');
+            } else {
+                whereConditions.push('p.status = ?');
+                queryParams.push(status);
+            }
         }
 
         if (department) {
@@ -231,7 +270,7 @@ router.get('/projects', async (req, res) => {
             FROM kemri_projects p
             LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
             LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
-            LEFT JOIN kemri_financialyears fy ON p.finYearId = fy.finYearId
+            LEFT JOIN kemri_financialyears fy ON p.finYearId = fy.finYearId AND (fy.voided IS NULL OR fy.voided = 0)
             LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId AND psc.voided = 0
             LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId AND pw.voided = 0
             WHERE ${whereClause}
@@ -268,22 +307,31 @@ router.get('/projects/:id', async (req, res) => {
 
         const query = `
             SELECT 
-                p.*,
-                d.name as department,
-                sc.name as subCounty,
-                w.name as ward,
-                v.name as village,
+                p.id,
+                p.projectName as project_name,
+                p.projectDescription as description,
+                p.costOfProject as budget,
+                p.status,
+                p.startDate as start_date,
+                p.endDate as end_date,
+                p.overallProgress as completionPercentage,
+                p.createdAt,
+                d.name as department_name,
                 pc.categoryName as projectType,
-                fy.name as financialYear,
-                fy.startDate as fyStartDate,
-                fy.endDate as fyEndDate
+                fy.finYearName as financialYear,
+                (SELECT GROUP_CONCAT(DISTINCT sc.name SEPARATOR ', ')
+                 FROM kemri_project_subcounties psc2
+                 JOIN kemri_subcounties sc ON psc2.subcountyId = sc.subcountyId
+                 WHERE psc2.projectId = p.id AND psc2.voided = 0) as subcounty_name,
+                (SELECT GROUP_CONCAT(DISTINCT w.name SEPARATOR ', ')
+                 FROM kemri_project_wards pw2
+                 JOIN kemri_wards w ON pw2.wardId = w.wardId
+                 WHERE pw2.projectId = p.id AND pw2.voided = 0) as ward_name,
+                (SELECT filePath FROM kemri_project_photos WHERE projectId = p.id AND voided = 0 LIMIT 1) as thumbnail
             FROM kemri_projects p
-            LEFT JOIN kemri_departments d ON p.departmentId = d.id
-            LEFT JOIN kemri_subcounties sc ON p.subCountyId = sc.id
-            LEFT JOIN kemri_wards w ON p.wardId = w.id
-            LEFT JOIN kemri_villages v ON p.villageId = v.id
+            LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId AND (d.voided IS NULL OR d.voided = 0)
             LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
-            LEFT JOIN kemri_financial_years fy ON p.finYearId = fy.id
+            LEFT JOIN kemri_financialyears fy ON p.finYearId = fy.finYearId AND (fy.voided IS NULL OR fy.voided = 0)
             WHERE p.id = ? AND p.voided = 0
         `;
 
@@ -293,22 +341,20 @@ router.get('/projects/:id', async (req, res) => {
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        // Get project photos
+        // Get all project photos
         const photosQuery = `
-            SELECT photo_url, caption, uploaded_at
+            SELECT filePath, caption, createdAt as uploaded_at
             FROM kemri_project_photos
-            WHERE project_id = ?
-            ORDER BY uploaded_at DESC
+            WHERE projectId = ? AND voided = 0
+            ORDER BY createdAt DESC
         `;
         const [photos] = await pool.query(photosQuery, [id]);
 
-        res.json({
-            project: projects[0],
-            photos
-        });
+        // Return project data in the same format as the projects list endpoint
+        res.json(projects[0]);
     } catch (error) {
         console.error('Error fetching project details:', error);
-        res.status(500).json({ error: 'Failed to fetch project details' });
+        res.status(500).json({ error: 'Failed to fetch project details', details: error.message });
     }
 });
 
@@ -370,8 +416,16 @@ router.get('/stats/by-department', async (req, res) => {
                 d.alias as departmentAlias,
                 COUNT(p.id) as total_projects,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_projects,
-                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_projects,
+                COUNT(CASE 
+                    WHEN p.status = 'Completed' 
+                    OR LOWER(p.status) LIKE '%completed%'
+                    THEN 1 
+                END) as completed_projects,
+                COUNT(CASE 
+                    WHEN p.status = 'Ongoing' 
+                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
+                    THEN 1 
+                END) as ongoing_projects,
                 COUNT(CASE WHEN p.status = 'Stalled' THEN 1 END) as stalled_projects,
                 COUNT(CASE WHEN p.status = 'Not Started' THEN 1 END) as not_started_projects,
                 COUNT(CASE WHEN p.status = 'Under Procurement' THEN 1 END) as under_procurement_projects
@@ -443,8 +497,16 @@ router.get('/stats/by-subcounty', async (req, res) => {
                 sc.name as subcounty_name,
                 COUNT(psc.projectId) as project_count,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_projects,
-                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_projects
+                COUNT(CASE 
+                    WHEN p.status = 'Completed' 
+                    OR LOWER(p.status) LIKE '%completed%'
+                    THEN 1 
+                END) as completed_projects,
+                COUNT(CASE 
+                    WHEN p.status = 'Ongoing' 
+                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
+                    THEN 1 
+                END) as ongoing_projects
             FROM kemri_subcounties sc
             LEFT JOIN kemri_project_subcounties psc ON sc.subcountyId = psc.subcountyId AND psc.voided = 0
             LEFT JOIN kemri_projects p ON psc.projectId = p.id AND p.voided = 0
@@ -509,8 +571,16 @@ router.get('/stats/by-ward', async (req, res) => {
                 sc.name as subcounty_name,
                 COUNT(pw.projectId) as project_count,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                COUNT(CASE WHEN p.status = 'Completed' THEN 1 END) as completed_count,
-                COUNT(CASE WHEN p.status = 'Ongoing' THEN 1 END) as ongoing_count
+                COUNT(CASE 
+                    WHEN p.status = 'Completed' 
+                    OR LOWER(p.status) LIKE '%completed%'
+                    THEN 1 
+                END) as completed_count,
+                COUNT(CASE 
+                    WHEN p.status = 'Ongoing' 
+                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
+                    THEN 1 
+                END) as ongoing_count
             FROM kemri_wards w
             LEFT JOIN kemri_subcounties sc ON w.subcountyId = sc.subcountyId
             LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
