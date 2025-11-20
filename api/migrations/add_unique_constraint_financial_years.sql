@@ -10,3 +10,4 @@
 ALTER TABLE kemri_financialyears 
 ADD UNIQUE INDEX idx_unique_finYearName (finYearName);
 
+

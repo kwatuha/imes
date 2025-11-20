@@ -221,18 +221,15 @@ const DashboardPage = () => {
   ];
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 1.5 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Box display="flex" alignItems="center" gap={2} mb={2}>
-          <DashboardIcon sx={{ fontSize: 40, color: 'primary.main' }} />
-        <Typography variant="h4" fontWeight="bold">
+      <Box sx={{ mb: 1 }}>
+        <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
+          <DashboardIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+        <Typography variant="h5" fontWeight="bold">
           Kisumu County Public Dashboard
         </Typography>
         </Box>
-        <Typography variant="body1" color="text.secondary">
-          Transparency in project monitoring and implementation
-        </Typography>
       </Box>
 
       {/* Enhanced Filter Bar */}
@@ -245,18 +242,18 @@ const DashboardPage = () => {
       />
 
       {/* Selected Financial Year Title */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold" color="primary">
+      <Box sx={{ mb: 1.5 }}>
+        <Typography variant="h6" fontWeight="bold" color="primary">
           {selectedFinYear ? `${selectedFinYear.name} FY` : 'All Financial Years'} Public Dashboard
         </Typography>
       </Box>
 
       {/* Quick Stats Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
           Quick Stats
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
           Click on any statistic card below to view detailed project information
         </Typography>
         <Box sx={{ 
@@ -266,7 +263,7 @@ const DashboardPage = () => {
             sm: 'repeat(2, 1fr)', 
             md: 'repeat(5, 1fr)' 
           }, 
-          gap: 3 
+          gap: 2 
         }}>
           {statsCards.map((card, index) => (
             <StatCard key={index} {...card} />
@@ -275,13 +272,13 @@ const DashboardPage = () => {
       </Box>
 
       {/* Analytics Dashboard Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
-          <BarChartIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+          <BarChartIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: 20 }} />
           Performance Analytics
         </Typography>
         
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {/* Project Completion Rate */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
@@ -453,13 +450,13 @@ const DashboardPage = () => {
       </Box>
 
       {/* Charts Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
-          <Timeline sx={{ mr: 1, verticalAlign: 'middle' }} />
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+          <Timeline sx={{ mr: 1, verticalAlign: 'middle', fontSize: 20 }} />
           Visual Analytics
         </Typography>
         
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {/* Project Status Pie Chart */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
@@ -610,10 +607,10 @@ const DashboardPage = () => {
         </Grid>
       </Box>
 
-      <Divider sx={{ my: 4 }} />
+      <Divider sx={{ my: 2.5 }} />
 
       {/* Detailed Breakdown Tabs */}
-      <Paper sx={{ mb: 4, borderRadius: 2 }} elevation={2}>
+      <Paper sx={{ mb: 2.5, borderRadius: 2 }} elevation={2}>
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
@@ -632,7 +629,7 @@ const DashboardPage = () => {
           <Tab icon={<TrendingUp />} label="Yearly Trends" iconPosition="start" />
         </Tabs>
 
-        <Box sx={{ p: 4 }}>
+        <Box sx={{ p: 2 }}>
           {activeTab === 0 && (
             <DepartmentSummaryTable finYearId={selectedFinYear === null ? null : selectedFinYear?.id} filters={filters} />
           )}

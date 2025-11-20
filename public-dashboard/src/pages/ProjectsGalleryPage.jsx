@@ -165,54 +165,76 @@ const ProjectsGalleryPage = () => {
         }
       }}
     >
-      <CardContent sx={{ flexGrow: 1, pt: 2 }}>
-        <Chip 
-          label={formatStatus(project.status)}
-          size="small"
-          sx={{
-            mb: 1,
-            backgroundColor: getStatusColor(project.status),
-            color: 'white',
-            fontWeight: 'bold'
-          }}
-        />
+      <CardContent sx={{ flexGrow: 1, pt: 1.5, pb: 1, px: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
+          <Chip 
+            label={formatStatus(project.status)}
+            size="small"
+            sx={{
+              backgroundColor: getStatusColor(project.status),
+              color: 'white',
+              fontWeight: 'bold',
+              height: '22px',
+              fontSize: '0.7rem',
+              '& .MuiChip-label': {
+                px: 1
+              }
+            }}
+          />
+          {project.financialYear && (
+            <Chip 
+              label={project.financialYear}
+              size="small"
+              sx={{
+                backgroundColor: 'primary.light',
+                color: 'primary.contrastText',
+                fontWeight: '600',
+                fontSize: '0.7rem',
+                height: '22px',
+                '& .MuiChip-label': {
+                  px: 1
+                }
+              }}
+            />
+          )}
+        </Box>
         
-        <Typography variant="h6" fontWeight="bold" gutterBottom>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 0.75, lineHeight: 1.3 }}>
           {truncateText(project.project_name || project.projectName, 60)}
         </Typography>
         
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, display: 'block' }}>
           {truncateText(project.description, 100)}
         </Typography>
 
-        <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <LocationOn sx={{ fontSize: 18, color: 'text.secondary' }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
+          <Typography variant="caption" color="text.secondary">
             {project.ward_name || project.subcounty_name || project.department_name || 'N/A'}
           </Typography>
         </Box>
 
-        <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AccountBalanceWallet sx={{ fontSize: 18, color: 'success.main' }} />
-          <Typography variant="body2" fontWeight="bold">
+        <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <AccountBalanceWallet sx={{ fontSize: 16, color: 'success.main' }} />
+          <Typography variant="caption" fontWeight="bold">
             {formatCurrency(project.budget)}
           </Typography>
         </Box>
 
-        <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CalendarToday sx={{ fontSize: 18, color: 'text.secondary' }} />
-          <Typography variant="body2" color="text.secondary">
+        <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
+          <Typography variant="caption" color="text.secondary">
             {formatDate(project.start_date || project.startDate)} - {formatDate(project.end_date || project.endDate)}
           </Typography>
         </Box>
 
         {/* Progress Bar */}
-        <Box sx={{ mt: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="caption" color="text.secondary">
+        <Box sx={{ mt: 1.25 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
               Progress
             </Typography>
-            <Typography variant="caption" fontWeight="bold">
+            <Typography variant="caption" fontWeight="bold" sx={{ fontSize: '0.7rem' }}>
               {project.completionPercentage || 0}%
             </Typography>
           </Box>
@@ -220,8 +242,8 @@ const ProjectsGalleryPage = () => {
             variant="determinate" 
             value={parseFloat(project.completionPercentage) || 0}
             sx={{
-              height: 6,
-              borderRadius: 3,
+              height: 4,
+              borderRadius: 2,
               backgroundColor: '#e0e0e0',
               '& .MuiLinearProgress-bar': {
                 backgroundColor: getStatusColor(project.status)
@@ -231,22 +253,22 @@ const ProjectsGalleryPage = () => {
         </Box>
       </CardContent>
 
-      <CardActions sx={{ p: 2, pt: 0, display: 'flex', justifyContent: 'space-between' }}>
+      <CardActions sx={{ p: 1, pt: 0, px: 1.5, display: 'flex', justifyContent: 'space-between' }}>
         <Button 
           size="small" 
-          startIcon={<Visibility />}
+          startIcon={<Visibility sx={{ fontSize: 16 }} />}
           onClick={() => handleViewDetails(project)}
-          sx={{ textTransform: 'none' }}
+          sx={{ textTransform: 'none', fontSize: '0.75rem', px: 1 }}
         >
           View Details
         </Button>
         <Button 
           size="small" 
-          startIcon={<Comment />}
+          startIcon={<Comment sx={{ fontSize: 16 }} />}
           onClick={() => handleOpenFeedback(project)}
           color="primary"
           variant="outlined"
-          sx={{ textTransform: 'none' }}
+          sx={{ textTransform: 'none', fontSize: '0.75rem', px: 1 }}
         >
           Comment
         </Button>
@@ -255,38 +277,38 @@ const ProjectsGalleryPage = () => {
   );
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 1 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+      <Box sx={{ mb: 0.75, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" fontWeight="bold">
           Projects Gallery
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Browse all county projects with detailed information
+        <Typography variant="caption" color="text.secondary">
+          {projects.length > 0 && `Showing ${projects.length} of ${pagination.total}`}
         </Typography>
       </Box>
 
       {/* Filters Section */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <FilterList sx={{ mr: 1, color: 'primary.main' }} />
-          <Typography variant="h6" fontWeight="bold">
-            Filters
-          </Typography>
-        </Box>
-
-        <Grid container spacing={2}>
+      <Paper elevation={1} sx={{ p: 0.75, mb: 1 }}>
+        <Grid container spacing={0.75} alignItems="center">
           {/* Search */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} sm={5} md={3.5}>
             <TextField
               fullWidth
+              size="small"
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ 
+                '& .MuiOutlinedInput-root': { 
+                  height: '32px',
+                  fontSize: '0.8125rem'
+                } 
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search />
+                    <Search sx={{ fontSize: 14 }} />
                   </InputAdornment>
                 ),
               }}
@@ -294,20 +316,21 @@ const ProjectsGalleryPage = () => {
           </Grid>
 
           {/* Financial Year */}
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Financial Year</InputLabel>
+          <Grid item xs={6} sm={3.5} md={1.8}>
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.8125rem' }}>Year</InputLabel>
               <Select
                 value={selectedYear}
-                label="Financial Year"
+                label="Year"
                 onChange={(e) => {
                   setSelectedYear(e.target.value);
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
+                sx={{ height: '32px', fontSize: '0.8125rem' }}
               >
-                <MenuItem value="all">All Years</MenuItem>
+                <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
                 {financialYears.map((year) => (
-                  <MenuItem key={year.id} value={year.id}>
+                  <MenuItem key={year.id} value={year.id} sx={{ fontSize: '0.8125rem' }}>
                     {year.name}
                   </MenuItem>
                 ))}
@@ -316,9 +339,9 @@ const ProjectsGalleryPage = () => {
           </Grid>
 
           {/* Status */}
-          <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
+          <Grid item xs={6} sm={3.5} md={1.8}>
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.8125rem' }}>Status</InputLabel>
               <Select
                 value={selectedStatus}
                 label="Status"
@@ -326,10 +349,11 @@ const ProjectsGalleryPage = () => {
                   setSelectedStatus(e.target.value);
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
+                sx={{ height: '32px', fontSize: '0.8125rem' }}
               >
-                <MenuItem value="all">All Statuses</MenuItem>
+                <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
                 {statuses.map((status) => (
-                  <MenuItem key={status} value={status}>
+                  <MenuItem key={status} value={status} sx={{ fontSize: '0.8125rem' }}>
                     {status}
                   </MenuItem>
                 ))}
@@ -338,9 +362,9 @@ const ProjectsGalleryPage = () => {
           </Grid>
 
           {/* Department */}
-          <Grid item xs={12} sm={6} md={6}>
-            <FormControl fullWidth>
-              <InputLabel>Department</InputLabel>
+          <Grid item xs={6} sm={3.5} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.8125rem' }}>Department</InputLabel>
               <Select
                 value={selectedDepartment}
                 label="Department"
@@ -348,10 +372,11 @@ const ProjectsGalleryPage = () => {
                   setSelectedDepartment(e.target.value);
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
+                sx={{ height: '32px', fontSize: '0.8125rem' }}
               >
-                <MenuItem value="all">All Departments</MenuItem>
+                <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
                 {departments.map((dept) => (
-                  <MenuItem key={dept.id} value={dept.name}>
+                  <MenuItem key={dept.id} value={dept.name} sx={{ fontSize: '0.8125rem' }}>
                     {dept.name}
                   </MenuItem>
                 ))}
@@ -360,54 +385,60 @@ const ProjectsGalleryPage = () => {
           </Grid>
 
           {/* Project Type */}
-          <Grid item xs={12} sm={6} md={6}>
-            <FormControl fullWidth>
-              <InputLabel>Project Category</InputLabel>
+          <Grid item xs={6} sm={3.5} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.8125rem' }}>Category</InputLabel>
               <Select
                 value={selectedProjectType}
-                label="Project Category"
+                label="Category"
                 onChange={(e) => {
                   setSelectedProjectType(e.target.value);
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
+                sx={{ height: '32px', fontSize: '0.8125rem' }}
               >
-                <MenuItem value="all">All Categories</MenuItem>
+                <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
                 {projectTypes.map((type) => (
-                  <MenuItem key={type.id} value={type.name}>
+                  <MenuItem key={type.id} value={type.name} sx={{ fontSize: '0.8125rem' }}>
                     {type.name}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
-        </Grid>
 
-        {/* Clear Filters Button */}
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="outlined"
-            onClick={handleClearFilters}
-            sx={{ textTransform: 'none' }}
-          >
-            Clear All Filters
-          </Button>
-        </Box>
+          {/* Clear Filters Button */}
+          <Grid item xs={12} sm={12} md={0.9} sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' }, mt: { xs: 0.25, md: 0 } }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleClearFilters}
+              sx={{ 
+                textTransform: 'none',
+                fontSize: '0.7rem',
+                height: '32px',
+                px: 1.25,
+                minWidth: 'auto'
+              }}
+            >
+              Clear
+            </Button>
+          </Grid>
+        </Grid>
       </Paper>
 
-      {/* Results Summary */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="body1" color="text.secondary">
-          Showing {projects.length} of {pagination.total} projects
-        </Typography>
-        {(selectedYear !== 'all' || selectedStatus !== 'all' || selectedDepartment !== 'all' || selectedProjectType !== 'all' || searchTerm) && (
+      {/* Results Summary - Filters Applied Chip */}
+      {(selectedYear !== 'all' || selectedStatus !== 'all' || selectedDepartment !== 'all' || selectedProjectType !== 'all' || searchTerm) && (
+        <Box sx={{ mb: 0.75, display: 'flex', justifyContent: 'flex-end' }}>
           <Chip 
             label="Filters Applied" 
             color="primary" 
             size="small"
             onDelete={handleClearFilters}
+            sx={{ fontSize: '0.7rem', height: '20px' }}
           />
-        )}
-      </Box>
+        </Box>
+      )}
 
       {/* Loading State */}
       {loading && (
@@ -427,7 +458,7 @@ const ProjectsGalleryPage = () => {
       {!loading && !error && (
         <>
           {projects.length > 0 ? (
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               {projects.map((project) => (
                 <Grid item xs={12} sm={6} md={4} key={project.id}>
                   <ProjectCard project={project} />

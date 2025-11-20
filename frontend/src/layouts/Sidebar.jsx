@@ -231,23 +231,24 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
   // Organized menu groups
   const dashboardItems = [
     { title: "Dashboard", to: ROUTES.DASHBOARD, icon: <DashboardIcon /> },
+    { title: "Raw Data", to: ROUTES.RAW_DATA, icon: <TableChartIcon /> },
+    { title: "Projects", to: ROUTES.PROJECTS, icon: <FolderOpenIcon /> },
     { title: "Contractor Dashboard", to: ROUTES.CONTRACTOR_DASHBOARD, icon: <PaidIcon /> },
   ];
 
   const reportingItems = [
-    { title: "Projects", to: ROUTES.PROJECTS, icon: <FolderOpenIcon /> },
     { title: "Reports", to: ROUTES.REPORTS, icon: <AssessmentIcon /> },
     { title: "Project Dashboards", to: ROUTES.REPORTING_OVERVIEW, icon: <AssessmentIcon /> },
-    { title: "Regional Rpts", to: ROUTES.REGIONAL_DASHBOARD, icon: <AssessmentIcon />, hidden: true },
-    { title: "Regional Dashboards", to: ROUTES.REGIONAL_REPORTING, icon: <AssessmentIcon />, hidden: true },
+    { title: "Regional Rpts", to: ROUTES.REGIONAL_DASHBOARD, icon: <AssessmentIcon /> },
+    { title: "Regional Dashboards", to: ROUTES.REGIONAL_REPORTING, icon: <AssessmentIcon /> },
     { title: "Absorption Report", to: ROUTES.ABSORPTION_REPORT, icon: <AssessmentIcon /> },
     { title: "Performance Management Report", to: ROUTES.PERFORMANCE_MANAGEMENT_REPORT, icon: <AssessmentIcon /> },
     { title: "CAPR Report", to: ROUTES.CAPR_REPORT, icon: <AssessmentIcon /> },
-    { title: "Quarterly Implementation Report", to: ROUTES.QUARTERLY_IMPLEMENTATION_REPORT, icon: <AssessmentIcon />, hidden: true },
-  ].filter(item => !item.hidden);
+    { title: "Quarterly Implementation Report", to: ROUTES.QUARTERLY_IMPLEMENTATION_REPORT, icon: <AssessmentIcon /> },
+  ];
 
   const managementItems = [
-    { title: "Central Data Import", to: ROUTES.CENTRAL_IMPORT, icon: <CloudUploadIcon /> },
+    { title: "Central Data Import", to: "/data-import", icon: <CloudUploadIcon /> },
     { title: "GIS Mapping", to: ROUTES.GIS_MAPPING, icon: <MapIcon /> },
     { title: "Import Map Data", to: ROUTES.MAP_DATA_IMPORT, icon: <CloudUploadIcon /> },
     { title: "Strategic Planning", to: ROUTES.STRATEGIC_PLANNING, icon: <AssignmentIcon /> },

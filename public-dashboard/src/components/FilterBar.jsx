@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Paper,
-  Box,
   Grid,
   FormControl,
   InputLabel,
@@ -9,19 +8,11 @@ import {
   MenuItem,
   TextField,
   InputAdornment,
-  Chip,
-  IconButton,
-  Typography,
-  Divider
+  IconButton
 } from '@mui/material';
 import {
   Search,
-  FilterList,
-  Clear,
-  Assessment,
-  Business,
-  LocationOn,
-  LocationCity
+  Clear
 } from '@mui/icons-material';
 import { getDepartments, getSubCounties, getWardStats } from '../services/publicApi';
 
@@ -109,31 +100,16 @@ const FilterBar = ({
   const hasActiveFilters = selectedDepartment || selectedSubcounty || selectedWard || projectSearch.trim();
 
   return (
-    <Paper sx={{ mb: 4, borderRadius: 2, p: 3 }} elevation={2}>
-      <Box display="flex" alignItems="center" gap={1} mb={2}>
-        <FilterList color="primary" />
-        <Typography variant="h6" fontWeight="bold">
-          Dashboard Filters
-        </Typography>
-        {hasActiveFilters && (
-          <Chip 
-            label="Filters Active" 
-            color="primary" 
-            size="small"
-            sx={{ ml: 1 }}
-          />
-        )}
-      </Box>
-
-      <Grid container spacing={3} alignItems="center">
+    <Paper sx={{ mb: 1.5, borderRadius: 2, p: 0.75 }} elevation={1}>
+      <Grid container spacing={0.75} alignItems="center">
         {/* Financial Year Dropdown */}
         <Grid item xs={12} sm={6} md={2}>
           <FormControl fullWidth size="small">
-            <InputLabel id="financial-year-label">Financial Year</InputLabel>
+            <InputLabel id="financial-year-label" sx={{ fontSize: '0.8125rem' }}>Year</InputLabel>
             <Select
               labelId="financial-year-label"
               value={selectedFinYear === null ? 'all' : (selectedFinYear?.id || '')}
-              label="Financial Year"
+              label="Year"
               onChange={(e) => {
                 if (e.target.value === 'all') {
                   onFinYearChange(null); // null means "All"
@@ -142,22 +118,14 @@ const FilterBar = ({
                   onFinYearChange(fy);
                 }
               }}
-              startAdornment={
-                <InputAdornment position="start">
-                  <Assessment sx={{ fontSize: 20, color: 'text.secondary' }} />
-                </InputAdornment>
-              }
+              sx={{ height: '32px', fontSize: '0.8125rem' }}
             >
-              <MenuItem value="all">
-                <Typography variant="body2" fontWeight="bold">
-                  All Financial Years
-                </Typography>
+              <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>
+                All Years
               </MenuItem>
               {financialYears.map((fy) => (
-                <MenuItem key={fy.id} value={fy.id}>
-                  <Typography variant="body2">
-                    {fy.name} ({fy.project_count || 0} projects)
-                  </Typography>
+                <MenuItem key={fy.id} value={fy.id} sx={{ fontSize: '0.8125rem' }}>
+                  {fy.name} ({fy.project_count || 0})
                 </MenuItem>
               ))}
             </Select>
@@ -165,28 +133,22 @@ const FilterBar = ({
         </Grid>
 
         {/* Department Filter */}
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={6} sm={3} md={2}>
           <FormControl fullWidth size="small">
-            <InputLabel id="department-label">Department</InputLabel>
+            <InputLabel id="department-label" sx={{ fontSize: '0.8125rem' }}>Department</InputLabel>
             <Select
               labelId="department-label"
               value={selectedDepartment}
               label="Department"
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              startAdornment={
-                <InputAdornment position="start">
-                  <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
-                </InputAdornment>
-              }
+              sx={{ height: '32px', fontSize: '0.8125rem' }}
             >
-              <MenuItem value="">
-                <em>All Departments</em>
+              <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>
+                All
               </MenuItem>
               {departments.map((dept) => (
-                <MenuItem key={dept.departmentId || dept.id} value={dept.departmentId || dept.id}>
-                  <Typography variant="body2" noWrap>
-                    {dept.name}
-                  </Typography>
+                <MenuItem key={dept.departmentId || dept.id} value={dept.departmentId || dept.id} sx={{ fontSize: '0.8125rem' }}>
+                  {dept.name}
                 </MenuItem>
               ))}
             </Select>
@@ -194,28 +156,22 @@ const FilterBar = ({
         </Grid>
 
         {/* Subcounty Filter */}
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={6} sm={3} md={2}>
           <FormControl fullWidth size="small">
-            <InputLabel id="subcounty-label">Subcounty</InputLabel>
+            <InputLabel id="subcounty-label" sx={{ fontSize: '0.8125rem' }}>Subcounty</InputLabel>
             <Select
               labelId="subcounty-label"
               value={selectedSubcounty}
               label="Subcounty"
               onChange={(e) => setSelectedSubcounty(e.target.value)}
-              startAdornment={
-                <InputAdornment position="start">
-                  <LocationOn sx={{ fontSize: 20, color: 'text.secondary' }} />
-                </InputAdornment>
-              }
+              sx={{ height: '32px', fontSize: '0.8125rem' }}
             >
-              <MenuItem value="">
-                <em>All Subcounties</em>
+              <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>
+                All
               </MenuItem>
               {subcounties.map((subcounty) => (
-                <MenuItem key={subcounty.subcountyId || subcounty.id} value={subcounty.subcountyId || subcounty.id}>
-                  <Typography variant="body2" noWrap>
-                    {subcounty.name}
-                  </Typography>
+                <MenuItem key={subcounty.subcountyId || subcounty.id} value={subcounty.subcountyId || subcounty.id} sx={{ fontSize: '0.8125rem' }}>
+                  {subcounty.name}
                 </MenuItem>
               ))}
             </Select>
@@ -223,28 +179,22 @@ const FilterBar = ({
         </Grid>
 
         {/* Ward Filter */}
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={6} sm={3} md={2}>
           <FormControl fullWidth size="small" disabled={!selectedSubcounty}>
-            <InputLabel id="ward-label">Ward</InputLabel>
+            <InputLabel id="ward-label" sx={{ fontSize: '0.8125rem' }}>Ward</InputLabel>
             <Select
               labelId="ward-label"
               value={selectedWard}
               label="Ward"
               onChange={(e) => setSelectedWard(e.target.value)}
-              startAdornment={
-                <InputAdornment position="start">
-                  <LocationCity sx={{ fontSize: 20, color: 'text.secondary' }} />
-                </InputAdornment>
-              }
+              sx={{ height: '32px', fontSize: '0.8125rem' }}
             >
-              <MenuItem value="">
-                <em>All Wards</em>
+              <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>
+                All
               </MenuItem>
               {wards.map((ward) => (
-                <MenuItem key={ward.wardId || ward.id} value={ward.wardId || ward.id}>
-                  <Typography variant="body2" noWrap>
-                    {ward.name || ward.ward_name}
-                  </Typography>
+                <MenuItem key={ward.wardId || ward.id} value={ward.wardId || ward.id} sx={{ fontSize: '0.8125rem' }}>
+                  {ward.name || ward.ward_name}
                 </MenuItem>
               ))}
             </Select>
@@ -252,18 +202,23 @@ const FilterBar = ({
         </Grid>
 
         {/* Project Search */}
-        <Grid item xs={12} sm={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <TextField
             fullWidth
             size="small"
-            label="Search Projects"
-            placeholder="Type project name..."
+            placeholder="Search projects..."
             value={projectSearch}
             onChange={(e) => setProjectSearch(e.target.value)}
+            sx={{ 
+              '& .MuiOutlinedInput-root': { 
+                height: '32px',
+                fontSize: '0.8125rem'
+              } 
+            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search sx={{ fontSize: 20, color: 'text.secondary' }} />
+                  <Search sx={{ fontSize: 14, color: 'text.secondary' }} />
                 </InputAdornment>
               ),
               endAdornment: projectSearch && (
@@ -272,8 +227,9 @@ const FilterBar = ({
                     size="small"
                     onClick={() => setProjectSearch('')}
                     edge="end"
+                    sx={{ fontSize: 14 }}
                   >
-                    <Clear sx={{ fontSize: 16 }} />
+                    <Clear sx={{ fontSize: 14 }} />
                   </IconButton>
                 </InputAdornment>
               )
@@ -282,72 +238,25 @@ const FilterBar = ({
         </Grid>
 
         {/* Clear Filters Button */}
-        <Grid item xs={12} sm={12} md={1}>
-          <Box display="flex" justifyContent="center">
-            <IconButton
-              onClick={handleClearFilters}
-              disabled={!hasActiveFilters}
-              sx={{
-                backgroundColor: hasActiveFilters ? 'error.light' : 'grey.200',
-                color: hasActiveFilters ? 'white' : 'grey.500',
-                '&:hover': {
-                  backgroundColor: hasActiveFilters ? 'error.main' : 'grey.300'
-                }
-              }}
-            >
-              <Clear />
-            </IconButton>
-          </Box>
+        <Grid item xs={12} sm={6} md={1} sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+          <IconButton
+            onClick={handleClearFilters}
+            disabled={!hasActiveFilters}
+            size="small"
+            sx={{
+              backgroundColor: hasActiveFilters ? 'error.light' : 'grey.200',
+              color: hasActiveFilters ? 'white' : 'grey.500',
+              height: '32px',
+              width: '32px',
+              '&:hover': {
+                backgroundColor: hasActiveFilters ? 'error.main' : 'grey.300'
+              }
+            }}
+          >
+            <Clear sx={{ fontSize: 16 }} />
+          </IconButton>
         </Grid>
       </Grid>
-
-      {/* Active Filters Display */}
-      {hasActiveFilters && (
-        <>
-          <Divider sx={{ my: 2 }} />
-          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
-            <Typography variant="body2" color="text.secondary">
-              Active Filters:
-            </Typography>
-            {selectedDepartment && (
-              <Chip
-                label={`Department: ${departments.find(d => (d.departmentId || d.id) === selectedDepartment)?.name}`}
-                size="small"
-                onDelete={() => setSelectedDepartment('')}
-                color="primary"
-                variant="outlined"
-              />
-            )}
-            {selectedSubcounty && (
-              <Chip
-                label={`Subcounty: ${subcounties.find(s => (s.subcountyId || s.id) === selectedSubcounty)?.name}`}
-                size="small"
-                onDelete={() => setSelectedSubcounty('')}
-                color="secondary"
-                variant="outlined"
-              />
-            )}
-            {selectedWard && (
-              <Chip
-                label={`Ward: ${wards.find(w => (w.wardId || w.id) === selectedWard)?.name || wards.find(w => (w.wardId || w.id) === selectedWard)?.ward_name}`}
-                size="small"
-                onDelete={() => setSelectedWard('')}
-                color="info"
-                variant="outlined"
-              />
-            )}
-            {projectSearch && (
-              <Chip
-                label={`Search: "${projectSearch}"`}
-                size="small"
-                onDelete={() => setProjectSearch('')}
-                color="warning"
-                variant="outlined"
-              />
-            )}
-          </Box>
-        </>
-      )}
     </Paper>
   );
 };
