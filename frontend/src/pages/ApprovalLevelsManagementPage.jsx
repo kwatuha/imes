@@ -277,50 +277,61 @@ const ApprovalLevelsManagementPage = () => {
     }
   };
 
-  // DataGrid column definitions for Approval Levels
-// DataGrid column definitions for Approval Levels
-const levelColumns = [
-  { field: 'levelName', headerName: 'Level Name', flex: 1.5, minWidth: 200 },
-  {
-    field: 'roleId',
-    headerName: 'Assigned Role',
-    flex: 1,
-    minWidth: 150,
-    valueGetter: (params) => {
-      // Safely access row properties using optional chaining
-      const role = roles.find(r => r.roleId === params.row?.roleId);
-      return role ? role.roleName : 'N/A';
+  // DataGrid column definitions for Approval Levels - moved inside component to access roles state
+  const levelColumns = React.useMemo(() => [
+    { field: 'levelName', headerName: 'Level Name', flex: 1.5, minWidth: 200 },
+    {
+      field: 'roleId',
+      headerName: 'Assigned Role',
+      flex: 1,
+      minWidth: 150,
+      valueGetter: (params) => {
+        // Safely access row properties using optional chaining
+        const rowRoleId = params.row?.roleId;
+        if (rowRoleId === null || rowRoleId === undefined) return 'N/A';
+        
+        // Handle both string and number types for comparison
+        // Convert both to numbers for comparison to handle type mismatches
+        const rowRoleIdNum = Number(rowRoleId);
+        const role = roles.find(r => {
+          if (!r || r.roleId === null || r.roleId === undefined) return false;
+          const rRoleIdNum = Number(r.roleId);
+          // Compare as numbers (handles both string "1" and number 1)
+          return !isNaN(rowRoleIdNum) && !isNaN(rRoleIdNum) && rowRoleIdNum === rRoleIdNum;
+        });
+        return role ? role.roleName : 'N/A';
+      },
     },
-  },
-  { field: 'approvalOrder', headerName: 'Approval Order', type: 'number', flex: 1, minWidth: 150 },
-  {
-    field: 'actions',
-    headerName: 'Actions',
-    type: 'actions',
-    flex: 1,
-    minWidth: 120,
-    sortable: false,
-    filterable: false,
-    renderCell: (params) => (
-      <Stack direction="row" spacing={1}>
-        {hasPrivilege('approval_levels.update') && (
-          <Tooltip title="Edit Level">
-            <IconButton color="primary" onClick={() => handleOpenEditLevelDialog(params.row)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        {hasPrivilege('approval_levels.delete') && (
-          <Tooltip title="Delete Level">
-            <IconButton color="error" onClick={() => handleOpenDeleteConfirm(params.row, 'level')}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-      </Stack>
-    ),
-  },
-];
+    { field: 'approvalOrder', headerName: 'Approval Order', type: 'number', flex: 1, minWidth: 150 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      type: 'actions',
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          {hasPrivilege('approval_levels.update') && (
+            <Tooltip title="Edit Level">
+              <IconButton color="primary" onClick={() => handleOpenEditLevelDialog(params.row)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {hasPrivilege('approval_levels.delete') && (
+            <Tooltip title="Delete Level">
+              <IconButton color="error" onClick={() => handleOpenDeleteConfirm(params.row, 'level')}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      ),
+    },
+  ], [roles, hasPrivilege]);
+  
   // DataGrid column definitions for Payment Statuses
   const statusColumns = [
     { field: 'statusId', headerName: 'ID', flex: 0.5, minWidth: 50 },

@@ -59,6 +59,15 @@ router.get('/', auth, privilege(['project_announcements.read']), async (req, res
                 image_url,
                 attendees,
                 max_attendees,
+                approved_for_public,
+                approved_by,
+                approved_at,
+                approval_notes,
+                revision_requested,
+                revision_notes,
+                revision_requested_by,
+                revision_requested_at,
+                revision_submitted_at,
                 created_by,
                 created_at,
                 updated_at
@@ -271,6 +280,113 @@ router.put('/:id', auth, privilege(['project_announcements.update']), async (req
  * @description Soft delete a project announcement
  * @access Protected
  */
+/**
+ * @route PUT /api/project-announcements/:id/approval
+ * @description Approve, revoke, or request revision for a project announcement
+ * @access Protected - requires public_content.approve privilege or admin role
+ */
+router.put('/:id/approval', auth, async (req, res) => {
+    // Check if user is admin or has public_content.approve privilege
+    const isAdmin = req.user?.roleName === 'admin';
+    const hasPrivilege = req.user?.privileges?.includes('public_content.approve');
+    
+    if (!isAdmin && !hasPrivilege) {
+        return res.status(403).json({ 
+            error: 'Access denied. You do not have the necessary privileges to perform this action.' 
+        });
+    }
+    
+    try {
+        const { id } = req.params;
+        const { 
+            approved_for_public, 
+            approval_notes, 
+            approved_by, 
+            approved_at,
+            revision_requested,
+            revision_notes,
+            revision_requested_by,
+            revision_requested_at
+        } = req.body;
+
+        // Build update query dynamically
+        let updateFields = [];
+        let updateValues = [];
+
+        if (revision_requested !== undefined) {
+            updateFields.push('revision_requested = ?');
+            updateValues.push(revision_requested ? 1 : 0);
+            
+            if (revision_requested) {
+                updateFields.push('revision_notes = ?');
+                updateFields.push('revision_requested_by = ?');
+                updateFields.push('revision_requested_at = ?');
+                updateValues.push(revision_notes || null);
+                updateValues.push(revision_requested_by || req.user.userId);
+                // Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+                const revisionRequestedAt = revision_requested_at ? new Date(revision_requested_at) : new Date();
+                updateValues.push(revisionRequestedAt.toISOString().slice(0, 19).replace('T', ' '));
+                updateFields.push('approved_for_public = 0');
+            } else {
+                updateFields.push('revision_notes = NULL');
+                updateFields.push('revision_requested_by = NULL');
+                updateFields.push('revision_requested_at = NULL');
+            }
+        }
+
+        if (approved_for_public !== undefined) {
+            updateFields.push('approved_for_public = ?');
+            updateFields.push('approval_notes = ?');
+            updateFields.push('approved_by = ?');
+            updateFields.push('approved_at = ?');
+            updateValues.push(approved_for_public ? 1 : 0);
+            updateValues.push(approval_notes || null);
+            updateValues.push(approved_by || req.user.userId);
+            // Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+            const approvedAt = approved_at ? new Date(approved_at) : new Date();
+            updateValues.push(approvedAt.toISOString().slice(0, 19).replace('T', ' '));
+            
+            if (revision_requested === undefined) {
+                updateFields.push('revision_requested = 0');
+                updateFields.push('revision_notes = NULL');
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ error: 'No update fields provided' });
+        }
+
+        updateValues.push(id);
+
+        const query = `
+            UPDATE project_announcements
+            SET ${updateFields.join(', ')}
+            WHERE id = ? AND voided = 0
+        `;
+
+        const [result] = await pool.query(query, updateValues);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Announcement not found' });
+        }
+
+        let message = 'Announcement updated successfully';
+        if (revision_requested) {
+            message = 'Revision requested successfully';
+        } else if (approved_for_public !== undefined) {
+            message = `Announcement ${approved_for_public ? 'approved' : 'revoked'} for public viewing`;
+        }
+
+        res.json({
+            success: true,
+            message
+        });
+    } catch (error) {
+        console.error('Error updating approval:', error);
+        res.status(500).json({ error: 'Failed to update approval status' });
+    }
+});
+
 router.delete('/:id', auth, privilege(['project_announcements.delete']), async (req, res) => {
     try {
         const { id } = req.params;

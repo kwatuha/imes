@@ -113,6 +113,42 @@
       ]
     },
     {
+      "id": "public",
+      "label": "Public",
+      "icon": "PublicIcon",
+      "adminOnly": true,
+      "submenus": [
+        {
+          "title": "Public Approval",
+          "icon": "ApprovalIcon",
+          "route": "PUBLIC_APPROVAL",
+          "permission": "public_content.approve",
+          "roles": ["admin"]
+        },
+        {
+          "title": "Citizen feedback",
+          "icon": "FeedbackIcon",
+          "route": "FEEDBACK_MANAGEMENT",
+          "permission": "feedback.respond",
+          "roles": ["admin"]
+        },
+        {
+          "title": "County Projects",
+          "icon": "AssignmentIcon",
+          "route": "COUNTY_PROPOSED_PROJECTS",
+          "permission": "county_proposed_projects.read",
+          "roles": ["admin"]
+        },
+        {
+          "title": "Announcements",
+          "icon": "AnnouncementIcon",
+          "route": "PROJECT_ANNOUNCEMENTS",
+          "permission": "project_announcements.read",
+          "roles": ["admin"]
+        }
+      ]
+    },
+    {
       "id": "admin",
       "label": "Admin",
       "icon": "GroupIcon",
@@ -143,13 +179,6 @@
           "roles": ["admin"]
         },
         {
-          "title": "Citizen feedback",
-          "icon": "FeedbackIcon",
-          "route": "FEEDBACK_MANAGEMENT",
-          "permission": "feedback.respond",
-          "roles": ["admin"]
-        },
-        {
           "title": "Metadata mgmt",
           "icon": "StorageIcon",
           "route": "METADATA_MANAGEMENT"
@@ -158,20 +187,6 @@
           "title": "Contractor mgmt",
           "icon": "BusinessIcon",
           "route": "CONTRACTOR_MANAGEMENT"
-        },
-        {
-          "title": "County Projects",
-          "icon": "AssignmentIcon",
-          "route": "COUNTY_PROPOSED_PROJECTS",
-          "permission": "county_proposed_projects.read",
-          "roles": ["admin"]
-        },
-        {
-          "title": "Announcements",
-          "icon": "AnnouncementIcon",
-          "route": "PROJECT_ANNOUNCEMENTS",
-          "permission": "project_announcements.read",
-          "roles": ["admin"]
         }
       ]
     }

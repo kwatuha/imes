@@ -27,11 +27,35 @@ const upload = multer({ storage: storage });
  */
 projectRouter.get('/', async (req, res) => {
     const { projectId } = req.params;
+    console.log('GET /api/projects/:projectId/photos - projectId:', projectId);
     try {
+        if (!projectId) {
+            return res.status(400).json({ message: 'Project ID is required' });
+        }
         const [rows] = await pool.query(
-            'SELECT * FROM kemri_project_photos WHERE projectId = ? AND voided = 0',
+            `SELECT 
+                photoId,
+                projectId,
+                fileName,
+                filePath,
+                fileType,
+                fileSize,
+                description,
+                isDefault,
+                userId,
+                createdAt,
+                updatedAt,
+                voided,
+                approved_for_public,
+                approved_by,
+                approved_at,
+                approval_notes
+            FROM kemri_project_photos 
+            WHERE projectId = ? AND voided = 0
+            ORDER BY createdAt DESC`,
             [projectId]
         );
+        console.log(`Found ${rows.length} photos for project ${projectId}`);
         res.status(200).json(rows);
     } catch (error) {
         console.error('Error fetching project photos:', error);
@@ -149,4 +173,74 @@ photoRouter.delete('/:photoId', async (req, res) => {
 });
 
 // Export both routers to be mounted in app.js
+/**
+ * @route PUT /api/project_photos/:photoId/approval
+ * @description Approve or revoke a photo for public viewing
+ * @access Protected - requires public_content.approve privilege or admin role
+ */
+photoRouter.put('/:photoId/approval', async (req, res) => {
+    // Check if user is authenticated
+    if (!req.user) {
+        return res.status(401).json({ 
+            error: 'Authentication required' 
+        });
+    }
+    
+    // Check if user is admin or has public_content.approve privilege
+    const isAdmin = req.user?.roleName === 'admin';
+    const hasPrivilege = req.user?.privileges?.includes('public_content.approve');
+    
+    if (!isAdmin && !hasPrivilege) {
+        return res.status(403).json({ 
+            error: 'Access denied. You do not have the necessary privileges to perform this action.' 
+        });
+    }
+    
+    try {
+        const { photoId } = req.params;
+        const { 
+            approved_for_public, 
+            approval_notes, 
+            approved_by, 
+            approved_at
+        } = req.body;
+
+        // Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+        const approvedAt = approved_at ? new Date(approved_at) : new Date();
+        const approvedAtFormatted = approvedAt.toISOString().slice(0, 19).replace('T', ' ');
+
+        const query = `
+            UPDATE kemri_project_photos
+            SET approved_for_public = ?,
+                approval_notes = ?,
+                approved_by = ?,
+                approved_at = ?
+            WHERE photoId = ? AND voided = 0
+        `;
+
+        const [result] = await pool.query(query, [
+            approved_for_public ? 1 : 0,
+            approval_notes || null,
+            approved_by || req.user.userId,
+            approvedAtFormatted,
+            photoId
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Photo not found' });
+        }
+
+        res.json({
+            success: true,
+            message: `Photo ${approved_for_public ? 'approved' : 'revoked'} for public viewing`
+        });
+    } catch (error) {
+        console.error('Error updating photo approval:', error);
+        res.status(500).json({ 
+            error: 'Failed to update photo approval status',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = { projectRouter, photoRouter };

@@ -152,106 +152,113 @@ const ProjectsGalleryPage = () => {
     setDetailsModalOpen(true);
   };
 
-  const ProjectCard = ({ project }) => (
-    <Card 
-      sx={{ 
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-          transform: 'translateY(-8px)',
-          boxShadow: 6
-        }
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1, pt: 1.5, pb: 1, px: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
-          <Chip 
-            label={formatStatus(project.status)}
-            size="small"
-            sx={{
-              backgroundColor: getStatusColor(project.status),
-              color: 'white',
-              fontWeight: 'bold',
-              height: '22px',
-              fontSize: '0.7rem',
-              '& .MuiChip-label': {
-                px: 1
-              }
-            }}
-          />
-          {project.financialYear && (
+  const ProjectCard = ({ project }) => {
+    // Calculate progress: 100% if status contains "completed", otherwise use completionPercentage
+    const status = project.status?.toLowerCase() || '';
+    const progress = status.includes('completed') 
+      ? 100 
+      : Math.min(100, Math.max(0, parseFloat(project.completionPercentage) || 0));
+
+    return (
+      <Card 
+        sx={{ 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            transform: 'translateY(-8px)',
+            boxShadow: 6
+          }
+        }}
+      >
+        <CardContent sx={{ flexGrow: 1, pt: 1.5, pb: 1, px: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
             <Chip 
-              label={project.financialYear}
+              label={formatStatus(project.status)}
               size="small"
               sx={{
-                backgroundColor: 'primary.light',
-                color: 'primary.contrastText',
-                fontWeight: '600',
-                fontSize: '0.7rem',
+                backgroundColor: getStatusColor(project.status),
+                color: 'white',
+                fontWeight: 'bold',
                 height: '22px',
+                fontSize: '0.7rem',
                 '& .MuiChip-label': {
                   px: 1
                 }
               }}
             />
-          )}
-        </Box>
-        
-        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 0.75, lineHeight: 1.3 }}>
-          {truncateText(project.project_name || project.projectName, 60)}
-        </Typography>
-        
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, display: 'block' }}>
-          {truncateText(project.description, 100)}
-        </Typography>
-
-        <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography variant="caption" color="text.secondary">
-            {project.ward_name || project.subcounty_name || project.department_name || 'N/A'}
+            {project.financialYear && (
+              <Chip 
+                label={project.financialYear}
+                size="small"
+                sx={{
+                  backgroundColor: 'primary.light',
+                  color: 'primary.contrastText',
+                  fontWeight: '600',
+                  fontSize: '0.7rem',
+                  height: '22px',
+                  '& .MuiChip-label': {
+                    px: 1
+                  }
+                }}
+              />
+            )}
+          </Box>
+          
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 0.75, lineHeight: 1.3 }}>
+            {truncateText(project.project_name || project.projectName, 60)}
           </Typography>
-        </Box>
-
-        <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <AccountBalanceWallet sx={{ fontSize: 16, color: 'success.main' }} />
-          <Typography variant="caption" fontWeight="bold">
-            {formatCurrency(project.budget)}
+          
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1.25, display: 'block' }}>
+            {truncateText(project.description, 100)}
           </Typography>
-        </Box>
 
-        <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography variant="caption" color="text.secondary">
-            {formatDate(project.start_date || project.startDate)} - {formatDate(project.end_date || project.endDate)}
-          </Typography>
-        </Box>
-
-        {/* Progress Bar */}
-        <Box sx={{ mt: 1.25 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-              Progress
-            </Typography>
-            <Typography variant="caption" fontWeight="bold" sx={{ fontSize: '0.7rem' }}>
-              {project.completionPercentage || 0}%
+          <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography variant="caption" color="text.secondary">
+              {project.ward_name || project.subcounty_name || project.department_name || 'N/A'}
             </Typography>
           </Box>
-          <LinearProgress 
-            variant="determinate" 
-            value={parseFloat(project.completionPercentage) || 0}
-            sx={{
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: '#e0e0e0',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: getStatusColor(project.status)
-              }
-            }}
-          />
-        </Box>
-      </CardContent>
+
+          <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <AccountBalanceWallet sx={{ fontSize: 16, color: 'success.main' }} />
+            <Typography variant="caption" fontWeight="bold">
+              {formatCurrency(project.budget)}
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography variant="caption" color="text.secondary">
+              {formatDate(project.start_date || project.startDate)} - {formatDate(project.end_date || project.endDate)}
+            </Typography>
+          </Box>
+
+          {/* Progress Bar */}
+          <Box sx={{ mt: 1.25 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                Progress
+              </Typography>
+              <Typography variant="caption" fontWeight="bold" sx={{ fontSize: '0.7rem' }}>
+                {progress}%
+              </Typography>
+            </Box>
+            <LinearProgress 
+              variant="determinate" 
+              value={progress}
+              sx={{
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: '#e0e0e0',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: getStatusColor(project.status)
+                }
+              }}
+            />
+          </Box>
+        </CardContent>
 
       <CardActions sx={{ p: 1, pt: 0, px: 1.5, display: 'flex', justifyContent: 'space-between' }}>
         <Button 
@@ -274,7 +281,8 @@ const ProjectsGalleryPage = () => {
         </Button>
       </CardActions>
     </Card>
-  );
+    );
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 1 }}>
@@ -520,6 +528,8 @@ const ProjectsGalleryPage = () => {
         onClose={() => {
           setDetailsModalOpen(false);
           setSelectedProjectForDetails(null);
+          // Refresh projects when modal closes to show updated status
+          fetchProjects();
         }}
         project={selectedProjectForDetails}
         projectId={selectedProjectForDetails?.id}

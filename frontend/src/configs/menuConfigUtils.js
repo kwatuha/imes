@@ -18,6 +18,7 @@ export const ICON_MAP = {
   BusinessIcon: () => import('@mui/icons-material/Business').then(m => m.default),
   AssignmentIcon: () => import('@mui/icons-material/Assignment').then(m => m.default),
   AnnouncementIcon: () => import('@mui/icons-material/Announcement').then(m => m.default),
+  PublicIcon: () => import('@mui/icons-material/Public').then(m => m.default),
 };
 
 // Get icon component by name
@@ -46,12 +47,20 @@ export const getFilteredMenuCategories = (isAdmin = false, hasPrivilege = null, 
         return false;
       }
       
-      // Check permission-based visibility
+      // If both permission and roles are specified, user needs EITHER permission OR role (OR logic)
+      if (submenu.permission && submenu.roles) {
+        const hasPermission = hasPrivilege && hasPrivilege(submenu.permission);
+        const hasRole = user && submenu.roles.includes(user.roleName);
+        // Show if user has permission OR role
+        return hasPermission || hasRole;
+      }
+      
+      // Check permission-based visibility (if only permission is specified)
       if (submenu.permission && hasPrivilege && !hasPrivilege(submenu.permission)) {
         return false;
       }
       
-      // Check role-based visibility
+      // Check role-based visibility (if only roles are specified)
       if (submenu.roles && user && !submenu.roles.includes(user.roleName)) {
         return false;
       }

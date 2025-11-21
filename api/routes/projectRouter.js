@@ -17,7 +17,6 @@ const projectHazardAssessmentRoutes = require('./projectHazardAssessmentRoutes')
 const projectClimateRiskRoutes = require('./projectClimateRiskRoutes');
 const projectEsohsgScreeningRoutes = require('./projectEsohsgScreeningRoutes');
 const projectPdfRoutes = require('./projectPdfRoutes');
-const { projectRouter: projectPhotoRouter } = require('./projectPhotoRoutes');
 const projectAssignmentRoutes = require('./projectAssignmentRoutes');
 
 
@@ -38,7 +37,7 @@ router.use('/', projectHazardAssessmentRoutes);
 router.use('/', projectClimateRiskRoutes);
 router.use('/', projectEsohsgScreeningRoutes);
 router.use('/', projectPdfRoutes);
-router.use('/', projectPhotoRouter);
+// Note: Photo routes are mounted in projectRoutes.js at /:projectId/photos
 router.use('/', projectAssignmentRoutes);
 
 

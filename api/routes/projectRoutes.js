@@ -64,6 +64,15 @@ const BASE_PROJECT_SELECT_JOINS = `
         p.userId AS creatorUserId,
         u.firstName AS creatorFirstName,
         u.lastName AS creatorLastName,
+        p.approved_for_public,
+        p.approved_by,
+        p.approved_at,
+        p.approval_notes,
+        p.revision_requested,
+        p.revision_notes,
+        p.revision_requested_by,
+        p.revision_requested_at,
+        p.revision_submitted_at,
         GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS countyNames,
         GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ', ') AS subcountyNames,
         GROUP_CONCAT(DISTINCT w.name ORDER BY w.name SEPARATOR ', ') AS wardNames
@@ -1660,7 +1669,16 @@ router.get('/', async (req, res) => {
                 projCat.categoryName,
                 p.userId AS creatorUserId,
                 u.firstName AS creatorFirstName,
-                u.lastName AS creatorLastName
+                u.lastName AS creatorLastName,
+                p.approved_for_public,
+                p.approved_by,
+                p.approved_at,
+                p.approval_notes,
+                p.revision_requested,
+                p.revision_notes,
+                p.revision_requested_by,
+                p.revision_requested_at,
+                p.revision_submitted_at
         `;
         
         // This part dynamically builds the query.
@@ -1743,6 +1761,147 @@ router.get('/', async (req, res) => {
     }
 });
 
+
+// ==================== PROJECT APPROVAL ROUTE (must be before /:id route) ====================
+
+/**
+ * @route PUT /api/projects/:id/approval
+ * @description Approve, revoke, or request revision for a project (for public viewing)
+ * @access Protected - requires public_content.approve privilege or admin role
+ */
+router.put('/:id/approval', async (req, res) => {
+    // Check if user is authenticated
+    if (!req.user) {
+        return res.status(401).json({ 
+            error: 'Authentication required' 
+        });
+    }
+    
+    // Check if user is admin or has public_content.approve privilege
+    const isAdmin = req.user?.roleName === 'admin';
+    const hasPrivilege = req.user?.privileges?.includes('public_content.approve');
+    
+    if (!isAdmin && !hasPrivilege) {
+        return res.status(403).json({ 
+            error: 'Access denied. You do not have the necessary privileges to perform this action.' 
+        });
+    }
+    
+    try {
+        const { id } = req.params;
+        const { 
+            approved_for_public, 
+            approval_notes, 
+            approved_by, 
+            approved_at,
+            revision_requested,
+            revision_notes,
+            revision_requested_by,
+            revision_requested_at
+        } = req.body;
+
+        // Build update query dynamically
+        let updateFields = [];
+        let updateValues = [];
+
+        if (revision_requested !== undefined) {
+            updateFields.push('revision_requested = ?');
+            updateValues.push(revision_requested ? 1 : 0);
+            
+            if (revision_requested) {
+                updateFields.push('revision_notes = ?');
+                updateFields.push('revision_requested_by = ?');
+                updateFields.push('revision_requested_at = ?');
+                updateValues.push(revision_notes || null);
+                updateValues.push(revision_requested_by || req.user.userId);
+                // Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+                const revisionRequestedAt = revision_requested_at ? new Date(revision_requested_at) : new Date();
+                updateValues.push(revisionRequestedAt.toISOString().slice(0, 19).replace('T', ' '));
+                // Reset approval when revision is requested
+                updateFields.push('approved_for_public = 0');
+            } else {
+                // Clear revision fields
+                updateFields.push('revision_notes = NULL');
+                updateFields.push('revision_requested_by = NULL');
+                updateFields.push('revision_requested_at = NULL');
+            }
+        }
+
+        if (approved_for_public !== undefined) {
+            updateFields.push('approved_for_public = ?');
+            updateFields.push('approval_notes = ?');
+            updateFields.push('approved_by = ?');
+            updateFields.push('approved_at = ?');
+            updateValues.push(approved_for_public ? 1 : 0);
+            updateValues.push(approval_notes || null);
+            updateValues.push(approved_by || req.user.userId);
+            // Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+            const approvedAt = approved_at ? new Date(approved_at) : new Date();
+            updateValues.push(approvedAt.toISOString().slice(0, 19).replace('T', ' '));
+            
+            // Clear revision request when approving/rejecting
+            if (revision_requested === undefined) {
+                updateFields.push('revision_requested = 0');
+                updateFields.push('revision_notes = NULL');
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ error: 'No update fields provided' });
+        }
+
+        updateValues.push(id);
+
+        const query = `
+            UPDATE kemri_projects
+            SET ${updateFields.join(', ')}
+            WHERE id = ? AND voided = 0
+        `;
+
+        console.log('=== PROJECT APPROVAL UPDATE ===');
+        console.log('Project ID:', id);
+        console.log('Update query:', query);
+        console.log('Update values:', updateValues);
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('User:', JSON.stringify(req.user, null, 2));
+        console.log('Update fields count:', updateFields.length);
+        console.log('Update values count:', updateValues.length);
+
+        const [result] = await pool.query(query, updateValues);
+
+        console.log('Update result:', JSON.stringify(result, null, 2));
+        console.log('Affected rows:', result.affectedRows);
+        console.log('==============================');
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        let message = 'Project updated successfully';
+        if (revision_requested) {
+            message = 'Revision requested successfully';
+        } else if (approved_for_public !== undefined) {
+            message = `Project ${approved_for_public ? 'approved' : 'revoked'} for public viewing`;
+        }
+
+        res.json({
+            success: true,
+            message
+        });
+    } catch (error) {
+        console.error('=== ERROR UPDATING PROJECT APPROVAL ===');
+        console.error('Error:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Request params:', req.params);
+        console.error('Request body:', req.body);
+        console.error('========================================');
+        res.status(500).json({ 
+            error: 'Failed to update approval status',
+            details: error.message 
+        });
+    }
+});
 
 /**
  * @route GET /api/projects/:id

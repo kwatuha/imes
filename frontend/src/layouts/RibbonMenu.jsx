@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Box, Button, Tooltip, useTheme } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssessmentIcon from '@mui/icons-material/Assessment';
@@ -16,6 +16,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import BusinessIcon from '@mui/icons-material/Business';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
+import PublicIcon from '@mui/icons-material/Public';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../configs/appConfig.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -39,6 +40,7 @@ const ICON_MAP = {
   BusinessIcon,
   AssignmentIcon,
   AnnouncementIcon,
+  PublicIcon,
 };
 
 // Simple ribbon-like top menu with grouped actions
@@ -46,12 +48,18 @@ export default function RibbonMenu({ isAdmin = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [tab, setTab] = useState(3); // Default to Admin tab
   const { hasPrivilege, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   
-  // Get filtered menu categories based on user permissions
-  const menuCategories = getFilteredMenuCategories(isAdmin, hasPrivilege, user);
+  // Get filtered menu categories based on user permissions (memoized to prevent unnecessary recalculations)
+  const menuCategories = useMemo(() => {
+    return getFilteredMenuCategories(isAdmin, hasPrivilege, user);
+  }, [isAdmin, hasPrivilege, user]);
+  
+  const [tab, setTab] = useState(isAdmin ? 3 : 0); // Default to Admin tab if admin, otherwise Dashboard
+  
+  // Ensure tab is always valid
+  const validTab = tab >= 0 && tab < menuCategories.length ? tab : 0;
 
   const go = (to) => () => navigate(to);
 
@@ -192,12 +200,12 @@ export default function RibbonMenu({ isAdmin = false }) {
               borderBottomLeftRadius: idx === 0 ? 8 : 0,
               borderTopRightRadius: idx === arr.length - 1 ? 8 : 0,
               borderBottomRightRadius: idx === arr.length - 1 ? 8 : 0,
-              background: idx === tab
+              background: idx === validTab
                 ? 'linear-gradient(180deg, #1099b6, #0e8ea9)'
                 : 'linear-gradient(180deg, #28b9d4, #18a8c4)',
-              boxShadow: idx === tab ? 'inset 0 0 0 1px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.15)' : 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+              boxShadow: idx === validTab ? 'inset 0 0 0 1px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.15)' : 'inset 0 0 0 1px rgba(255,255,255,0.12)',
               '&:hover': {
-                background: idx === tab
+                background: idx === validTab
                   ? 'linear-gradient(180deg, #0f91ae, #0c86a2)'
                   : 'linear-gradient(180deg, #22b2ce, #159fba)'
               },
@@ -211,9 +219,9 @@ export default function RibbonMenu({ isAdmin = false }) {
       </Box>
 
       {/* Ribbon group row (hidden when collapsed to maximize space) */}
-      {!collapsed && (
+      {!collapsed && menuCategories[validTab] && menuCategories[validTab].submenus && (
       <Box sx={{ display: 'flex', gap: 0, px: 1, py: 0.5, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}`, minHeight: 50 }}>
-        {menuCategories[tab] && menuCategories[tab].submenus.map((submenu, subIdx) => (
+        {menuCategories[validTab].submenus.map((submenu, subIdx) => (
           <Btn 
             key={subIdx}
             title={submenu.title} 

@@ -77,6 +77,7 @@ export const ROUTES = {
     QUARTERLY_IMPLEMENTATION_REPORT: '/quarterly-implementation-report', // ✨ NEW: Quarterly Implementation report route
     COUNTY_PROPOSED_PROJECTS: '/county-proposed-projects', // ✨ NEW: County Proposed Projects management route
     PROJECT_ANNOUNCEMENTS: '/project-announcements', // ✨ NEW: Project Announcements management route
+    PUBLIC_APPROVAL: '/public-approval', // ✨ NEW: Public Content Approval management route
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',

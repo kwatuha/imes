@@ -177,7 +177,7 @@ router.get('/projects', async (req, res) => {
             search
         } = req.query;
 
-        let whereConditions = ['p.voided = 0'];
+        let whereConditions = ['p.voided = 0', 'p.approved_for_public = 1'];
         const queryParams = [];
 
         if (finYearId) {
@@ -266,7 +266,7 @@ router.get('/projects', async (req, res) => {
                  FROM kemri_project_wards pw2
                  JOIN kemri_wards w ON pw2.wardId = w.wardId
                  WHERE pw2.projectId = p.id AND pw2.voided = 0) as ward_name,
-                (SELECT filePath FROM kemri_project_photos WHERE projectId = p.id AND voided = 0 LIMIT 1) as thumbnail
+                (SELECT filePath FROM kemri_project_photos WHERE projectId = p.id AND voided = 0 AND approved_for_public = 1 LIMIT 1) as thumbnail
             FROM kemri_projects p
             LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
             LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
@@ -327,12 +327,12 @@ router.get('/projects/:id', async (req, res) => {
                  FROM kemri_project_wards pw2
                  JOIN kemri_wards w ON pw2.wardId = w.wardId
                  WHERE pw2.projectId = p.id AND pw2.voided = 0) as ward_name,
-                (SELECT filePath FROM kemri_project_photos WHERE projectId = p.id AND voided = 0 LIMIT 1) as thumbnail
+                (SELECT filePath FROM kemri_project_photos WHERE projectId = p.id AND voided = 0 AND approved_for_public = 1 LIMIT 1) as thumbnail
             FROM kemri_projects p
             LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId AND (d.voided IS NULL OR d.voided = 0)
             LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
             LEFT JOIN kemri_financialyears fy ON p.finYearId = fy.finYearId AND (fy.voided IS NULL OR fy.voided = 0)
-            WHERE p.id = ? AND p.voided = 0
+            WHERE p.id = ? AND p.voided = 0 AND p.approved_for_public = 1
         `;
 
         const [projects] = await pool.query(query, [id]);
@@ -341,17 +341,24 @@ router.get('/projects/:id', async (req, res) => {
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        // Get all project photos
+        // Get all approved project photos
         const photosQuery = `
-            SELECT filePath, caption, createdAt as uploaded_at
+            SELECT 
+                photoId,
+                filePath, 
+                fileName,
+                description,
+                createdAt as uploaded_at
             FROM kemri_project_photos
-            WHERE projectId = ? AND voided = 0
+            WHERE projectId = ? AND voided = 0 AND approved_for_public = 1
             ORDER BY createdAt DESC
         `;
         const [photos] = await pool.query(photosQuery, [id]);
 
-        // Return project data in the same format as the projects list endpoint
-        res.json(projects[0]);
+        // Return project data with photos included
+        const projectData = projects[0];
+        projectData.photos = photos || [];
+        res.json(projectData);
     } catch (error) {
         console.error('Error fetching project details:', error);
         res.status(500).json({ error: 'Failed to fetch project details', details: error.message });
@@ -1105,7 +1112,7 @@ router.get('/citizen-proposals', async (req, res) => {
     try {
         const { status, category, page = 1, limit = 20 } = req.query;
         
-        let whereConditions = ['voided = 0'];
+        let whereConditions = ['voided = 0', 'approved_for_public = 1'];
         const queryParams = [];
         
         if (status && status !== 'all') {
@@ -1280,7 +1287,7 @@ router.get('/citizen-proposals/:id', async (req, res) => {
                 created_at,
                 updated_at
             FROM citizen_proposals
-            WHERE id = ? AND voided = 0
+            WHERE id = ? AND voided = 0 AND approved_for_public = 1
         `;
         
         const [proposals] = await pool.query(query, [id]);
@@ -1307,7 +1314,7 @@ router.get('/county-proposed-projects', async (req, res) => {
     try {
         const { category, status, priority, page = 1, limit = 20 } = req.query;
         
-        let whereConditions = ['cpp.voided = 0'];
+        let whereConditions = ['cpp.voided = 0', 'cpp.approved_for_public = 1'];
         const queryParams = [];
         
         if (category && category !== 'All') {
@@ -1440,7 +1447,7 @@ router.get('/county-proposed-projects/:id', async (req, res) => {
                 cpp.created_at,
                 cpp.updated_at
             FROM county_proposed_projects cpp
-            WHERE cpp.id = ? AND cpp.voided = 0
+            WHERE cpp.id = ? AND cpp.voided = 0 AND cpp.approved_for_public = 1
         `;
         
         const [projects] = await pool.query(query, [id]);
@@ -1486,7 +1493,7 @@ router.get('/announcements', async (req, res) => {
     try {
         const { category, status, page = 1, limit = 20 } = req.query;
         
-        let whereConditions = ['voided = 0'];
+        let whereConditions = ['voided = 0', 'approved_for_public = 1'];
         const queryParams = [];
         
         if (category && category !== 'All') {
@@ -1583,7 +1590,7 @@ router.get('/announcements/:id', async (req, res) => {
                 created_at,
                 updated_at
             FROM project_announcements
-            WHERE id = ? AND voided = 0
+            WHERE id = ? AND voided = 0 AND approved_for_public = 1
         `;
         
         const [announcements] = await pool.query(query, [id]);

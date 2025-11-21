@@ -18,6 +18,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/uploads': {
+        // Proxy uploads to API server for local development
+        target: process.env.VITE_PROXY_TARGET || 'http://api:3000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   build: {

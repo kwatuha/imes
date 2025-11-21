@@ -37,6 +37,7 @@ const publicRoutes = require('./routes/publicRoutes')
 const moderationRoutes = require('./routes/moderationRoutes')
 const countyProposedProjectsRoutes = require('./routes/countyProposedProjectsRoutes')
 const projectAnnouncementsRoutes = require('./routes/projectAnnouncementsRoutes')
+const citizenProposalsRoutes = require('./routes/citizenProposalsRoutes')
 
 const port = 3000;
 const app = express();
@@ -108,6 +109,11 @@ app.use('/api/chat', chatRoutes(io));
 app.use('/api/moderate', moderationRoutes);
 app.use('/api/county-proposed-projects', countyProposedProjectsRoutes);
 app.use('/api/project-announcements', projectAnnouncementsRoutes);
+app.use('/api/citizen-proposals', citizenProposalsRoutes);
+
+// Mount photo router for photo approval endpoints
+const { photoRouter } = require('./routes/projectPhotoRoutes');
+app.use('/api/project_photos', photoRouter);
 
 app.use((err, req, res, next) => {
     console.error(err.stack);

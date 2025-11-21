@@ -60,6 +60,8 @@ import QuarterlyImplementationReport from './components/QuarterlyImplementationR
 // ✨ NEW: Import the County Proposed Projects and Announcements management pages
 import CountyProposedProjectsManagementPage from './pages/CountyProposedProjectsManagementPage';
 import ProjectAnnouncementsManagementPage from './pages/ProjectAnnouncementsManagementPage';
+// ✨ NEW: Import the Public Approval Management page
+import PublicApprovalManagementPage from './pages/PublicApprovalManagementPage';
  
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
@@ -217,6 +219,10 @@ const router = createBrowserRouter([
       {
         path: 'project-announcements',
         element: <ProjectAnnouncementsManagementPage />,
+      },
+      {
+        path: 'public-approval',
+        element: <PublicApprovalManagementPage />,
       },
     ],
   },
