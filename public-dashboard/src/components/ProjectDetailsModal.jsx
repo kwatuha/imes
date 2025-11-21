@@ -35,19 +35,27 @@ import { formatCurrency, formatDate, getStatusColor, formatStatus } from '../uti
 import ProjectFeedbackModal from './ProjectFeedbackModal';
 
 // Get API base URL for image serving
+// In production, API is on port 3000, frontend can be on port 8080 (nginx) or 5174 (public dashboard)
 const getApiBaseUrl = () => {
-  // In development with Vite proxy, /uploads is proxied to API server
-  // In production, it might be proxied through nginx or same origin
-  // Check if we have a full API URL in env (for localhost development without proxy)
+  // Check if we have an explicit API URL in env
   const apiUrl = import.meta.env.VITE_API_URL;
   if (apiUrl && !apiUrl.startsWith('/') && apiUrl.includes('://')) {
-    // Full URL provided (e.g., http://localhost:3000/api)
+    // Full URL provided (e.g., http://165.22.227.234:3000/api)
     // Extract base URL (remove /api and /public)
     const url = new URL(apiUrl);
     return `${url.protocol}//${url.host}`;
   }
-  // Use window.location.origin if API is proxied or on same origin
-  // Vite proxy will handle /uploads requests in development
+  // In production, API is on port 3000
+  // Frontend can be accessed via:
+  // - Port 8080 (nginx proxy for main app)
+  // - Port 5174 (public dashboard)
+  // Both need to use port 3000 for API/image requests
+  const origin = window.location.origin;
+  if (origin.includes(':8080') || origin.includes(':5174')) {
+    // Production: replace frontend port with 3000 for API
+    return origin.replace(/:8080|:5174/, ':3000');
+  }
+  // Development or same origin (localhost)
   return window.location.origin;
 };
 

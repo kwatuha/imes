@@ -2,12 +2,20 @@ const express = require('express');
 const projectRouter = express.Router({ mergeParams: true });
 const photoRouter = express.Router();
 const multer = require('multer');
+const path = require('path');
 const pool = require('../config/db');
 
 // Multer storage configuration for project photos
+// Use absolute path to ensure files are saved correctly
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'project-photos');
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/project-photos/');
+        // Ensure directory exists
+        const fs = require('fs');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}-${file.originalname}`);
@@ -80,10 +88,15 @@ projectRouter.post('/', upload.single('file'), async (req, res) => {
     const userId = 1;
 
     try {
+        // Store relative path for database (uploads/project-photos/filename.jpg)
+        // This works with the static file serving at /uploads
+        const relativePath = path.relative(path.join(__dirname, '..', 'uploads'), file.path);
+        const dbFilePath = relativePath.replace(/\\/g, '/'); // Normalize path separators
+        
         const newPhoto = {
             projectId,
             fileName: file.originalname,
-            filePath: file.path,
+            filePath: dbFilePath, // Use relative path for database
             fileType: file.mimetype,
             fileSize: file.size,
             description: req.body.description || `Photo for project ${projectId}`,

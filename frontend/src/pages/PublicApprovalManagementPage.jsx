@@ -199,6 +199,29 @@ const PublicApprovalManagementPage = () => {
     }
   };
 
+  // Helper function to get API base URL for image serving
+  // In production, API is on port 3000, frontend can be on port 8080 (nginx) or 5174 (public dashboard)
+  const getApiBaseUrl = () => {
+    // Check if we have an explicit API URL in env
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (apiUrl && !apiUrl.startsWith('/') && apiUrl.includes('://')) {
+      // Full URL provided (e.g., http://165.22.227.234:3000/api)
+      return apiUrl.replace('/api', '').replace('/public', '');
+    }
+    // In production, API is on port 3000
+    // Frontend can be accessed via:
+    // - Port 8080 (nginx proxy for main app)
+    // - Port 5174 (public dashboard)
+    // Both need to use port 3000 for API/image requests
+    const origin = window.location.origin;
+    if (origin.includes(':8080') || origin.includes(':5174')) {
+      // Production: replace frontend port with 3000 for API
+      return origin.replace(/:8080|:5174/, ':3000');
+    }
+    // Development or same origin (localhost)
+    return window.location.origin;
+  };
+
   const fetchProjectPhotos = async (projectId) => {
     setPhotosLoading(true);
     setError(null);
@@ -210,14 +233,15 @@ const PublicApprovalManagementPage = () => {
       if (photosData.length > 0) {
         console.log('First photo filePath:', photosData[0].filePath);
         // Test URL construction
+        const apiBaseUrl = getApiBaseUrl();
         const testPath = photosData[0].filePath;
         let testUrl = '';
         if (testPath.startsWith('uploads/')) {
-          testUrl = `${window.location.origin}/${testPath}`;
+          testUrl = `${apiBaseUrl}/${testPath}`;
         } else {
-          testUrl = `${window.location.origin}/uploads/${testPath}`;
+          testUrl = `${apiBaseUrl}/uploads/${testPath}`;
         }
-        console.log('Constructed test URL:', testUrl);
+        console.log('Constructed test URL:', testUrl, 'API Base URL:', apiBaseUrl);
       }
       setPhotos(photosData);
     } catch (err) {
@@ -910,9 +934,10 @@ const PublicApprovalManagementPage = () => {
               {photos.map((photo) => {
                 const isApproved = photo.approved_for_public === 1 || photo.approved_for_public === true;
                 
-                // Construct photo URL - static files are served from /uploads
+                // Construct photo URL - static files are served from API server
+                // In production, API is on port 3000, frontend is on port 8080 via nginx
                 // File paths in DB are like: "uploads/project-photos/filename.jpg"
-                // Server serves static files from /uploads, so URL should be: "/uploads/project-photos/filename.jpg"
+                const apiBaseUrl = getApiBaseUrl();
                 let photoUrl = photo.filePath || '';
                 if (!photoUrl) {
                   photoUrl = '';
@@ -921,16 +946,16 @@ const PublicApprovalManagementPage = () => {
                   photoUrl = photoUrl;
                 } else if (photoUrl.startsWith('/uploads/')) {
                   // Already has /uploads/ prefix
-                  photoUrl = `${window.location.origin}${photoUrl}`;
+                  photoUrl = `${apiBaseUrl}${photoUrl}`;
                 } else if (photoUrl.startsWith('uploads/')) {
                   // Has uploads/ prefix but missing leading slash
-                  photoUrl = `${window.location.origin}/${photoUrl}`;
+                  photoUrl = `${apiBaseUrl}/${photoUrl}`;
                 } else if (photoUrl.startsWith('/')) {
                   // Absolute path from root
-                  photoUrl = `${window.location.origin}${photoUrl}`;
+                  photoUrl = `${apiBaseUrl}${photoUrl}`;
                 } else {
                   // Relative path - add /uploads/ prefix
-                  photoUrl = `${window.location.origin}/uploads/${photoUrl}`;
+                  photoUrl = `${apiBaseUrl}/uploads/${photoUrl}`;
                 }
                 
                 console.log('Photo URL constructed:', photoUrl, 'from filePath:', photo.filePath);
