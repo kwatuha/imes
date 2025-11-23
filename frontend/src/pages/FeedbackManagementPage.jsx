@@ -227,22 +227,22 @@ const FeedbackManagementPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: 2 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
           Public Feedback Management
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" color="text.secondary">
           Review and respond to citizen feedback, analyze implementation and supervision ratings
         </Typography>
       </Box>
 
       {/* Tabs */}
       <Paper sx={{ 
-        mb: 3, 
+        mb: 2, 
         backgroundColor: '#f8f9fa',
-        borderRadius: 2,
+        borderRadius: 1,
         border: '1px solid #e0e0e0',
         overflow: 'hidden'
       }}>
@@ -254,17 +254,17 @@ const FeedbackManagementPage = () => {
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 600,
-              fontSize: '0.95rem',
-              minHeight: 56,
-              py: 2,
+              fontSize: '0.875rem',
+              minHeight: 48,
+              py: 1.5,
               transition: 'all 0.2s ease-in-out',
               '&:hover': {
                 backgroundColor: 'rgba(0, 0, 0, 0.04)',
                 transform: 'translateY(-1px)'
               },
               '& .MuiTab-iconWrapper': {
-                marginBottom: '4px !important',
-                marginRight: '8px !important'
+                marginBottom: '2px !important',
+                marginRight: '6px !important'
               }
             },
             '& .Mui-selected': {
@@ -280,17 +280,17 @@ const FeedbackManagementPage = () => {
           }}
         >
           <Tab 
-            icon={<Forum sx={{ fontSize: '1.3rem' }} />} 
+            icon={<Forum sx={{ fontSize: '1.1rem' }} />} 
             label="Feedback Management" 
             iconPosition="start"
           />
           <Tab 
-            icon={<Assessment sx={{ fontSize: '1.3rem' }} />} 
+            icon={<Assessment sx={{ fontSize: '1.1rem' }} />} 
             label="Ratings Analytics" 
             iconPosition="start"
           />
           <Tab 
-            icon={<Gavel sx={{ fontSize: '1.3rem' }} />} 
+            icon={<Gavel sx={{ fontSize: '1.1rem' }} />} 
             label="Moderation" 
             iconPosition="start"
           />
@@ -299,14 +299,14 @@ const FeedbackManagementPage = () => {
 
       {/* Success Message */}
       {successMessage && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage('')}>
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('')}>
           {successMessage}
         </Alert>
       )}
 
       {/* Error Message */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -316,7 +316,7 @@ const FeedbackManagementPage = () => {
         <Box>
 
       {/* Statistics Cards */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card 
             sx={{ 
@@ -331,12 +331,12 @@ const FeedbackManagementPage = () => {
             }}
             onClick={() => handleStatCardClick('all', 'Total Citizen Feedback')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Comment sx={{ fontSize: '2.5rem', mb: 1 }} />
-              <Typography variant="h4" fontWeight="bold">
+            <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+              <Comment sx={{ fontSize: '2rem', mb: 0.5 }} />
+              <Typography variant="h5" fontWeight="bold">
                 {feedbacks.length}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Total Citizen Feedback
               </Typography>
             </CardContent>
@@ -357,12 +357,12 @@ const FeedbackManagementPage = () => {
             }}
             onClick={() => handleStatCardClick('pending', 'Awaiting Response')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Schedule sx={{ fontSize: '2.5rem', mb: 1 }} />
-              <Typography variant="h4" fontWeight="bold">
+            <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+              <Schedule sx={{ fontSize: '2rem', mb: 0.5 }} />
+              <Typography variant="h5" fontWeight="bold">
                 {feedbacks.filter(f => f.status === 'pending').length}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Awaiting Response
               </Typography>
             </CardContent>
@@ -383,12 +383,12 @@ const FeedbackManagementPage = () => {
             }}
             onClick={() => handleStatCardClick('responded', 'Responded')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <CheckCircle sx={{ fontSize: '2.5rem', mb: 1 }} />
-              <Typography variant="h4" fontWeight="bold">
+            <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+              <CheckCircle sx={{ fontSize: '2rem', mb: 0.5 }} />
+              <Typography variant="h5" fontWeight="bold">
                 {feedbacks.filter(f => f.status === 'responded').length}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Responded
               </Typography>
             </CardContent>
@@ -409,12 +409,12 @@ const FeedbackManagementPage = () => {
             }}
             onClick={() => handleStatCardClick('reviewed', 'Under Review')}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Reply sx={{ fontSize: '2.5rem', mb: 1 }} />
-              <Typography variant="h4" fontWeight="bold">
+            <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+              <Reply sx={{ fontSize: '2rem', mb: 0.5 }} />
+              <Typography variant="h5" fontWeight="bold">
                 {feedbacks.filter(f => f.status === 'reviewed').length}
               </Typography>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Under Review
               </Typography>
             </CardContent>
@@ -423,7 +423,7 @@ const FeedbackManagementPage = () => {
       </Grid>
 
       {/* Filters */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+      <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <FilterList sx={{ mr: 1, color: 'primary.main' }} />
           <Typography variant="h6" fontWeight="bold">

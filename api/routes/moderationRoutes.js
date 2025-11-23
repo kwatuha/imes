@@ -339,8 +339,9 @@ router.post('/:feedbackId/approve', auth, async (req, res) => {
 
 /**
  * @route POST /api/moderate/:feedbackId/reject
- * @description Reject a feedback item
+ * @description Reject a feedback item (Permanent decision - requires justification to reopen)
  * @access Protected (Admin/Moderator)
+ * @note: Rejected items are permanently hidden from public view. Reopening requires explicit justification.
  */
 router.post('/:feedbackId/reject', auth, async (req, res) => {
     try {
@@ -392,7 +393,7 @@ router.post('/:feedbackId/reject', auth, async (req, res) => {
 
 /**
  * @route POST /api/moderate/:feedbackId/flag
- * @description Flag a feedback item for further review
+ * @description Flag a feedback item for further review (temporary status - can be re-reviewed)
  * @access Protected (Admin/Moderator)
  */
 router.post('/:feedbackId/flag', auth, async (req, res) => {
@@ -424,13 +425,73 @@ router.post('/:feedbackId/flag', auth, async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Feedback flagged successfully'
+            message: 'Feedback flagged successfully for further review'
         });
     } catch (error) {
         console.error('Error flagging feedback:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Failed to flag feedback' 
+        });
+    }
+});
+
+/**
+ * @route POST /api/moderate/:feedbackId/reopen
+ * @description Reopen a flagged or rejected feedback item for re-review (changes status back to pending)
+ * @access Protected (Admin/Moderator)
+ * @note: This is primarily for flagged items, but can also be used for rejected items with proper justification
+ */
+router.post('/:feedbackId/reopen', auth, async (req, res) => {
+    try {
+        const { feedbackId } = req.params;
+        const { reopen_reason, moderator_notes } = req.body;
+        const moderatorId = req.user.userId;
+
+        // First, check the current status
+        const [currentStatus] = await pool.query(
+            'SELECT moderation_status FROM public_feedback WHERE id = ?',
+            [feedbackId]
+        );
+
+        if (currentStatus.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Feedback not found'
+            });
+        }
+
+        const status = currentStatus[0].moderation_status;
+
+        // Update the public feedback moderation status back to pending
+        const updateQuery = `
+            UPDATE public_feedback 
+            SET 
+                moderation_status = 'pending',
+                moderation_reason = NULL,
+                custom_reason = ?,
+                moderator_notes = ?,
+                moderated_by = ?,
+                moderated_at = NOW()
+            WHERE id = ?
+        `;
+
+        await pool.query(updateQuery, [
+            reopen_reason || `Reopened from ${status} status for re-review`,
+            moderator_notes || `Reopened by moderator for further review`,
+            moderatorId, 
+            feedbackId
+        ]);
+
+        res.json({
+            success: true,
+            message: `Feedback reopened successfully from ${status} status`
+        });
+    } catch (error) {
+        console.error('Error reopening feedback:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to reopen feedback' 
         });
     }
 });

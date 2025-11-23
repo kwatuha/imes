@@ -27,11 +27,6 @@ import {
   Pie,
   LineChart,
   Line,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -374,7 +369,6 @@ const FeedbackAnalytics = () => {
       <Paper sx={{ mb: 3 }}>
         <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)} variant="fullWidth">
           <Tab label="Overview" />
-          <Tab label="Distribution" />
           <Tab label="By Project" />
           <Tab label="Trends" />
         </Tabs>
@@ -382,87 +376,14 @@ const FeedbackAnalytics = () => {
 
       {/* Tab Content */}
       {activeTab === 0 && (
-        <Grid container spacing={3} sx={{ position: 'relative', minHeight: '80vh' }}>
-          {/* Radar Chart */}
-          <Grid item xs={12} lg={12}>
-            <Paper sx={{ p: 4, pb: 6 }}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Rating Dimensions Overview
+        <Grid container spacing={2}>
+          {/* Row 1: Bar Chart - Full Width */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2, pb: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: '1rem', mb: 1 }}>
+                Average Ratings Comparison
               </Typography>
-              <ResponsiveContainer width="100%" height={900}>
-                <RadarChart 
-                  data={[
-                    { dimension: 'Overall Support', value: parseFloat(analytics.averages.overall_support) },
-                    { dimension: 'Quality of Life', value: parseFloat(analytics.averages.quality_of_life) },
-                    { dimension: 'Community Alignment', value: parseFloat(analytics.averages.community_alignment) },
-                    { dimension: 'Implementation/Supervision', value: parseFloat(analytics.averages.transparency) },
-                    { dimension: 'Feasibility Confidence', value: parseFloat(analytics.averages.feasibility) }
-                  ]}
-                  margin={{ top: 80, right: 80, bottom: 120, left: 80 }}
-                >
-                  <PolarGrid />
-                  <PolarAngleAxis 
-                    dataKey="dimension" 
-                    tick={{ 
-                      fontSize: 15, 
-                      fill: '#333', 
-                      fontWeight: 'bold',
-                      textAnchor: 'middle'
-                    }}
-                    tickFormatter={(value) => {
-                      // Use clean, short labels as specified
-                      const labelMap = {
-                        'Overall Support': 'Support',
-                        'Quality of Life': 'Quality',
-                        'Community Alignment': 'Alignment',
-                        'Implementation/Supervision': 'Implementation',
-                        'Feasibility Confidence': 'Feasibility'
-                      };
-                      return labelMap[value] || value;
-                    }}
-                  />
-                  <PolarRadiusAxis 
-                    domain={[0, 5]} 
-                    tick={{ fontSize: 13, fill: '#666', fontWeight: 'bold' }}
-                    tickCount={6}
-                  />
-                  <Radar 
-                    name="Average Rating" 
-                    dataKey="value" 
-                    stroke="#2196f3" 
-                    fill="#2196f3" 
-                    fillOpacity={0.6}
-                    strokeWidth={2}
-                  />
-                  <Tooltip 
-                    formatter={(value, name) => [value.toFixed(2), 'Average Rating']}
-                    labelFormatter={(label) => `Dimension: ${label}`}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36}
-                    wrapperStyle={{ paddingTop: '10px' }}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </Paper>
-          </Grid>
-
-          {/* Bar Chart - Positioned absolutely to utilize right space */}
-          <Paper sx={{ 
-            p: 2, 
-            pb: 3,
-            position: 'absolute',
-            right: '30px', // Move further from the right edge
-            top: '0',
-            width: '400px', // Increased width
-            height: '850px', // Increased height to accommodate labels
-            zIndex: 1
-          }}>
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Average Ratings Comparison
-            </Typography>
-              <ResponsiveContainer width="100%" height={650}>
+              <ResponsiveContainer width={500} height={500}>
                 <BarChart data={[
                   { name: 'Overall Support', value: parseFloat(analytics.averages.overall_support) },
                   { name: 'Quality of Life', value: parseFloat(analytics.averages.quality_of_life) },
@@ -512,56 +433,124 @@ const FeedbackAnalytics = () => {
                 </BarChart>
               </ResponsiveContainer>
             </Paper>
-        </Grid>
-      )}
+          </Grid>
 
-      {activeTab === 1 && (
-        <Grid container spacing={3}>
-          {['overall_support', 'quality_of_life', 'community_alignment', 'transparency', 'feasibility'].map((dimension, idx) => (
-            <Grid item xs={12} sm={6} lg={4} key={dimension}>
-              <Paper sx={{ p: 4 }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  {['Overall Support', 'Quality of Life', 'Community Alignment', 'Implementation/Supervision', 'Feasibility'][idx]}
+          {/* Row 2: All 5 Distribution Charts */}
+          {/* First 2 Distribution Charts */}
+          {['overall_support', 'quality_of_life'].map((dimension, idx) => (
+            <Grid item xs={12} sm={6} md={2.4} key={dimension}>
+              <Paper sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: '0.85rem', textAlign: 'center', mb: 0.5 }}>
+                  {['Overall Support', 'Quality of Life'][idx]}
                 </Typography>
-                <ResponsiveContainer width="100%" height={450}>
-                  <PieChart>
-                    <Pie
-                      data={analytics.distributions[dimension]}
-                      dataKey="count"
-                      nameKey="rating"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      label={(entry) => `${entry.rating}: ${entry.percentage}%`}
-                      labelLine={false}
-                    >
-                      {analytics.distributions[dimension].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value, name) => [value, 'Count']}
-                      labelFormatter={(label) => `Rating: ${label}`}
-                    />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={60}
-                      wrapperStyle={{ 
-                        paddingTop: '15px',
-                        fontSize: '14px',
-                        fontWeight: 'bold'
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  <ResponsiveContainer width={250} height={250}>
+                    <PieChart>
+                      <Pie
+                        data={analytics.distributions[dimension]}
+                        dataKey="count"
+                        nameKey="rating"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        innerRadius={30}
+                        label={(entry) => `${entry.rating}⭐`}
+                        labelLine={false}
+                      >
+                        {analytics.distributions[dimension].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value, name, props) => [
+                          `${value} (${props.payload.percentage}%)`,
+                          'Count'
+                        ]}
+                        labelFormatter={(label) => `${label} Stars`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+                {/* Legend below chart */}
+                <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 0.5 }}>
+                  {analytics.distributions[dimension].map((entry, index) => (
+                    <Chip
+                      key={index}
+                      label={`${entry.rating}⭐: ${entry.percentage}%`}
+                      size="small"
+                      sx={{
+                        backgroundColor: COLORS[index],
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '0.65rem',
+                        height: '20px'
                       }}
-                      iconType="circle"
                     />
-                  </PieChart>
-                </ResponsiveContainer>
+                  ))}
+                </Box>
+              </Paper>
+            </Grid>
+          ))}
+
+          {/* Remaining 3 Distribution Charts */}
+          {['community_alignment', 'transparency', 'feasibility'].map((dimension, idx) => (
+            <Grid item xs={12} sm={6} md={2.4} key={dimension}>
+              <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ textAlign: 'center', fontSize: '0.9rem', mb: 0.5 }}>
+                  {['Community Alignment', 'Implementation/Supervision', 'Feasibility'][idx]}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={analytics.distributions[dimension]}
+                        dataKey="count"
+                        nameKey="rating"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        innerRadius={35}
+                        label={(entry) => `${entry.rating}⭐: ${entry.percentage}%`}
+                        labelLine={false}
+                      >
+                        {analytics.distributions[dimension].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value, name, props) => [
+                          `${value} (${props.payload.percentage}%)`,
+                          'Count'
+                        ]}
+                        labelFormatter={(label) => `${label} Stars`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+                {/* Legend below chart */}
+                <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 0.5 }}>
+                  {analytics.distributions[dimension].map((entry, index) => (
+                    <Chip
+                      key={index}
+                      label={`${entry.rating}⭐: ${entry.percentage}%`}
+                      size="small"
+                      sx={{
+                        backgroundColor: COLORS[index],
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '0.7rem',
+                        height: '22px'
+                      }}
+                    />
+                  ))}
+                </Box>
               </Paper>
             </Grid>
           ))}
         </Grid>
       )}
 
-      {activeTab === 2 && (
+      {activeTab === 1 && (
         <Paper>
           <TableContainer>
             <Table>
@@ -646,7 +635,7 @@ const FeedbackAnalytics = () => {
         </Paper>
       )}
 
-      {activeTab === 3 && (
+      {activeTab === 2 && (
         <Paper sx={{ p: 4 }}>
           <Typography variant="h6" fontWeight="bold" gutterBottom>
             Rating Trends Over Time
