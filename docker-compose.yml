@@ -58,7 +58,8 @@ services:
       - ./api:/app
       - /app/node_modules
     depends_on:
-      - mysql_db
+      mysql_db:
+        condition: service_healthy
     environment:
       DB_HOST: mysql_db
       DB_USER: impesUser
@@ -81,6 +82,12 @@ services:
       - db_data:/var/lib/mysql
     ports:
       - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   db_data:

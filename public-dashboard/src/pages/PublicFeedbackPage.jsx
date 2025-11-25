@@ -182,117 +182,51 @@ const PublicFeedbackPage = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      {/* Header - Compact */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
           Project-Based Feedback Forum
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
           We welcome your feedback on any of the projects. Your input is valuable in enhancing our services 
           and improving overall service delivery to the citizens.
         </Typography>
       </Box>
 
-      {/* Feedback Statistics */}
-      {feedbackStats && (
-        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-            Feedback Overview
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Box textAlign="center" p={2} sx={{ backgroundColor: '#e3f2fd', borderRadius: 2 }}>
-                <Typography variant="h4" fontWeight="bold" color="primary.main">
-                  {feedbackStats.total_feedback}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Citizen Feedback
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Box textAlign="center" p={2} sx={{ backgroundColor: '#fff3e0', borderRadius: 2 }}>
-                <Typography variant="h4" fontWeight="bold" color="#ff9800">
-                  {feedbackStats.pending_feedback}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Awaiting Response
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Box textAlign="center" p={2} sx={{ backgroundColor: '#e1f5fe', borderRadius: 2 }}>
-                <Typography variant="h4" fontWeight="bold" color="#2196f3">
-                  {feedbackStats.reviewed_feedback}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Under Review
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Box textAlign="center" p={2} sx={{ backgroundColor: '#e8f5e8', borderRadius: 2 }}>
-                <Typography variant="h4" fontWeight="bold" color="#4caf50">
-                  {feedbackStats.responded_feedback}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Responded
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2.4}>
-              <Box textAlign="center" p={2} sx={{ backgroundColor: '#f3e5f5', borderRadius: 2 }}>
-                <Typography variant="h4" fontWeight="bold" color="#9c27b0">
-                  {feedbackStats.archived_feedback}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Archived
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
-      )}
-
-      {/* Info Banner */}
+      {/* Info Banner - Compact */}
       <Alert 
         severity="info" 
         sx={{ 
-          mb: 4,
-          borderRadius: '12px',
-          background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)'
+          mb: 2,
+          borderRadius: '8px',
+          background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+          py: 1
         }}
       >
-        <Typography variant="body2" fontWeight="bold">
+        <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.875rem' }}>
           💡 Implementation & Accountability
         </Typography>
-        <Typography variant="body2">
+        <Typography variant="body2" sx={{ fontSize: '0.8rem', mt: 0.5 }}>
           All feedback is reviewed by county officials. Responses are provided to ensure accountability 
           and continuous improvement in project implementation and supervision.
         </Typography>
       </Alert>
 
-      {/* Filters */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <FilterList sx={{ mr: 1, color: 'primary.main' }} />
-          <Typography variant="h6" fontWeight="bold">
-            Filter Feedback
-          </Typography>
-        </Box>
-
-        <Grid container spacing={2}>
+      {/* Filters - Compact */}
+      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={8}>
             <TextField
               fullWidth
+              size="small"
               placeholder="Search by project name, feedback, or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Search />
+                    <Search sx={{ fontSize: '1.2rem' }} />
                   </InputAdornment>
                 ),
               }}
@@ -300,7 +234,7 @@ const PublicFeedbackPage = () => {
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <FormControl fullWidth>
+            <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
                 value={statusFilter}

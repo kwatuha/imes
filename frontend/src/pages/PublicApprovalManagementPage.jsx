@@ -24,7 +24,20 @@ import {
   CardMedia,
   CardContent,
   CardActions,
-  LinearProgress
+  LinearProgress,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Divider,
+  Avatar,
+  Pagination,
+  List,
+  ListItem
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -34,7 +47,16 @@ import {
   Edit as EditIcon,
   Info as InfoIcon,
   PhotoLibrary as PhotoLibraryIcon,
-  CloudUpload as CloudUploadIcon
+  CloudUpload as CloudUploadIcon,
+  Gavel as GavelIcon,
+  Flag as FlagIcon,
+  Block as BlockIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
+  Schedule as ScheduleIcon,
+  Search as SearchIcon,
+  Person as PersonIcon,
+  ExpandMore as ExpandMoreIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useAuth } from '../context/AuthContext';
@@ -54,6 +76,27 @@ const PublicApprovalManagementPage = () => {
   const [citizenProposals, setCitizenProposals] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   
+  // Moderation states
+  const [moderationFeedbacks, setModerationFeedbacks] = useState([]);
+  const [moderationStats, setModerationStats] = useState(null);
+  const [moderationLoading, setModerationLoading] = useState(false);
+  const [moderationPage, setModerationPage] = useState(1);
+  const [moderationTotalPages, setModerationTotalPages] = useState(1);
+  const [moderationFilter, setModerationFilter] = useState('pending');
+  const [moderationSearch, setModerationSearch] = useState('');
+  const [expandedFeedbackId, setExpandedFeedbackId] = useState(null);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [moderationModalOpen, setModerationModalOpen] = useState(false);
+  const [moderationAction, setModerationAction] = useState('');
+  const [moderationReason, setModerationReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [moderatorNotes, setModeratorNotes] = useState('');
+  const [reopenReason, setReopenReason] = useState('');
+  const [submittingModeration, setSubmittingModeration] = useState(false);
+  const [statisticsModalFeedbacks, setStatisticsModalFeedbacks] = useState([]);
+  const [statisticsModalTitle, setStatisticsModalTitle] = useState('');
+  const [statisticsModalOpen, setStatisticsModalOpen] = useState(false);
+  
   // Dialog states
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -72,6 +115,13 @@ const PublicApprovalManagementPage = () => {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 4) {
+      fetchModerationData();
+      fetchModerationStats();
+    }
+  }, [activeTab, moderationPage, moderationFilter, moderationSearch]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -167,6 +217,185 @@ const PublicApprovalManagementPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Moderation functions
+  const fetchModerationData = async () => {
+    try {
+      setModerationLoading(true);
+      const params = new URLSearchParams({
+        page: moderationPage,
+        limit: 10,
+      });
+      
+      if (moderationFilter && moderationFilter !== 'all') {
+        params.append('moderation_status', moderationFilter);
+      }
+      if (moderationSearch) {
+        params.append('search', moderationSearch);
+      }
+
+      const response = await axiosInstance.get(`/moderate/queue?${params.toString()}`);
+      setModerationFeedbacks(response.data.items || []);
+      setModerationTotalPages(response.data.pagination?.totalPages || 1);
+    } catch (err) {
+      console.error('Error fetching moderation feedback:', err);
+      setError('Failed to load moderation queue. Please try again.');
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+
+  const fetchModerationStats = async () => {
+    try {
+      const response = await axiosInstance.get('/moderate/statistics');
+      setModerationStats(response.data);
+    } catch (err) {
+      console.error('Error fetching moderation statistics:', err);
+    }
+  };
+
+  const handleModerationAction = (feedback, action) => {
+    setSelectedFeedback(feedback);
+    setModerationAction(action);
+    setModerationReason('');
+    setCustomReason('');
+    setModeratorNotes('');
+    setReopenReason('');
+    setModerationModalOpen(true);
+  };
+
+  const handleCloseModerationModal = () => {
+    setModerationModalOpen(false);
+    setSelectedFeedback(null);
+    setModerationAction('');
+    setModerationReason('');
+    setCustomReason('');
+    setModeratorNotes('');
+    setReopenReason('');
+  };
+
+  const handleModerationSubmit = async () => {
+    if (!selectedFeedback) return;
+
+    try {
+      setSubmittingModeration(true);
+      
+      let endpoint = '';
+      let payload = {
+        moderator_notes: moderatorNotes
+      };
+
+      switch (moderationAction) {
+        case 'approve':
+          endpoint = `/moderate/${selectedFeedback.id}/approve`;
+          break;
+        case 'reject':
+          if (!moderationReason) {
+            setError('Please select a reason for rejection');
+            return;
+          }
+          endpoint = `/moderate/${selectedFeedback.id}/reject`;
+          payload = {
+            moderation_reason: moderationReason,
+            custom_reason: customReason,
+            moderator_notes: moderatorNotes
+          };
+          break;
+        case 'flag':
+          endpoint = `/moderate/${selectedFeedback.id}/flag`;
+          payload = {
+            moderation_reason: moderationReason,
+            custom_reason: customReason,
+            moderator_notes: moderatorNotes
+          };
+          break;
+        case 'reopen':
+          if (!reopenReason && selectedFeedback.moderation_status === 'rejected') {
+            setError('Please provide a reason for reopening a rejected feedback');
+            return;
+          }
+          endpoint = `/moderate/${selectedFeedback.id}/reopen`;
+          payload = {
+            reopen_reason: reopenReason || `Reopened from ${selectedFeedback.moderation_status} status`,
+            moderator_notes: moderatorNotes || `Reopened for further review`
+          };
+          break;
+        default:
+          throw new Error('Invalid moderation action');
+      }
+
+      await axiosInstance.post(endpoint, payload);
+      
+      const actionMessages = {
+        'approve': 'approved',
+        'reject': 'rejected',
+        'flag': 'flagged',
+        'reopen': 'reopened'
+      };
+      
+      setSuccess(`Feedback ${actionMessages[moderationAction] || moderationAction} successfully`);
+      handleCloseModerationModal();
+      fetchModerationData();
+      fetchModerationStats();
+    } catch (err) {
+      console.error('Error moderating feedback:', err);
+      setError(`Failed to ${moderationAction} feedback. Please try again.`);
+    } finally {
+      setSubmittingModeration(false);
+    }
+  };
+
+  const moderationReasons = [
+    { value: 'inappropriate_content', label: 'Inappropriate Content' },
+    { value: 'spam', label: 'Spam' },
+    { value: 'off_topic', label: 'Off Topic' },
+    { value: 'personal_attack', label: 'Personal Attack' },
+    { value: 'false_information', label: 'False Information' },
+    { value: 'duplicate', label: 'Duplicate' },
+    { value: 'incomplete', label: 'Incomplete' },
+    { value: 'language_violation', label: 'Language Violation' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const getModerationStatusColor = (status) => {
+    const statusMap = {
+      'pending': { color: 'warning', icon: <ScheduleIcon />, label: 'Awaiting Response' },
+      'approved': { color: 'success', icon: <CheckCircleIcon />, label: 'Approved' },
+      'rejected': { color: 'error', icon: <CancelIcon />, label: 'Rejected (Permanent)' },
+      'flagged': { color: 'warning', icon: <FlagIcon />, label: 'Flagged (Needs Review)' }
+    };
+    return statusMap[status] || statusMap['pending'];
+  };
+
+  const handleModerationStatCardClick = async (moderationStatus, title) => {
+    try {
+      setModerationLoading(true);
+      
+      // Fetch all feedback for the specific moderation status
+      const params = new URLSearchParams({
+        page: 1,
+        limit: 100, // Get more items for the modal
+        moderation_status: moderationStatus
+      });
+
+      const response = await axiosInstance.get(`/moderate/queue?${params.toString()}`);
+
+      setStatisticsModalFeedbacks(response.data.items || []);
+      setStatisticsModalTitle(title);
+      setStatisticsModalOpen(true);
+    } catch (err) {
+      console.error('Error fetching feedback for modal:', err);
+      setError('Failed to load feedback. Please try again.');
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+
+  const handleCloseStatisticsModal = () => {
+    setStatisticsModalOpen(false);
+    setStatisticsModalFeedbacks([]);
+    setStatisticsModalTitle('');
   };
 
   const handleOpenApprovalDialog = (item, action, type) => {
@@ -691,6 +920,8 @@ const PublicApprovalManagementPage = () => {
         return { data: citizenProposals, columns: citizenProposalsColumns, title: 'Citizen Proposals' };
       case 3:
         return { data: announcements, columns: announcementsColumns, title: 'Project Announcements' };
+      case 4:
+        return { data: [], columns: [], title: 'Feedback Moderation' };
       default:
         return { data: [], columns: [], title: '' };
     }
@@ -740,37 +971,385 @@ const PublicApprovalManagementPage = () => {
           <Tab label={`County Projects (${countyProjects.length})`} />
           <Tab label={`Citizen Proposals (${citizenProposals.length})`} />
           <Tab label={`Announcements (${announcements.length})`} />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <GavelIcon sx={{ fontSize: '1rem' }} />
+                Feedback Moderation
+                {moderationStats && (
+                  <Chip 
+                    label={moderationStats.statistics?.pending_count || 0} 
+                    size="small" 
+                    color="warning"
+                    sx={{ height: '20px', fontSize: '0.7rem' }}
+                  />
+                )}
+              </Box>
+            } 
+          />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
-          {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Box sx={{ height: 600, width: '100%' }}>
-              {Array.isArray(currentData.data) && currentData.data.length > 0 ? (
-                <DataGrid
-                  rows={currentData.data}
-                  columns={currentData.columns}
-                  getRowId={(row) => row.id}
-                  pageSize={10}
-                  rowsPerPageOptions={[10, 25, 50]}
-                  disableSelectionOnClick
-                  sx={{
-                    '& .MuiDataGrid-cell': {
-                      borderBottom: 'none',
-                    },
-                  }}
-                />
-              ) : (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                  <Typography variant="body1" color="text.secondary">
-                    No {currentData.title.toLowerCase()} found
+          {activeTab === 4 ? (
+            // Moderation Queue Tab
+            <Box>
+              {/* Statistics Cards - Interactive */}
+              {moderationStats && (
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card 
+                      onClick={() => handleModerationStatCardClick('pending', 'Awaiting Response')}
+                      sx={{ 
+                        background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', 
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-8px)',
+                          boxShadow: '0 12px 24px rgba(255, 152, 0, 0.4)'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                        <ScheduleIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {moderationStats.statistics.pending_count}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                          Awaiting Response
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                          Click to view
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card 
+                      onClick={() => handleModerationStatCardClick('approved', 'Approved')}
+                      sx={{ 
+                        background: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)', 
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-8px)',
+                          boxShadow: '0 12px 24px rgba(76, 175, 80, 0.4)'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                        <CheckCircleIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {moderationStats.statistics.approved_count}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                          Approved
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                          Click to view
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card 
+                      onClick={() => handleModerationStatCardClick('rejected', 'Rejected')}
+                      sx={{ 
+                        background: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)', 
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-8px)',
+                          boxShadow: '0 12px 24px rgba(244, 67, 54, 0.4)'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                        <CancelIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {moderationStats.statistics.rejected_count}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                          Rejected
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                          Click to view
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card 
+                      onClick={() => handleModerationStatCardClick('flagged', 'Flagged')}
+                      sx={{ 
+                        background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)', 
+                        color: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-8px)',
+                          boxShadow: '0 12px 24px rgba(156, 39, 176, 0.4)'
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
+                        <FlagIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
+                        <Typography variant="h5" fontWeight="bold">
+                          {moderationStats.statistics.flagged_count}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                          Flagged
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                          Click to view
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              )}
+
+              {/* Filters */}
+              <Paper sx={{ p: 2, mb: 2 }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      placeholder="Search feedback..."
+                      value={moderationSearch}
+                      onChange={(e) => setModerationSearch(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel>Moderation Status</InputLabel>
+                      <Select
+                        value={moderationFilter}
+                        onChange={(e) => setModerationFilter(e.target.value)}
+                        label="Moderation Status"
+                      >
+                        <MenuItem value="all">All Status</MenuItem>
+                        <MenuItem value="pending">Pending</MenuItem>
+                        <MenuItem value="approved">Approved</MenuItem>
+                        <MenuItem value="rejected">Rejected</MenuItem>
+                        <MenuItem value="flagged">Flagged</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Feedback List */}
+              {moderationLoading ? (
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+                  <CircularProgress />
+                </Box>
+              ) : moderationFeedbacks.length === 0 ? (
+                <Paper sx={{ p: 4, textAlign: 'center' }}>
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    No feedback found
                   </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {moderationFilter !== 'all' 
+                      ? `No feedback with moderation status "${moderationFilter}"` 
+                      : 'No feedback items in the moderation queue'}
+                  </Typography>
+                </Paper>
+              ) : (
+                <Box>
+                  {moderationFeedbacks.map((feedback) => {
+                    const statusInfo = getModerationStatusColor(feedback.moderation_status);
+                    return (
+                      <Accordion
+                        key={feedback.id}
+                        expanded={expandedFeedbackId === feedback.id}
+                        onChange={(e, isExpanded) => setExpandedFeedbackId(isExpanded ? feedback.id : null)}
+                        sx={{ mb: 2 }}
+                      >
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                              <Avatar sx={{ mr: 1.5, width: 32, height: 32 }}>
+                                <PersonIcon />
+                              </Avatar>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="subtitle1" component="div" fontWeight="bold">
+                                  {feedback.name || 'Anonymous'}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                                  {feedback.subject || 'No Subject'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Chip
+                                icon={statusInfo.icon}
+                                label={statusInfo.label}
+                                color={statusInfo.color}
+                                size="small"
+                              />
+                            </Box>
+                          </Box>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Typography variant="body2" sx={{ mb: 2 }}>
+                            {feedback.message}
+                          </Typography>
+                          
+                          {feedback.moderation_status === 'flagged' && (
+                            <Alert severity="warning" sx={{ mb: 1 }}>
+                              ⚠️ Flagged for Review: This feedback needs further review.
+                            </Alert>
+                          )}
+                          
+                          {feedback.moderation_status === 'rejected' && (
+                            <Alert severity="error" sx={{ mb: 1 }}>
+                              ❌ Permanently Rejected: This feedback was permanently rejected.
+                            </Alert>
+                          )}
+
+                          <Divider sx={{ my: 1.5 }} />
+
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {feedback.moderation_status === 'pending' && (
+                              <>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  startIcon={<CheckCircleOutlineIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'approve')}
+                                  size="small"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  startIcon={<BlockIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'reject')}
+                                  size="small"
+                                >
+                                  Reject
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="warning"
+                                  startIcon={<FlagIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'flag')}
+                                  size="small"
+                                >
+                                  Flag for Review
+                                </Button>
+                              </>
+                            )}
+                            
+                            {feedback.moderation_status === 'flagged' && (
+                              <>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  startIcon={<CheckCircleOutlineIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'approve')}
+                                  size="small"
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  startIcon={<BlockIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'reject')}
+                                  size="small"
+                                >
+                                  Reject
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  color="warning"
+                                  startIcon={<ScheduleIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'reopen')}
+                                  size="small"
+                                >
+                                  Reopen for Review
+                                </Button>
+                              </>
+                            )}
+                            
+                            {feedback.moderation_status === 'rejected' && (
+                              <>
+                                <Button
+                                  variant="outlined"
+                                  color="info"
+                                  startIcon={<ScheduleIcon />}
+                                  onClick={() => handleModerationAction(feedback, 'reopen')}
+                                  size="small"
+                                >
+                                  Reopen (Requires Justification)
+                                </Button>
+                              </>
+                            )}
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+                    );
+                  })}
+
+                  {/* Pagination */}
+                  {moderationTotalPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                      <Pagination
+                        count={moderationTotalPages}
+                        page={moderationPage}
+                        onChange={(event, value) => setModerationPage(value)}
+                        color="primary"
+                      />
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
+          ) : (
+            // Other tabs (DataGrid)
+            <>
+              {loading ? (
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <Box sx={{ height: 600, width: '100%' }}>
+                  {Array.isArray(currentData.data) && currentData.data.length > 0 ? (
+                    <DataGrid
+                      rows={currentData.data}
+                      columns={currentData.columns}
+                      getRowId={(row) => row.id}
+                      pageSize={10}
+                      rowsPerPageOptions={[10, 25, 50]}
+                      disableSelectionOnClick
+                      sx={{
+                        '& .MuiDataGrid-cell': {
+                          borderBottom: 'none',
+                        },
+                      }}
+                    />
+                  ) : (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                      <Typography variant="body1" color="text.secondary">
+                        No {currentData.title.toLowerCase()} found
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </>
           )}
         </Box>
       </Paper>
@@ -1073,6 +1652,238 @@ const PublicApprovalManagementPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClosePhotoModal}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Moderation Modal */}
+      <Dialog
+        open={moderationModalOpen}
+        onClose={handleCloseModerationModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {moderationAction === 'approve' && 'Approve Feedback'}
+          {moderationAction === 'reject' && 'Reject Feedback (Permanent Decision)'}
+          {moderationAction === 'flag' && 'Flag Feedback for Further Review'}
+          {moderationAction === 'review' && 'Review Moderation Decision'}
+          {moderationAction === 'reopen' && `Reopen Feedback from ${selectedFeedback?.moderation_status || ''} Status`}
+        </DialogTitle>
+        <DialogContent>
+          {selectedFeedback && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Feedback from: {selectedFeedback.name || 'Anonymous'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Subject: {selectedFeedback.subject || 'No Subject'}
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                {selectedFeedback.message}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Show warning for rejected items being reopened */}
+          {moderationAction === 'reopen' && selectedFeedback?.moderation_status === 'rejected' && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="bold" gutterBottom>
+                Warning: Reopening a Rejected Feedback
+              </Typography>
+              <Typography variant="body2">
+                This feedback was permanently rejected. Reopening it requires a valid justification. 
+                Please provide a clear reason why this rejected feedback should be reconsidered.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* Show info for flagged items being reopened */}
+          {moderationAction === 'reopen' && selectedFeedback?.moderation_status === 'flagged' && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                This feedback was flagged for further review. Reopening will change its status back to pending 
+                so it can be reviewed again by the moderation team.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* Reopen reason field */}
+          {moderationAction === 'reopen' && (
+            <TextField
+              fullWidth
+              label={selectedFeedback?.moderation_status === 'rejected' ? 'Justification for Reopening (Required)' : 'Reason for Reopening'}
+              multiline
+              rows={3}
+              value={reopenReason}
+              onChange={(e) => setReopenReason(e.target.value)}
+              required={selectedFeedback?.moderation_status === 'rejected'}
+              sx={{ mb: 2 }}
+              placeholder={
+                selectedFeedback?.moderation_status === 'rejected' 
+                  ? 'Please explain why this rejected feedback should be reconsidered...'
+                  : 'Optional: Add a reason for reopening this flagged feedback...'
+              }
+            />
+          )}
+
+          {(moderationAction === 'reject' || moderationAction === 'flag') && (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Reason</InputLabel>
+              <Select
+                value={moderationReason}
+                onChange={(e) => setModerationReason(e.target.value)}
+                label="Reason"
+              >
+                {moderationReasons.map((reason) => (
+                  <MenuItem key={reason.value} value={reason.value}>
+                    {reason.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
+          {moderationReason === 'other' && (
+            <TextField
+              fullWidth
+              label="Custom Reason"
+              value={customReason}
+              onChange={(e) => setCustomReason(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+          )}
+
+          <TextField
+            fullWidth
+            label="Moderator Notes"
+            multiline
+            rows={4}
+            value={moderatorNotes}
+            onChange={(e) => setModeratorNotes(e.target.value)}
+            placeholder={
+              moderationAction === 'reopen' 
+                ? 'Add any additional notes about reopening this feedback...'
+                : 'Add any additional notes about this moderation decision...'
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModerationModal}>Cancel</Button>
+          <Button
+            onClick={handleModerationSubmit}
+            variant="contained"
+            disabled={submittingModeration}
+            color={
+              moderationAction === 'approve' ? 'success' :
+              moderationAction === 'reject' ? 'error' :
+              moderationAction === 'flag' ? 'warning' :
+              moderationAction === 'reopen' ? 'info' : 'primary'
+            }
+          >
+            {submittingModeration ? <CircularProgress size={20} /> : 
+             moderationAction === 'approve' ? 'Approve' :
+             moderationAction === 'reject' ? 'Reject Permanently' :
+             moderationAction === 'flag' ? 'Flag for Review' :
+             moderationAction === 'reopen' ? 'Reopen for Review' : 'Update'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Statistics Modal - Shows filtered feedback when clicking stat cards */}
+      <Dialog 
+        open={statisticsModalOpen} 
+        onClose={handleCloseStatisticsModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" fontWeight="bold">
+              {statisticsModalTitle}
+            </Typography>
+            <IconButton onClick={handleCloseStatisticsModal} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent dividers>
+          {statisticsModalFeedbacks.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body1" color="text.secondary">
+                No feedback found in this category.
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {statisticsModalFeedbacks.map((feedback) => (
+                <ListItem key={feedback.id} sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 2 }}>
+                  <Box sx={{ width: '100%', mb: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Avatar sx={{ mr: 2 }}>
+                        <PersonIcon />
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {feedback.name || 'Anonymous'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {feedback.subject || 'No Subject'}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={getModerationStatusColor(feedback.moderation_status).label}
+                        color={getModerationStatusColor(feedback.moderation_status).color}
+                        size="small"
+                      />
+                    </Box>
+                    
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {feedback.message}
+                    </Typography>
+                    
+                    {feedback.project_name && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                        Related Project: {feedback.project_name}
+                      </Typography>
+                    )}
+                    
+                    <Typography variant="caption" color="text.secondary">
+                      Submitted: {new Date(feedback.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </Typography>
+                    
+                    {feedback.moderation_reason && (
+                      <Box sx={{ mt: 2, p: 2, backgroundColor: '#fff3e0', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Moderation Reason: {moderationReasons.find(r => r.value === feedback.moderation_reason)?.label}
+                        </Typography>
+                        {feedback.custom_reason && (
+                          <Typography variant="body2">
+                            Custom Reason: {feedback.custom_reason}
+                          </Typography>
+                        )}
+                        {feedback.moderator_notes && (
+                          <Typography variant="body2">
+                            Moderator Notes: {feedback.moderator_notes}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                  <Divider sx={{ width: '100%', mt: 1 }} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseStatisticsModal}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>

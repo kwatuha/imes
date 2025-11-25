@@ -26,14 +26,18 @@ const pool = mysql.createPool({
 });
 
 // Optional: Test the connection pool immediately on startup
+// Note: This is non-fatal - the app will continue to run even if the initial test fails
+// The connection pool will retry when actually used
 pool.getConnection()
   .then(connection => {
     console.log('MySQL connection pool created and tested successfully xxx from db.js!');
     connection.release(); // Release the connection immediately after testing
   })
   .catch(err => {
-    console.error('Error connecting to MySQL database from db.js:', err);
-    process.exit(1); // Exit the application if database connection fails
+    console.error('Warning: Initial database connection test failed from db.js:', err.message);
+    console.error('The application will continue to run. Database connections will be retried when needed.');
+    // Don't exit - let the app start and retry connections when actually used
+    // This is especially important in Docker environments where the DB might not be ready immediately
   });
 
 module.exports = pool; // This is the crucial line: Export the pool for other files to use
