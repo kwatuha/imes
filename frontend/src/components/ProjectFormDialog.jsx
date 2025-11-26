@@ -1,5 +1,5 @@
 // src/components/ProjectFormDialog.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel,
@@ -8,6 +8,7 @@ import {
 import useProjectForm from '../hooks/useProjectForm';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 import { tokens } from '../pages/dashboard/theme';
+import { DEFAULT_COUNTY } from '../configs/appConfig';
 
 const ProjectFormDialog = ({
   open,
@@ -34,7 +35,32 @@ const ProjectFormDialog = ({
     formSubPrograms,
     formSubcounties,
     formWards,
+    missingFinancialYear,
   } = useProjectForm(currentProject, allMetadata, onFormSuccess, setSnackbar, user);
+
+  // Debug: Log formData changes, especially finYearId
+  useEffect(() => {
+    if (open && currentProject) {
+      console.log('ProjectFormDialog - formData.finYearId:', formData.finYearId, 'type:', typeof formData.finYearId);
+      console.log('ProjectFormDialog - allMetadata.financialYears available:', !!allMetadata?.financialYears);
+      if (allMetadata?.financialYears) {
+        console.log('ProjectFormDialog - Available financial years:', allMetadata.financialYears.map(fy => ({
+          finYearId: fy.finYearId,
+          finYearName: fy.finYearName,
+          finYearIdType: typeof fy.finYearId
+        })));
+        const matchingFY = allMetadata.financialYears.find(fy => String(fy.finYearId) === String(formData.finYearId));
+        console.log('ProjectFormDialog - Matching financial year found:', matchingFY);
+        console.log('ProjectFormDialog - Comparison test:', {
+          formDataFinYearId: formData.finYearId,
+          formDataFinYearIdString: String(formData.finYearId),
+          firstFYId: allMetadata.financialYears[0]?.finYearId,
+          firstFYIdString: String(allMetadata.financialYears[0]?.finYearId),
+          areEqual: String(allMetadata.financialYears[0]?.finYearId) === String(formData.finYearId)
+        });
+      }
+    }
+  }, [formData.finYearId, open, currentProject, allMetadata]);
 
   const projectStatuses = [
     'Not Started', 'In Progress', 'Completed', 'On Hold', 'Cancelled',
@@ -783,10 +809,32 @@ const ProjectFormDialog = ({
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth margin="dense" variant="outlined" size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Financial Year</InputLabel>
-                <Select name="finYearId" label="Financial Year" value={formData.finYearId} onChange={handleChange} inputProps={{ 'aria-label': 'Select financial year' }} >
-                  <MenuItem key='empty-fin-year' value=""><em>None</em></MenuItem>
-                  {allMetadata.financialYears.map(fy => (<MenuItem key={fy.finYearId} value={String(fy.finYearId)}>{fy.finYearName}</MenuItem>))}
+                <InputLabel id="fin-year-select-label">Financial Year</InputLabel>
+                <Select 
+                  key={`fin-year-select-${formData.finYearId || 'empty'}`}
+                  name="finYearId" 
+                  labelId="fin-year-select-label"
+                  label="Financial Year" 
+                  value={formData.finYearId ? String(formData.finYearId) : ''} 
+                  onChange={handleChange} 
+                  inputProps={{ 'aria-label': 'Select financial year' }}
+                  displayEmpty
+                >
+                  <MenuItem value=""><em>None</em></MenuItem>
+                  {/* Include missing financial year if it exists */}
+                  {missingFinancialYear && (
+                    <MenuItem key={missingFinancialYear.finYearId} value={String(missingFinancialYear.finYearId)}>
+                      {missingFinancialYear.finYearName} {missingFinancialYear.voided ? '(Voided)' : ''}
+                    </MenuItem>
+                  )}
+                  {allMetadata?.financialYears?.map(fy => {
+                    const fyIdString = String(fy.finYearId);
+                    return (
+                      <MenuItem key={fy.finYearId} value={fyIdString}>
+                        {fy.finYearName}
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Grid>
@@ -849,28 +897,14 @@ const ProjectFormDialog = ({
             }}
           >
             📍 Geographical Coverage
+            <Typography component="span" variant="caption" sx={{ ml: 1, opacity: 0.7, fontWeight: 'normal' }}>
+              (County: {DEFAULT_COUNTY.name} - Select Sub-Counties and Wards)
+            </Typography>
           </Typography>
           <Grid container spacing={2}>
+            {/* County is automatically set to default ({DEFAULT_COUNTY.name}) in the background */}
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth margin="dense" variant="outlined" size="small" sx={{ minWidth: 180 }}>
-                <InputLabel id="county-multi-select-label">Counties</InputLabel>
-                <Select labelId="county-multi-select-label" multiple name="countyIds" value={formData.countyIds} onChange={handleMultiSelectChange}
-                  input={<OutlinedInput id="select-multiple-chip-county" label="Counties" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip key={value} label={allMetadata.counties.find(c => String(c.countyId) === String(value))?.name || value} />
-                      ))}
-                    </Box>
-                  )}
-                  inputProps={{ 'aria-label': 'Select multiple counties' }}
-                >
-                  {allMetadata.counties.map((county) => (<MenuItem key={county.countyId} value={String(county.countyId)}>{county.name}</MenuItem>))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="dense" variant="outlined" size="small" sx={{ minWidth: 180 }} disabled={formData.countyIds.length === 0 && (allMetadata.subcounties?.length || 0) === 0}>
                 <InputLabel id="subcounty-multi-select-label">Sub-Counties</InputLabel>
                 <Select labelId="subcounty-multi-select-label" multiple name="subcountyIds" value={formData.subcountyIds} onChange={handleMultiSelectChange}
                   input={<OutlinedInput id="select-multiple-chip-subcounty" label="Sub-Counties" />}

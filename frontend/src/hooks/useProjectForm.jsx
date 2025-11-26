@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../api';
+import { DEFAULT_COUNTY } from '../configs/appConfig';
 
 const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar) => {
   const [formData, setFormData] = useState({
@@ -18,6 +19,7 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
   const [formSubPrograms, setFormSubPrograms] = useState([]);
   const [formSubcounties, setFormSubcounties] = useState([]);
   const [formWards, setFormWards] = useState([]);
+  const [missingFinancialYear, setMissingFinancialYear] = useState(null); // For financial years not in metadata
 
   const [initialAssociations, setInitialAssociations] = useState({
     countyIds: [],
@@ -30,6 +32,29 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
       setLoading(true);
       const fetchAssociations = async () => {
         try {
+          // Debug: Log the current project data to see what fields are available
+          console.log('Current project data for form:', {
+            id: currentProject.id,
+            finYearId: currentProject.finYearId,
+            financialYearName: currentProject.financialYearName,
+            departmentId: currentProject.departmentId,
+            programId: currentProject.programId,
+            subProgramId: currentProject.subProgramId,
+            categoryId: currentProject.categoryId,
+          });
+          
+          // If finYearId is missing but financialYearName exists, try to find the matching finYearId
+          let finYearId = currentProject.finYearId;
+          if ((!finYearId || finYearId === null || finYearId === undefined) && currentProject.financialYearName && allMetadata?.financialYears) {
+            const matchingFY = allMetadata.financialYears.find(fy => 
+              fy.finYearName === currentProject.financialYearName
+            );
+            if (matchingFY) {
+              finYearId = matchingFY.finYearId;
+              console.log('Found matching financial year ID:', finYearId, 'for name:', currentProject.financialYearName);
+            }
+          }
+          
           const [countiesRes, subcountiesRes, wardsRes] = await Promise.all([
             apiService.junctions.getProjectCounties(currentProject.id),
             apiService.junctions.getProjectSubcounties(currentProject.id),
@@ -39,7 +64,32 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
           const subcountyIds = subcountiesRes.map(sc => String(sc.subcountyId));
           const wardIds = wardsRes.map(w => String(w.wardId));
 
-          setFormData({
+          // Check if the finYearId exists in the available financial years
+          const finYearIdString = (finYearId !== null && finYearId !== undefined) ? String(finYearId) : '';
+          const finYearExists = allMetadata?.financialYears?.some(fy => String(fy.finYearId) === finYearIdString);
+          
+          // If the financial year doesn't exist in the metadata but we have a finYearId, try to fetch it
+          if (finYearIdString && !finYearExists) {
+            console.warn(`Financial Year ID ${finYearIdString} (${currentProject.financialYearName || 'unknown'}) not found in available financial years. Attempting to fetch it.`);
+            try {
+              const missingFY = await apiService.metadata.financialYears.getFinancialYearById(parseInt(finYearIdString));
+              if (missingFY) {
+                // Store the missing financial year in local state so it appears in the dropdown
+                setMissingFinancialYear(missingFY);
+                console.log('Successfully fetched missing financial year:', missingFY);
+              }
+            } catch (err) {
+              console.error('Error fetching missing financial year:', err);
+              // If we can't fetch it, we'll still set the value but it won't show in dropdown
+              // The user will need to select a different financial year
+              setMissingFinancialYear(null);
+            }
+          } else {
+            // Clear missing financial year if the current one exists in metadata
+            setMissingFinancialYear(null);
+          }
+
+          const formDataToSet = {
             projectName: currentProject.projectName || '',
             projectDescription: currentProject.projectDescription || '',
             startDate: currentProject.startDate ? new Date(currentProject.startDate).toISOString().split('T')[0] : '',
@@ -54,16 +104,22 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
             status: currentProject.status || 'Not Started',
             statusReason: currentProject.statusReason || '',
             principalInvestigatorStaffId: currentProject.principalInvestigatorStaffId || '',
-            departmentId: String(currentProject.departmentId || ''),
-            sectionId: String(currentProject.sectionId || ''),
-            finYearId: String(currentProject.finYearId || ''),
-            programId: String(currentProject.programId || ''),
-            subProgramId: String(currentProject.subProgramId || ''),
-            categoryId: String(currentProject.categoryId || ''), // FIXED: Populating categoryId from the project object
+            departmentId: currentProject.departmentId ? String(currentProject.departmentId) : '',
+            sectionId: currentProject.sectionId ? String(currentProject.sectionId) : '',
+            finYearId: finYearIdString,
+            programId: currentProject.programId ? String(currentProject.programId) : '',
+            subProgramId: currentProject.subProgramId ? String(currentProject.subProgramId) : '',
+            categoryId: currentProject.categoryId ? String(currentProject.categoryId) : '', // FIXED: Populating categoryId from the project object
             countyIds,
             subcountyIds,
             wardIds,
-          });
+          };
+          
+          console.log('Setting formData with finYearId:', formDataToSet.finYearId, 'type:', typeof formDataToSet.finYearId);
+          console.log('Available financial years:', allMetadata?.financialYears?.map(fy => ({ id: fy.finYearId, name: fy.finYearName })));
+          console.log('FinYearId exists in metadata:', finYearExists);
+          
+          setFormData(formDataToSet);
 
           setInitialAssociations({ countyIds, subcountyIds, wardIds });
 
@@ -76,6 +132,27 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
       };
       fetchAssociations();
     } else {
+      // For new projects, default to the configured default county (Kisumu)
+      let defaultCountyIds = [];
+      if (allMetadata?.counties) {
+        // First try to find by countyId if specified in DEFAULT_COUNTY
+        if (DEFAULT_COUNTY.countyId) {
+          const countyById = allMetadata.counties.find(c => c.countyId === DEFAULT_COUNTY.countyId);
+          if (countyById) {
+            defaultCountyIds = [String(countyById.countyId)];
+          }
+        }
+        // If not found by ID, find by name (case-insensitive, partial match)
+        if (defaultCountyIds.length === 0 && DEFAULT_COUNTY.name) {
+          const countyByName = allMetadata.counties.find(c => 
+            c.name?.toLowerCase().includes(DEFAULT_COUNTY.name.toLowerCase())
+          );
+          if (countyByName) {
+            defaultCountyIds = [String(countyByName.countyId)];
+          }
+        }
+      }
+      
       setFormData({
         projectName: '', projectDescription: '', startDate: '', endDate: '',
         directorate: '', costOfProject: '', paidOut: '',
@@ -83,12 +160,13 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
         status: 'Not Started', statusReason: '', principalInvestigatorStaffId: '',
         departmentId: '', sectionId: '', finYearId: '', programId: '', subProgramId: '',
         categoryId: '', // ADDED: Reset categoryId for new projects
-        countyIds: [], subcountyIds: [], wardIds: [],
+        countyIds: defaultCountyIds, // Default to configured default county (Kisumu)
+        subcountyIds: [], wardIds: [],
       });
-      setInitialAssociations({ countyIds: [], subcountyIds: [], wardIds: [] });
+      setInitialAssociations({ countyIds: defaultCountyIds, subcountyIds: [], wardIds: [] });
       setLoading(false);
     }
-  }, [currentProject, setSnackbar]);
+  }, [currentProject, setSnackbar, allMetadata]);
 
 
   useEffect(() => {
@@ -101,10 +179,38 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
             try { setFormSubPrograms(await apiService.metadata.programs.getSubProgramsByProgram(formData.programId)); } catch (err) { console.error("Error fetching form sub-programs:", err); setFormSubPrograms([]); }
         } else { setFormSubPrograms([]); }
 
+        // Always load sub-counties for the default county (even if countyIds is empty, use default)
+        let countyIdToUse = null;
         if (formData.countyIds && formData.countyIds.length > 0) {
-            const firstCountyId = formData.countyIds[0];
-            try { setFormSubcounties(await apiService.metadata.counties.getSubcountiesByCounty(firstCountyId)); } catch (err) { console.error("Error fetching form sub-counties:", err); setFormSubcounties([]); }
-        } else { setFormSubcounties([]); }
+            countyIdToUse = formData.countyIds[0];
+        } else if (allMetadata?.counties) {
+            // Find default county if not set
+            if (DEFAULT_COUNTY.countyId) {
+                const countyById = allMetadata.counties.find(c => c.countyId === DEFAULT_COUNTY.countyId);
+                if (countyById) {
+                    countyIdToUse = String(countyById.countyId);
+                }
+            }
+            if (!countyIdToUse && DEFAULT_COUNTY.name) {
+                const countyByName = allMetadata.counties.find(c => 
+                    c.name?.toLowerCase().includes(DEFAULT_COUNTY.name.toLowerCase())
+                );
+                if (countyByName) {
+                    countyIdToUse = String(countyByName.countyId);
+                }
+            }
+        }
+        
+        if (countyIdToUse) {
+            try { 
+                setFormSubcounties(await apiService.metadata.counties.getSubcountiesByCounty(countyIdToUse)); 
+            } catch (err) { 
+                console.error("Error fetching form sub-counties:", err); 
+                setFormSubcounties([]); 
+            }
+        } else { 
+            setFormSubcounties([]); 
+        }
         
         if (formData.subcountyIds && formData.subcountyIds.length > 0) {
             const firstSubcountyId = formData.subcountyIds[0];
@@ -113,7 +219,7 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
     };
 
     fetchFormDropdowns();
-  }, [formData.departmentId, formData.programId, formData.countyIds, formData.subcountyIds]);
+  }, [formData.departmentId, formData.programId, formData.countyIds, formData.subcountyIds, allMetadata]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -144,9 +250,11 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
 
   const validateForm = () => {
     let errors = {};
-    if (!formData.projectName.trim()) errors.projectName = 'Project Name is required.';
-    if (!formData.startDate) errors.startDate = 'Start Date is required.';
-    if (!formData.endDate) errors.endDate = 'End Date is required.';
+    // Only projectName is required
+    if (!formData.projectName || !formData.projectName.trim()) {
+      errors.projectName = 'Project Name is required.';
+    }
+    // Validate date range only if both dates are provided
     if (formData.startDate && formData.endDate && new Date(formData.startDate) > new Date(formData.endDate)) {
       errors.date_range = 'End Date cannot be before Start Date.';
     }
@@ -170,6 +278,8 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
 
     setLoading(true);
     const dataToSubmit = { ...formData };
+    
+    // Note: Geographical coverage (counties) is optional and will default to Kisumu if not provided
     for (const key of ['costOfProject', 'paidOut', 'principalInvestigatorStaffId']) {
       if (dataToSubmit[key] === '' || dataToSubmit[key] === null) { dataToSubmit[key] = null; } else if (typeof dataToSubmit[key] === 'string') { const parsed = parseFloat(dataToSubmit[key]); dataToSubmit[key] = isNaN(parsed) ? null : parsed; }
     }
@@ -177,9 +287,29 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
       if (dataToSubmit[key] === '' || dataToSubmit[key] === null) { dataToSubmit[key] = null; } else if (typeof dataToSubmit[key] === 'string') { const parsed = parseInt(dataToSubmit[key], 10); dataToSubmit[key] = isNaN(parsed) ? null : parsed; }
     }
 
-    const countyIdsToSave = dataToSubmit.countyIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    // Handle geographical coverage - if empty, default to Kisumu county
+    let countyIdsToSave = dataToSubmit.countyIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
     const subcountyIdsToSave = dataToSubmit.subcountyIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
     const wardIdsToSave = dataToSubmit.wardIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    
+    // If no counties selected, default to the configured default county (Kisumu)
+    if (countyIdsToSave.length === 0 && allMetadata?.counties) {
+      let defaultCounty = null;
+      // First try to find by countyId if specified in DEFAULT_COUNTY
+      if (DEFAULT_COUNTY.countyId) {
+        defaultCounty = allMetadata.counties.find(c => c.countyId === DEFAULT_COUNTY.countyId);
+      }
+      // If not found by ID, find by name (case-insensitive, partial match)
+      if (!defaultCounty && DEFAULT_COUNTY.name) {
+        defaultCounty = allMetadata.counties.find(c => 
+          c.name?.toLowerCase().includes(DEFAULT_COUNTY.name.toLowerCase())
+        );
+      }
+      if (defaultCounty) {
+        countyIdsToSave = [defaultCounty.countyId];
+        console.log(`No counties selected, defaulting to ${DEFAULT_COUNTY.name} county:`, defaultCounty);
+      }
+    }
     
     delete dataToSubmit.countyIds; delete dataToSubmit.subcountyIds; delete dataToSubmit.wardIds;
 
@@ -209,11 +339,11 @@ const useProjectForm = (currentProject, allMetadata, onFormSuccess, setSnackbar)
     } finally {
       setLoading(false);
     }
-  }, [formData, currentProject, initialAssociations, onFormSuccess, setSnackbar, synchronizeAssociations, validateForm]);
+  }, [formData, currentProject, initialAssociations, onFormSuccess, setSnackbar, synchronizeAssociations, validateForm, allMetadata]);
 
   return {
     formData, formErrors, loading, handleChange, handleMultiSelectChange, handleSubmit,
-    formSections, formSubPrograms, formSubcounties, formWards,
+    formSections, formSubPrograms, formSubcounties, formWards, missingFinancialYear,
   };
 };
 

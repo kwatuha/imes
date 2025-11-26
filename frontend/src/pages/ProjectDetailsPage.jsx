@@ -864,6 +864,21 @@ function ProjectDetailsPage() {
                                 <Typography variant="body1" sx={{ 
                                     color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
                                 }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Department:</strong> {project?.departmentAlias || project?.departmentName || 'N/A'}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Subcounty:</strong> {project?.subcountyNames || 'N/A'}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Ward:</strong> {project?.wardNames || 'N/A'}
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                }}>
                                     <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Directorate:</strong> {project?.directorate || 'N/A'}
                                 </Typography>
                                 <Typography variant="body1" sx={{ 

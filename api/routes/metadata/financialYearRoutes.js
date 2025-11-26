@@ -13,11 +13,39 @@ const pool = require('../../config/db'); // Correct path for the new folder stru
  */
 router.get('/', async (req, res) => {
     try {
+        // Only return financial years where voided = 0 (exclude NULL and 1)
         const [rows] = await pool.query('SELECT finYearId, finYearName, startDate, endDate, createdAt, updatedAt, userId FROM kemri_financialyears WHERE voided = 0 ORDER BY finYearName DESC');
         res.status(200).json(rows);
     } catch (error) {
         console.error('Error fetching financial years:', error);
         res.status(500).json({ message: 'Error fetching financial years', error: error.message });
+    }
+});
+
+/**
+ * @route GET /api/metadata/financialyears/:finYearId
+ * @description Get a specific financial year by ID (including voided ones, for editing projects that reference them)
+ * @access Public (can be protected by middleware)
+ */
+router.get('/:finYearId', async (req, res) => {
+    const { finYearId } = req.params;
+    if (isNaN(parseInt(finYearId))) {
+        return res.status(400).json({ message: 'Invalid financial year ID' });
+    }
+    try {
+        // Get financial year even if voided (projects might reference voided financial years)
+        const [rows] = await pool.query(
+            'SELECT finYearId, finYearName, startDate, endDate, createdAt, updatedAt, userId, voided FROM kemri_financialyears WHERE finYearId = ?',
+            [finYearId]
+        );
+        if (rows.length > 0) {
+            res.status(200).json(rows[0]);
+        } else {
+            res.status(404).json({ message: 'Financial year not found' });
+        }
+    } catch (error) {
+        console.error('Error fetching financial year:', error);
+        res.status(500).json({ message: 'Error fetching financial year', error: error.message });
     }
 });
 
@@ -56,9 +84,9 @@ router.post('/', async (req, res) => {
             }
         }
 
-        // Insert new financial year
+        // Insert new financial year - explicitly set voided = 0
         const [result] = await pool.query(
-            'INSERT INTO kemri_financialyears (finYearName, startDate, endDate, remarks, userId) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO kemri_financialyears (finYearName, startDate, endDate, remarks, userId, voided) VALUES (?, ?, ?, ?, ?, 0)',
             [finYearName, startDate, endDate, remarks, userId]
         );
         res.status(201).json({ message: 'Financial year created successfully', finYearId: result.insertId });
@@ -103,8 +131,9 @@ router.put('/:finYearId', async (req, res) => {
             }
         }
 
+        // Update financial year - explicitly ensure voided = 0 (in case it was NULL)
         const [result] = await pool.query(
-            'UPDATE kemri_financialyears SET finYearName = ?, startDate = ?, endDate = ?, remarks = ?, updatedAt = CURRENT_TIMESTAMP WHERE finYearId = ? AND voided = 0',
+            'UPDATE kemri_financialyears SET finYearName = ?, startDate = ?, endDate = ?, remarks = ?, voided = 0, updatedAt = CURRENT_TIMESTAMP WHERE finYearId = ? AND (voided = 0 OR voided IS NULL)',
             [finYearName, startDate, endDate, remarks, finYearId]
         );
         if (result.affectedRows === 0) {

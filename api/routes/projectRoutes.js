@@ -51,6 +51,7 @@ const BASE_PROJECT_SELECT_JOINS = `
         s.email AS piEmail,
         p.departmentId,
         cd.name AS departmentName,
+        cd.alias AS departmentAlias,
         p.sectionId,
         ds.name AS sectionName,
         p.finYearId,
@@ -117,9 +118,9 @@ const GET_SINGLE_PROJECT_QUERY = `
 
 // --- Validation Middleware ---
 const validateProject = (req, res, next) => {
-    const { projectName, directorate, startDate, objective, expectedOutput } = req.body;
-    if (!projectName || !directorate || !startDate || !objective || !expectedOutput) {
-        return res.status(400).json({ message: 'Missing required fields: projectName, directorate, startDate, objective, expectedOutput' });
+    const { projectName } = req.body;
+    if (!projectName || !projectName.trim()) {
+        return res.status(400).json({ message: 'Missing required field: projectName' });
     }
     next();
 };
@@ -1657,6 +1658,7 @@ router.get('/', async (req, res) => {
                 s.email AS piEmail,
                 p.departmentId,
                 cd.name AS departmentName,
+                cd.alias AS departmentAlias,
                 p.sectionId,
                 ds.name AS sectionName,
                 p.finYearId,

@@ -3,15 +3,15 @@ const projectTableColumns = [
   { id: 'rowNumber', label: '#', minWidth: 30, width: 40, show: true, sortable: false, sticky: 'left' },
   { id: 'id', label: 'ID', minWidth: 20, show: false, sortable: true },
   { id: 'projectName', label: 'Project Name', minWidth: 200, show: true, sticky: 'left', sortable: true },
-  { id: 'status', label: 'Status', minWidth: 120, show: true, sortable: true },
+  { id: 'status', label: 'Status', minWidth: 160, show: true, sortable: true },
   { id: 'directorate', label: 'Directorate', minWidth: 150, show: false, sortable: true },
   { id: 'startDate', label: 'Start Date', minWidth: 120, show: true, sortable: true }, // Added sortable
   { id: 'endDate', label: 'End Date', minWidth: 120, show: true, sortable: true },     // Added sortable
   { id: 'costOfProject', label: 'Budget', minWidth: 100, show: true, sortable: true },   // Added sortable
-  { id: 'Contracted', label: 'Contracted', minWidth: 100, show: true, sortable: true },   // Added sortable
+  { id: 'Contracted', label: 'Contracted', minWidth: 150, show: true, sortable: true },   // Added sortable
   { id: 'paidOut', label: 'Paid', minWidth: 100, show: true, sortable: true },     // Added sortable
   { id: 'departmentName', label: 'Department', minWidth: 150, show: false, sortable: true },
-  { id: 'financialYearName', label: 'Fin. Year', minWidth: 120, show: false, sortable: true },
+  { id: 'financialYearName', label: 'Fin. Year', minWidth: 140, show: false, sortable: true },
   { id: 'programName', label: 'Program', minWidth: 150, show: false, sortable: true },
   { id: 'subProgramName', label: 'Sub-Program', minWidth: 150, show: false, sortable: true },
   { id: 'countyNames', label: 'Counties', minWidth: 180, show: false, sortable: false }, // Typically not sortable

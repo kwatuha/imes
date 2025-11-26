@@ -637,10 +637,12 @@ router.get('/financial_years/:id', async (req, res) => {
 router.post('/financial_years', async (req, res) => {
     const newFinancialYear = {
         finYearId: req.body.finYearId || `fy${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, // Use camelCase column name
-        voided: false,
+        voided: 0, // Explicitly set to 0 (not false) for consistency
         voidedBy: null, // Use camelCase column name
         ...req.body
     };
+    // Ensure voided is explicitly set to 0 (override any value from req.body)
+    newFinancialYear.voided = 0;
     try {
         const [result] = await pool.query('INSERT INTO kemri_financialyears SET ?', newFinancialYear);
         if (result.insertId) {
@@ -660,6 +662,11 @@ router.post('/financial_years', async (req, res) => {
 router.put('/financial_years/:id', async (req, res) => {
     const { id } = req.params;
     const updatedFields = { ...req.body };
+    // If voided is not explicitly set to 1 (deleted), ensure it's 0 (active)
+    // This prevents NULL values from being set
+    if (updatedFields.voided !== 1) {
+        updatedFields.voided = 0;
+    }
     try {
         const [result] = await pool.query('UPDATE kemri_financialyears SET ? WHERE finYearId = ?', [updatedFields, id]); // Use camelCase column name
         if (result.affectedRows > 0) {

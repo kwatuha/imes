@@ -9,9 +9,9 @@ export const INITIAL_MAP_POSITION = [-1.286389, 36.817223];
 
 // Default county configuration for hierarchical filtering
 export const DEFAULT_COUNTY = {
-    countyId: 1, // Kitui County ID
-    name: 'Kitui County',
-    code: 'KIT'
+    countyId: null, // Will be resolved by name if not set - defaults to Kisumu
+    name: 'Kisumu',
+    code: 'KSM'
 };
 
 // Default sub-county configuration for initial chart loading
