@@ -5,7 +5,7 @@ import {
     List, ListItem, ListItemText, IconButton,
     Stack, Chip, Snackbar, LinearProgress,
     Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme, Grid,
-    Divider
+    Divider, Tabs, Tab, Card, CardContent, CardMedia
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -19,7 +19,17 @@ import {
     Flag as FlagIcon,
     Assessment as AssessmentIcon,
     AccountTree as AccountTreeIcon,
-    Info as InfoIcon
+    Info as InfoIcon,
+    AttachMoney as MoneyIcon,
+    TrendingUp as TrendingUpIcon,
+    Schedule as ScheduleIcon,
+    Warning as WarningIcon,
+    Business as BusinessIcon,
+    Phone as PhoneIcon,
+    Email as EmailIcon,
+    LocationOn as LocationOnIcon,
+    Description as DescriptionIcon,
+    People as PeopleIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -130,6 +140,7 @@ function ProjectDetailsPage() {
     const { user, logout, authLoading } = useAuth();
     const theme = useTheme();
     const colors = tokens(theme.palette.mode); // Initialize colors
+    const isLight = theme.palette.mode === 'light';
 
     const [project, setProject] = useState(null);
     const [milestones, setMilestones] = useState([]);
@@ -192,6 +203,11 @@ function ProjectDetailsPage() {
     const [loadingMonitoring, setLoadingMonitoring] = useState(false);
     const [monitoringError, setMonitoringError] = useState(null);
     const [editingMonitoringRecord, setEditingMonitoringRecord] = useState(null);
+
+    // NEW: State for Tabs and Photos
+    const [activeTab, setActiveTab] = useState(0);
+    const [projectPhotos, setProjectPhotos] = useState([]);
+    const [loadingPhotos, setLoadingPhotos] = useState(false);
 
     // NEW: Helper function to get warning level colors from theme
     const getWarningLevelColors = (level) => {
@@ -339,12 +355,32 @@ function ProjectDetailsPage() {
         }
     }, [projectId, user]);
 
+    // NEW: Function to fetch project photos
+    const fetchProjectPhotos = useCallback(async () => {
+        if (!checkUserPrivilege(user, 'project_photos.read')) {
+            setProjectPhotos([]);
+            return;
+        }
+        
+        setLoadingPhotos(true);
+        try {
+            const photos = await apiService.projectPhotos.getPhotosByProject(projectId);
+            setProjectPhotos(photos || []);
+        } catch (err) {
+            console.error('Error fetching project photos:', err);
+            setProjectPhotos([]);
+        } finally {
+            setLoadingPhotos(false);
+        }
+    }, [projectId, user]);
+
     // This effect now conditionally fetches data based on the access check
     useEffect(() => {
         if (isAccessAllowed) {
             fetchProjectDetails();
+            fetchProjectPhotos();
         }
-    }, [isAccessAllowed, fetchProjectDetails]);
+    }, [isAccessAllowed, fetchProjectDetails, fetchProjectPhotos]);
 
     useEffect(() => {
         if (!milestones.length && !milestoneActivities.length) {
@@ -670,6 +706,16 @@ function ProjectDetailsPage() {
 
     const overallProgress = project?.overallProgress || 0;
 
+    // Calculate financial metrics
+    const totalBudget = parseFloat(project?.costOfProject) || 0;
+    const contractedAmount = parseFloat(project?.Contracted) || 0;
+    const paidAmount = parseFloat(project?.paidOut) || 0;
+    const remainingBudget = totalBudget - contractedAmount;
+    const absorptionRate = totalBudget > 0 ? (paidAmount / totalBudget) * 100 : 0;
+    const contractPercentage = totalBudget > 0 ? (contractedAmount / totalBudget) * 100 : 0;
+    const paymentPercentage = contractedAmount > 0 ? (paidAmount / contractedAmount) * 100 : 0;
+    const serverUrl = import.meta.env.VITE_API_BASE_URL || '';
+
     return (
                     <Box sx={{ 
                 p: 2, 
@@ -808,7 +854,251 @@ function ProjectDetailsPage() {
                 </Stack>
             </Paper>
 
-            {/* Combined Overview and Description Section */}
+            {/* Key Metrics Cards */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                {/* Total Budget Card */}
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                        background: isLight 
+                            ? 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)'
+                            : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
+                        color: 'white',
+                        height: '100%',
+                        boxShadow: 3,
+                        transition: 'transform 0.2s ease-in-out',
+                        '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 6
+                        }
+                    }}>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" justifyContent="space-between">
+                                <Box>
+                                    <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                                        Total Budget
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                        {formatCurrency(totalBudget)}
+                                    </Typography>
+                                </Box>
+                                <MoneyIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Contracted Amount Card */}
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                        background: isLight 
+                            ? 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)'
+                            : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
+                        color: 'white',
+                        height: '100%',
+                        boxShadow: 3,
+                        transition: 'transform 0.2s ease-in-out',
+                        '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 6
+                        }
+                    }}>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" justifyContent="space-between">
+                                <Box>
+                                    <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                                        Contracted
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                        {formatCurrency(contractedAmount)}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5, fontSize: '0.7rem' }}>
+                                        {contractPercentage.toFixed(1)}% of budget
+                                    </Typography>
+                                </Box>
+                                <TrendingUpIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Paid Out Card */}
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                        background: isLight 
+                            ? 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)'
+                            : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
+                        color: 'white',
+                        height: '100%',
+                        boxShadow: 3,
+                        transition: 'transform 0.2s ease-in-out',
+                        '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 6
+                        }
+                    }}>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" justifyContent="space-between">
+                                <Box>
+                                    <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                                        Paid Out
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                        {formatCurrency(paidAmount)}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5, fontSize: '0.7rem' }}>
+                                        {paymentPercentage.toFixed(1)}% of contracted
+                                    </Typography>
+                                </Box>
+                                <PaidIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                {/* Absorption Rate Card */}
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                        background: isLight 
+                            ? 'linear-gradient(135deg, #26a69a 0%, #4db6ac 100%)'
+                            : `linear-gradient(135deg, ${colors.tealAccent?.[800] || colors.greenAccent[800]}, ${colors.tealAccent?.[700] || colors.greenAccent[700]})`,
+                        color: 'white',
+                        height: '100%',
+                        boxShadow: 3,
+                        transition: 'transform 0.2s ease-in-out',
+                        '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: 6
+                        }
+                    }}>
+                        <CardContent>
+                            <Box display="flex" alignItems="center" justifyContent="space-between">
+                                <Box>
+                                    <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                                        Absorption Rate
+                                    </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                        {absorptionRate.toFixed(1)}%
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5, fontSize: '0.7rem' }}>
+                                        Budget Utilization
+                                    </Typography>
+                                </Box>
+                                <ScheduleIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            {/* Project Photos Carousel */}
+            {projectPhotos.length > 0 && (
+                <Paper elevation={6} sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    borderRadius: '12px',
+                    background: theme.palette.mode === 'dark'
+                        ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
+                        : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                    border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`
+                }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[300] }}>
+                            Project Photos ({projectPhotos.length})
+                        </Typography>
+                        <Button
+                            size="small"
+                            startIcon={<PhotoCameraIcon />}
+                            onClick={handleManagePhotos}
+                            sx={{ textTransform: 'none' }}
+                        >
+                            Manage Photos
+                        </Button>
+                    </Box>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        gap: 2, 
+                        overflowX: 'auto',
+                        pb: 1,
+                        '&::-webkit-scrollbar': {
+                            height: 8,
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                            backgroundColor: colors.blueAccent[500],
+                            borderRadius: 4,
+                        }
+                    }}>
+                        {projectPhotos.map((photo) => (
+                            <Card 
+                                key={photo.photoId}
+                                sx={{ 
+                                    minWidth: 200,
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.2s ease-in-out',
+                                    '&:hover': {
+                                        transform: 'scale(1.05)',
+                                        boxShadow: 6
+                                    }
+                                }}
+                                onClick={() => window.open(`${serverUrl}/${photo.filePath}`, '_blank')}
+                            >
+                                <CardMedia
+                                    component="img"
+                                    height="150"
+                                    image={`${serverUrl}/${photo.filePath}`}
+                                    alt={photo.description || 'Project photo'}
+                                    sx={{ objectFit: 'cover' }}
+                                />
+                                <CardContent sx={{ p: 1 }}>
+                                    <Typography variant="caption" noWrap sx={{ fontSize: '0.7rem' }}>
+                                        {photo.fileName}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Box>
+                </Paper>
+            )}
+
+            {/* Tabbed Interface */}
+            <Paper elevation={6} sx={{ 
+                p: 2, 
+                mb: 3, 
+                borderRadius: '12px',
+                background: theme.palette.mode === 'dark'
+                    ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
+                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`
+            }}>
+                <Tabs 
+                    value={activeTab} 
+                    onChange={(e, newValue) => setActiveTab(newValue)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        mb: 3,
+                        '& .MuiTab-root': {
+                            color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[400],
+                            '&.Mui-selected': {
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400],
+                                fontWeight: 'bold'
+                            }
+                        }
+                    }}
+                >
+                    <Tab label="Overview" icon={<InfoIcon />} iconPosition="start" />
+                    <Tab label="Financials" icon={<MoneyIcon />} iconPosition="start" />
+                    <Tab label="Timeline & Milestones" icon={<ScheduleIcon />} iconPosition="start" />
+                    <Tab label="Monitoring" icon={<AssessmentIcon />} iconPosition="start" />
+                    <Tab label="Documents" icon={<DescriptionIcon />} iconPosition="start" />
+                    <Tab label="Contractor" icon={<PeopleIcon />} iconPosition="start" />
+                </Tabs>
+
+                {/* Tab Panels */}
+                {activeTab === 0 && (
+                    <Box>
+                        {/* Combined Overview and Description Section */}
             <Paper elevation={6} sx={{ 
                 p: 3, 
                 mb: 3, 
@@ -1067,8 +1357,115 @@ function ProjectDetailsPage() {
                     </Grid>
                 </Grid>
             </Paper>
+                    </Box>
+                )}
 
-            {/* Work Plans and Milestones Section (Refactored) */}
+                {activeTab === 1 && (
+                    <Box>
+                        {/* Financials Tab */}
+                        <Typography variant="h6" sx={{ 
+                            mb: 2, 
+                            fontWeight: 'bold',
+                            color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                        }}>
+                            <MoneyIcon /> Financial Summary
+                        </Typography>
+                        <Grid container spacing={2} sx={{ mb: 3 }}>
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 2, height: '100%' }}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Budget Breakdown
+                                    </Typography>
+                                    <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                        {formatCurrency(totalBudget)}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Total Allocated Budget
+                                    </Typography>
+                                    <Divider sx={{ my: 2 }} />
+                                    <Stack spacing={1}>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="body2">Contracted:</Typography>
+                                            <Typography variant="body2" fontWeight="bold">
+                                                {formatCurrency(contractedAmount)} ({contractPercentage.toFixed(1)}%)
+                                            </Typography>
+                                        </Box>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="body2">Paid Out:</Typography>
+                                            <Typography variant="body2" fontWeight="bold" color="success.main">
+                                                {formatCurrency(paidAmount)} ({paymentPercentage.toFixed(1)}%)
+                                            </Typography>
+                                        </Box>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="body2">Remaining:</Typography>
+                                            <Typography variant="body2" fontWeight="bold">
+                                                {formatCurrency(remainingBudget)}
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 2, height: '100%' }}>
+                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                        Payment Status
+                                    </Typography>
+                                    <LinearProgress 
+                                        variant="determinate" 
+                                        value={paymentPercentage}
+                                        sx={{ mt: 2, mb: 1, height: 10, borderRadius: 5 }}
+                                    />
+                                    <Typography variant="body2" sx={{ mt: 1 }}>
+                                        {formatCurrency(paidAmount)} of {formatCurrency(contractedAmount)} paid
+                                    </Typography>
+                                    <Divider sx={{ my: 2 }} />
+                                    <Stack spacing={1}>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="body2">Absorption Rate:</Typography>
+                                            <Typography variant="body2" fontWeight="bold" color="primary.main">
+                                                {absorptionRate.toFixed(1)}%
+                                            </Typography>
+                                        </Box>
+                                        <Box display="flex" justifyContent="space-between">
+                                            <Typography variant="body2">Contract Coverage:</Typography>
+                                            <Typography variant="body2" fontWeight="bold">
+                                                {contractPercentage.toFixed(1)}%
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+                        <Paper sx={{ p: 2 }}>
+                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                                Payment Request
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Total Budget from Completed Activities: {formatCurrency(paymentJustification.totalBudget)}
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                startIcon={<PaidIcon />}
+                                onClick={handleOpenPaymentRequest}
+                                disabled={paymentJustification.accomplishedActivities.length === 0}
+                                sx={{
+                                    backgroundColor: colors.greenAccent[600],
+                                    '&:hover': { backgroundColor: colors.greenAccent[700] }
+                                }}
+                            >
+                                Request Payment
+                            </Button>
+                        </Paper>
+                    </Box>
+                )}
+
+                {activeTab === 2 && (
+                    <Box>
+                        {/* Timeline & Milestones Tab */}
+                        {/* Work Plans and Milestones Section (Refactored) */}
             <Box sx={{ mt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" sx={{ 
@@ -1553,7 +1950,13 @@ function ProjectDetailsPage() {
                 )}
             </Box>
 
-            {/* NEW: Project Monitoring & Observations Section */}
+                    </Box>
+                )}
+
+                {activeTab === 3 && (
+                    <Box>
+                        {/* Monitoring Tab */}
+                        {/* NEW: Project Monitoring & Observations Section */}
             <Box sx={{ mt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" sx={{ 
@@ -2004,6 +2407,52 @@ function ProjectDetailsPage() {
                     </Paper>
                 )}
             </Box>
+
+                    </Box>
+                )}
+
+                {activeTab === 4 && (
+                    <Box>
+                        {/* Documents Tab */}
+                        <Typography variant="h6" sx={{ 
+                            mb: 2, 
+                            fontWeight: 'bold',
+                            color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                        }}>
+                            <DescriptionIcon /> Project Documents & Attachments
+                        </Typography>
+                        <Paper sx={{ p: 2 }}>
+                            <Typography variant="body1" color="text.secondary">
+                                Document management and attachments will be displayed here.
+                            </Typography>
+                        </Paper>
+                    </Box>
+                )}
+
+                {activeTab === 5 && (
+                    <Box>
+                        {/* Contractor Tab */}
+                        <Typography variant="h6" sx={{ 
+                            mb: 2, 
+                            fontWeight: 'bold',
+                            color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                        }}>
+                            <PeopleIcon /> Contractor & Team Information
+                        </Typography>
+                        <Paper sx={{ p: 2 }}>
+                            <Typography variant="body1" color="text.secondary">
+                                Contractor details and assigned team members will be displayed here.
+                            </Typography>
+                        </Paper>
+                    </Box>
+                )}
+            </Paper>
 
             {/* Modals for Milestones and Monitoring */}
             <MilestoneAttachments

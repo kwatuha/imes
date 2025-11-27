@@ -160,6 +160,9 @@ function ProjectManagementPage() {
     pageSize: 25,
     page: 0,
   });
+
+  // State for DataGrid filter model (column filters)
+  const [filterModel, setFilterModel] = useState({ items: [] });
   
   // State for export loading
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -176,9 +179,59 @@ function ProjectManagementPage() {
     return Math.max(totalHeight, 400); // Minimum height of 400px
   };
 
-  // Calculate summary statistics from projects
+  // Apply DataGrid column filters to filtered projects
+  const dataGridFilteredProjects = useMemo(() => {
+    if (!filteredProjects || filteredProjects.length === 0) {
+      return [];
+    }
+
+    // If no column filters are applied, return filteredProjects as-is
+    if (!filterModel.items || filterModel.items.length === 0) {
+      return filteredProjects;
+    }
+
+    // Apply column filters
+    return filteredProjects.filter(project => {
+      return filterModel.items.every(filterItem => {
+        const { field, operator, value } = filterItem;
+        const projectValue = project[field];
+
+        if (value === null || value === undefined || value === '') {
+          return true; // Empty filter means no filter
+        }
+
+        const filterValue = String(value).toLowerCase();
+        const projectValueStr = projectValue ? String(projectValue).toLowerCase() : '';
+
+        switch (operator) {
+          case 'contains':
+            return projectValueStr.includes(filterValue);
+          case 'equals':
+            return projectValueStr === filterValue;
+          case 'startsWith':
+            return projectValueStr.startsWith(filterValue);
+          case 'endsWith':
+            return projectValueStr.endsWith(filterValue);
+          case 'is':
+            return projectValueStr === filterValue;
+          case 'isNot':
+            return projectValueStr !== filterValue;
+          case 'isEmpty':
+            return !projectValue || projectValueStr === '';
+          case 'isNotEmpty':
+            return projectValue && projectValueStr !== '';
+          default:
+            return projectValueStr.includes(filterValue);
+        }
+      });
+    });
+  }, [filteredProjects, filterModel]);
+
+  // Calculate summary statistics from filtered projects (respects search and column filters)
   const summaryStats = useMemo(() => {
-    if (!projects || projects.length === 0) {
+    const projectsToUse = dataGridFilteredProjects;
+    
+    if (!projectsToUse || projectsToUse.length === 0) {
       return {
         totalProjects: 0,
         totalBudget: 0,
@@ -190,35 +243,35 @@ function ProjectManagementPage() {
       };
     }
 
-    const totalBudget = projects.reduce((sum, p) => {
+    const totalBudget = projectsToUse.reduce((sum, p) => {
       const cost = parseFloat(p.costOfProject) || 0;
       return sum + cost;
     }, 0);
 
-    const totalContracted = projects.reduce((sum, p) => {
+    const totalContracted = projectsToUse.reduce((sum, p) => {
       const contracted = parseFloat(p.Contracted) || 0;
       return sum + contracted;
     }, 0);
 
-    const totalPaidOut = projects.reduce((sum, p) => {
+    const totalPaidOut = projectsToUse.reduce((sum, p) => {
       const paid = parseFloat(p.paidOut) || 0;
       return sum + paid;
     }, 0);
 
-    const completedProjects = projects.filter(p => 
+    const completedProjects = projectsToUse.filter(p => 
       p.status === 'Completed' || p.status === 'Closed'
     ).length;
 
-    const inProgressProjects = projects.filter(p => 
+    const inProgressProjects = projectsToUse.filter(p => 
       p.status === 'In Progress' || p.status === 'Planning' || p.status === 'Initiated'
     ).length;
 
-    const completionRate = projects.length > 0 
-      ? Math.round((completedProjects / projects.length) * 100) 
+    const completionRate = projectsToUse.length > 0 
+      ? Math.round((completedProjects / projectsToUse.length) * 100) 
       : 0;
 
     return {
-      totalProjects: projects.length,
+      totalProjects: projectsToUse.length,
       totalBudget,
       completedProjects,
       inProgressProjects,
@@ -226,7 +279,7 @@ function ProjectManagementPage() {
       totalPaidOut,
       completionRate,
     };
-  }, [projects]);
+  }, [dataGridFilteredProjects]);
 
   const handleOpenFormDialog = async (project = null) => {
     if (project && !checkUserPrivilege(user, 'project.update')) {
@@ -740,7 +793,7 @@ function ProjectManagementPage() {
                 <IconButton 
                   size="small"
                   sx={{ color: ui.danger }} 
-                  onClick={() => canDelete && handleDeleteProject(params.row.id)}
+                  onClick={() => canDelete && handleDeleteProject(params.row)}
                   disabled={!canDelete}
                 >
                   <DeleteIcon fontSize="small" />
@@ -913,10 +966,10 @@ function ProjectManagementPage() {
             },
           }}
         />
-        {searchQuery && (
+        {(searchQuery || (filterModel.items && filterModel.items.length > 0)) && (
           <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip
-              label={`${filteredProjects.length} project${filteredProjects.length !== 1 ? 's' : ''} found`}
+              label={`${dataGridFilteredProjects.length} project${dataGridFilteredProjects.length !== 1 ? 's' : ''} found`}
               size="small"
               sx={{
                 backgroundColor: colors.blueAccent[500],
@@ -924,7 +977,7 @@ function ProjectManagementPage() {
                 fontWeight: 600,
               }}
             />
-            {filteredProjects.length !== projects.length && (
+            {dataGridFilteredProjects.length !== projects.length && (
               <Chip
                 label={`Filtered from ${projects.length} total`}
                 size="small"
@@ -939,7 +992,7 @@ function ProjectManagementPage() {
         )}
       </Box>
 
-      {/* Summary Statistics Cards - Show all projects stats, but indicate if search is active */}
+      {/* Summary Statistics Cards - Show stats for filtered projects (respects search and column filters) */}
       {!loading && !error && projects && projects.length > 0 && (
         <Grid container spacing={1} sx={{ mb: 1.5, mt: 1 }}>
           <Grid item xs={12} sm={6} md={4} lg={2}>
@@ -947,29 +1000,30 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? theme.palette.background.paper
+                  ? 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)'
                   : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
-                borderTop: `3px solid ${colors.blueAccent[500]}`,
-                border: isLight ? `1px solid ${colors.blueAccent[200]}` : 'none',
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
+                border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.12)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isLight ? '0 4px 12px rgba(33, 150, 243, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }
               }}
             >
               <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? '#1a1a1a' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Total Projects
                   </Typography>
-                  <AssignmentIcon sx={{ color: colors.blueAccent[500], fontSize: 18 }} />
+                  <AssignmentIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 18 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#000000' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
                   {summaryStats.totalProjects.toLocaleString()}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#424242' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   {summaryStats.completionRate}% completed
                 </Typography>
               </CardContent>
@@ -981,29 +1035,30 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? theme.palette.background.paper
+                  ? 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)'
                   : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
-                borderTop: `3px solid ${colors.greenAccent[500]}`,
-                border: isLight ? `1px solid ${colors.greenAccent[200]}` : 'none',
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
+                border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.12)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isLight ? '0 4px 12px rgba(76, 175, 80, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }
               }}
             >
               <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? '#1a1a1a' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Total Budget
                   </Typography>
-                  <MoneyIcon sx={{ color: colors.greenAccent[500], fontSize: 18 }} />
+                  <MoneyIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 18 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#000000' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
                   {currencyFormatter.format(summaryStats.totalBudget)}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#424242' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   Allocated funds
                 </Typography>
               </CardContent>
@@ -1015,29 +1070,30 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? theme.palette.background.paper
+                  ? 'linear-gradient(135deg, #66bb6a 0%, #81c784 100%)'
                   : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
-                borderTop: `3px solid ${colors.greenAccent[600]}`,
-                border: isLight ? `1px solid ${colors.greenAccent[200]}` : 'none',
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#4caf50' : colors.greenAccent[600]}`,
+                border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.12)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isLight ? '0 4px 12px rgba(102, 187, 106, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }
               }}
             >
               <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? '#1a1a1a' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Completed
                   </Typography>
-                  <CheckCircleIcon sx={{ color: colors.greenAccent[600], fontSize: 18 }} />
+                  <CheckCircleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[600], fontSize: 18 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#000000' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
                   {summaryStats.completedProjects}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#424242' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   {summaryStats.totalProjects > 0 
                     ? Math.round((summaryStats.completedProjects / summaryStats.totalProjects) * 100) 
                     : 0}% of total
@@ -1051,29 +1107,30 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? theme.palette.background.paper
+                  ? 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)'
                   : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
-                borderTop: `3px solid ${colors.blueAccent[400]}`,
-                border: isLight ? `1px solid ${colors.blueAccent[200]}` : 'none',
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#f57c00' : colors.blueAccent[400]}`,
+                border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.12)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isLight ? '0 4px 12px rgba(255, 152, 0, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }
               }}
             >
               <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? '#1a1a1a' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     In Progress
                   </Typography>
-                  <HourglassIcon sx={{ color: colors.blueAccent[400], fontSize: 18 }} />
+                  <HourglassIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[400], fontSize: 18 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#000000' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
                   {summaryStats.inProgressProjects}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#424242' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   Active projects
                 </Typography>
               </CardContent>
@@ -1085,29 +1142,30 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? theme.palette.background.paper
+                  ? 'linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%)'
                   : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
-                borderTop: `3px solid ${colors.orange?.[500] || colors.yellowAccent[500]}`,
-                border: isLight ? `1px solid ${colors.orange?.[200] || colors.yellowAccent[200]}` : 'none',
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#e65100' : colors.orange?.[500] || colors.yellowAccent[500]}`,
+                border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.12)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isLight ? '0 4px 12px rgba(255, 111, 0, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }
               }}
             >
               <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? '#1a1a1a' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Contracted
                   </Typography>
-                  <ContractedIcon sx={{ color: colors.orange?.[500] || colors.yellowAccent[500], fontSize: 18 }} />
+                  <ContractedIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[500] || colors.yellowAccent[500], fontSize: 18 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#000000' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
                   {currencyFormatter.format(summaryStats.totalContracted)}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#424242' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   {summaryStats.totalBudget > 0 
                     ? Math.round((summaryStats.totalContracted / summaryStats.totalBudget) * 100) 
                     : 0}% of budget
@@ -1121,29 +1179,30 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? theme.palette.background.paper
+                  ? 'linear-gradient(135deg, #26a69a 0%, #4db6ac 100%)'
                   : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
-                borderTop: `3px solid ${colors.greenAccent[400]}`,
-                border: isLight ? `1px solid ${colors.greenAccent[200]}` : 'none',
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#00897b' : colors.greenAccent[400]}`,
+                border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.12)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isLight ? '0 4px 12px rgba(38, 166, 154, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }
               }}
             >
               <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? '#1a1a1a' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Paid Out
                   </Typography>
-                  <PaidIcon sx={{ color: colors.greenAccent[400], fontSize: 18 }} />
+                  <PaidIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[400], fontSize: 18 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#000000' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
                   {currencyFormatter.format(summaryStats.totalPaidOut)}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? '#424242' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   {summaryStats.totalContracted > 0 
                     ? Math.round((summaryStats.totalPaidOut / summaryStats.totalContracted) * 100) 
                     : 0}% of contracted
@@ -1193,6 +1252,8 @@ function ProjectManagementPage() {
               setColumnVisibilityModel(updatedModel);
               localStorage.setItem('projectTableColumnVisibility', JSON.stringify(updatedModel));
             }}
+            filterModel={filterModel}
+            onFilterModelChange={setFilterModel}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
             initialState={{

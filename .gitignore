@@ -32,7 +32,11 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+*.sql
+*.md
 *~
+api/uploads/
+api/migrations/
 
 # Temporary files
 tmp/
