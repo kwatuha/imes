@@ -56,14 +56,17 @@ import {
   Search as SearchIcon,
   Person as PersonIcon,
   ExpandMore as ExpandMoreIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../api/axiosInstance';
 
 const PublicApprovalManagementPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { user, hasPrivilege } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -111,6 +114,12 @@ const PublicApprovalManagementPage = () => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoDescription, setPhotoDescription] = useState('');
   const photoFileInputRef = useRef(null);
+
+  // Progress update states
+  const [progressModalOpen, setProgressModalOpen] = useState(false);
+  const [selectedProjectForProgress, setSelectedProjectForProgress] = useState(null);
+  const [selectedProgress, setSelectedProgress] = useState(0);
+  const [updatingProgress, setUpdatingProgress] = useState(false);
 
   useEffect(() => {
     fetchAllData();
@@ -428,6 +437,62 @@ const PublicApprovalManagementPage = () => {
     }
   };
 
+  const normalizeProgressToValidValue = (progress) => {
+    if (progress === null || progress === undefined) return 0;
+    const validValues = [0, 25, 50, 75, 100];
+    // If it's already a valid value, return it
+    if (validValues.includes(progress)) return progress;
+    // Otherwise, round to nearest valid value
+    const numProgress = parseInt(progress) || 0;
+    return validValues.reduce((prev, curr) => 
+      Math.abs(curr - numProgress) < Math.abs(prev - numProgress) ? curr : prev
+    );
+  };
+
+  const handleOpenProgressModal = (project) => {
+    setSelectedProjectForProgress(project);
+    const currentProgress = project.overallProgress || 0;
+    // Normalize to nearest valid value for the dropdown
+    const normalizedProgress = normalizeProgressToValidValue(currentProgress);
+    setSelectedProgress(normalizedProgress);
+    setProgressModalOpen(true);
+  };
+
+  const handleCloseProgressModal = () => {
+    setProgressModalOpen(false);
+    setSelectedProjectForProgress(null);
+    setSelectedProgress(0);
+  };
+
+  const handleUpdateProgress = async () => {
+    if (!selectedProjectForProgress) return;
+
+    setUpdatingProgress(true);
+    setError(null);
+    try {
+      console.log('Updating progress:', {
+        projectId: selectedProjectForProgress.id,
+        projectName: selectedProjectForProgress.projectName,
+        currentProgress: selectedProjectForProgress.overallProgress,
+        newProgress: selectedProgress
+      });
+      
+      const response = await axiosInstance.put(`/projects/${selectedProjectForProgress.id}/progress`, {
+        overallProgress: selectedProgress
+      });
+      
+      console.log('Progress update response:', response.data);
+      setSuccess(`Project progress updated to ${selectedProgress}%`);
+      handleCloseProgressModal();
+      fetchAllData(); // Refresh the projects list
+    } catch (err) {
+      console.error('Error updating progress:', err);
+      setError(err.response?.data?.error || 'Failed to update project progress');
+    } finally {
+      setUpdatingProgress(false);
+    }
+  };
+
   // Helper function to get API base URL for image serving
   // In production, API is on port 3000, frontend can be on port 8080 (nginx) or 5174 (public dashboard)
   const getApiBaseUrl = () => {
@@ -626,7 +691,7 @@ const PublicApprovalManagementPage = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 300,
       sortable: false,
       renderCell: (params) => {
         const isApproved = params.row.approved_for_public === 1 || params.row.approved_for_public === true;
@@ -684,6 +749,24 @@ const PublicApprovalManagementPage = () => {
                 onClick={() => handleOpenPhotoModal(params.row)}
               >
                 <PhotoLibraryIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Update Progress">
+              <IconButton
+                color="secondary"
+                size="small"
+                onClick={() => handleOpenProgressModal(params.row)}
+              >
+                <TrendingUpIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View Project Details">
+              <IconButton
+                color="info"
+                size="small"
+                onClick={() => navigate(`/projects/${params.row.id}`)}
+              >
+                <VisibilityIcon />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -1785,6 +1868,57 @@ const PublicApprovalManagementPage = () => {
              moderationAction === 'reject' ? 'Reject Permanently' :
              moderationAction === 'flag' ? 'Flag for Review' :
              moderationAction === 'reopen' ? 'Reopen for Review' : 'Update'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Progress Update Modal */}
+      <Dialog
+        open={progressModalOpen}
+        onClose={handleCloseProgressModal}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Update Project Progress - {selectedProjectForProgress?.projectName}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Current Progress: {selectedProjectForProgress?.overallProgress != null ? `${selectedProjectForProgress.overallProgress}%` : 'Not set (0%)'}
+            </Typography>
+            <FormControl fullWidth sx={{ mt: 3 }}>
+              <InputLabel>Select Progress Stage</InputLabel>
+              <Select
+                value={selectedProgress}
+                onChange={(e) => setSelectedProgress(parseInt(e.target.value))}
+                label="Select Progress Stage"
+              >
+                <MenuItem value={0}>0% - Not Started</MenuItem>
+                <MenuItem value={25}>25% - In Progress</MenuItem>
+                <MenuItem value={50}>50% - Halfway</MenuItem>
+                <MenuItem value={75}>75% - Nearly Complete</MenuItem>
+                <MenuItem value={100}>100% - Completed</MenuItem>
+              </Select>
+            </FormControl>
+            {selectedProgress !== (selectedProjectForProgress?.overallProgress || 0) && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Progress will be updated from {selectedProjectForProgress?.overallProgress || 0}% to {selectedProgress}%
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseProgressModal} disabled={updatingProgress}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateProgress}
+            variant="contained"
+            color="primary"
+            disabled={updatingProgress || selectedProgress === (selectedProjectForProgress?.overallProgress || 0)}
+          >
+            {updatingProgress ? <CircularProgress size={20} /> : 'Update Progress'}
           </Button>
         </DialogActions>
       </Dialog>

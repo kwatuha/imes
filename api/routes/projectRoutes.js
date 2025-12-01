@@ -74,6 +74,7 @@ const BASE_PROJECT_SELECT_JOINS = `
         p.revision_requested_by,
         p.revision_requested_at,
         p.revision_submitted_at,
+        p.overallProgress,
         GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS countyNames,
         GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ', ') AS subcountyNames,
         GROUP_CONCAT(DISTINCT w.name ORDER BY w.name SEPARATOR ', ') AS wardNames
@@ -1680,7 +1681,8 @@ router.get('/', async (req, res) => {
                 p.revision_notes,
                 p.revision_requested_by,
                 p.revision_requested_at,
-                p.revision_submitted_at
+                p.revision_submitted_at,
+                p.overallProgress
         `;
         
         // This part dynamically builds the query.
@@ -1900,6 +1902,98 @@ router.put('/:id/approval', async (req, res) => {
         console.error('========================================');
         res.status(500).json({ 
             error: 'Failed to update approval status',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route PUT /api/projects/:id/progress
+ * @description Update overall progress for a project (0, 25, 50, 75, 100)
+ * @access Protected - requires public_content.approve privilege or admin role
+ */
+router.put('/:id/progress', async (req, res) => {
+    // Check if user is authenticated
+    if (!req.user) {
+        return res.status(401).json({ 
+            error: 'Authentication required' 
+        });
+    }
+    
+    // Check if user is admin or has public_content.approve privilege
+    const isAdmin = req.user?.roleName === 'admin';
+    const hasPrivilege = req.user?.privileges?.includes('public_content.approve');
+    
+    if (!isAdmin && !hasPrivilege) {
+        return res.status(403).json({ 
+            error: 'Access denied. You do not have the necessary privileges to perform this action.' 
+        });
+    }
+    
+    try {
+        const { id } = req.params;
+        const { overallProgress } = req.body;
+
+        // Validate progress value
+        const validProgressValues = [0, 25, 50, 75, 100];
+        if (overallProgress === undefined || overallProgress === null) {
+            return res.status(400).json({ error: 'overallProgress is required' });
+        }
+        
+        const progressValue = parseInt(overallProgress);
+        if (isNaN(progressValue) || !validProgressValues.includes(progressValue)) {
+            return res.status(400).json({ 
+                error: 'overallProgress must be one of: 0, 25, 50, 75, 100' 
+            });
+        }
+
+        // Update the project's overallProgress
+        const query = `
+            UPDATE kemri_projects
+            SET overallProgress = ?
+            WHERE id = ? AND voided = 0
+        `;
+
+        console.log('=== UPDATING PROJECT PROGRESS ===');
+        console.log('Project ID:', id);
+        console.log('Progress Value:', progressValue);
+        console.log('Query:', query);
+        console.log('Query Params:', [progressValue, id]);
+
+        const [result] = await pool.query(query, [progressValue, id]);
+
+        console.log('Update result:', {
+            affectedRows: result.affectedRows,
+            insertId: result.insertId,
+            changedRows: result.changedRows
+        });
+
+        if (result.affectedRows === 0) {
+            console.log('No rows affected - project not found or already voided');
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Verify the update by fetching the updated value
+        const [verifyRows] = await pool.query(
+            'SELECT overallProgress FROM kemri_projects WHERE id = ? AND voided = 0',
+            [id]
+        );
+        
+        if (verifyRows.length > 0) {
+            console.log('Verified updated progress:', verifyRows[0].overallProgress);
+        }
+
+        console.log('=== PROGRESS UPDATE SUCCESSFUL ===');
+
+        res.json({
+            success: true,
+            message: `Project progress updated to ${progressValue}%`,
+            overallProgress: progressValue
+        });
+    } catch (error) {
+        console.error('Error updating project progress:', error);
+        res.status(500).json({ 
+            error: 'Failed to update project progress',
             details: error.message 
         });
     }

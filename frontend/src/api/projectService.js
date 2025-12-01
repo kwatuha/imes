@@ -244,6 +244,21 @@ const projectService = {
         // FIX: Remove the leading '/api' from the URL
         const response = await axiosInstance.get(`/projects/documents/milestone/${milestoneId}`);
         return response.data;
+    },
+    // New function to approve/revoke document for public viewing
+    updateDocumentApproval: async (documentId, approvalData) => {
+        const response = await axiosInstance.put(`/documents/${documentId}/approval`, approvalData);
+        return response.data;
+    },
+    // New function to get documents for a project (using the correct endpoint)
+    getProjectDocuments: async (projectId) => {
+        const response = await axiosInstance.get(`/projects/documents/project/${projectId}`);
+        return response.data;
+    },
+    // New function to update document approval
+    updateDocumentApproval: async (documentId, approvalData) => {
+        const response = await axiosInstance.put(`/projects/documents/${documentId}/approval`, approvalData);
+        return response.data;
     }
   },
   

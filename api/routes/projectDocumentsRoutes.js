@@ -326,4 +326,72 @@ router.get('/milestone/:milestoneId', auth, async (req, res) => {
     }
 });
 
+// @route   PUT /api/documents/:documentId/approval
+// @desc    Approve or revoke a document/photo for public viewing
+// @access  Private (requires 'public_content.approve' privilege or admin role)
+router.put('/:documentId/approval', auth, async (req, res) => {
+    // Check if user is authenticated
+    if (!req.user) {
+        return res.status(401).json({ 
+            error: 'Authentication required' 
+        });
+    }
+    
+    // Check if user is admin or has public_content.approve privilege
+    const isAdmin = req.user?.roleName === 'admin';
+    const hasPrivilege = req.user?.privileges?.includes('public_content.approve');
+    
+    if (!isAdmin && !hasPrivilege) {
+        return res.status(403).json({ 
+            error: 'Access denied. You do not have the necessary privileges to perform this action.' 
+        });
+    }
+    
+    try {
+        const { documentId } = req.params;
+        const { 
+            approved_for_public, 
+            approval_notes, 
+            approved_by, 
+            approved_at
+        } = req.body;
+
+        // Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+        const approvedAt = approved_at ? new Date(approved_at) : new Date();
+        const approvedAtFormatted = approvedAt.toISOString().slice(0, 19).replace('T', ' ');
+
+        const query = `
+            UPDATE kemri_project_documents
+            SET approved_for_public = ?,
+                approval_notes = ?,
+                approved_by = ?,
+                approved_at = ?
+            WHERE id = ? AND voided = 0
+        `;
+
+        const [result] = await db.query(query, [
+            approved_for_public ? 1 : 0,
+            approval_notes || null,
+            approved_by || req.user.id,
+            approvedAtFormatted,
+            documentId
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        res.json({
+            success: true,
+            message: `Document ${approved_for_public ? 'approved' : 'revoked'} for public viewing`
+        });
+    } catch (error) {
+        console.error('Error updating document approval:', error);
+        res.status(500).json({ 
+            error: 'Failed to update document approval status',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;

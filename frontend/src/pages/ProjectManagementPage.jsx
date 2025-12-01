@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Menu, MenuItem, ListItemIcon, Checkbox, ListItemText, Box, Typography, Button, CircularProgress, IconButton,
   Snackbar, Alert, Stack, useTheme, Tooltip, Grid, Card, CardContent, TextField, InputAdornment, Chip,
-  Dialog, DialogTitle, DialogContent, DialogActions,
+  Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress,
 } from '@mui/material';
 import { DataGrid } from "@mui/x-data-grid";
 import { getThemedDataGridSx } from '../utils/dataGridTheme';
@@ -63,21 +63,33 @@ function ProjectManagementPage() {
     setSnackbar, allMetadata, fetchProjects,
   } = useProjectData(user, authLoading, emptyFilterState);
 
-  // Debug: Log project data structure (remove after debugging)
+  // Ensure column visibility model respects config defaults
   useEffect(() => {
-    if (projects && projects.length > 0) {
-      console.log('Sample project data:', projects[0]);
-      console.log('Fields check:', {
-        departmentName: projects[0].departmentName,
-        financialYearName: projects[0].financialYearName,
-        subcountyNames: projects[0].subcountyNames,
-        wardNames: projects[0].wardNames,
-        directorate: projects[0].directorate,
-        sectionName: projects[0].sectionName,
-        Contracted: projects[0].Contracted
-      });
+    // Check if any columns from config are missing from visibility model
+    const currentModel = { ...columnVisibilityModel };
+    let needsUpdate = false;
+    
+    projectTableColumnsConfig.forEach(col => {
+      // If column is not in the model, add it based on config
+      if (!currentModel.hasOwnProperty(col.id)) {
+        currentModel[col.id] = col.show !== false;
+        needsUpdate = true;
+      }
+      // If column has show: false in config but is visible in model, hide it (unless user explicitly saved it)
+      // We'll respect saved preferences, but ensure new columns follow config
+    });
+    
+    // Always ensure actions column is visible
+    if (currentModel['actions'] !== true) {
+      currentModel['actions'] = true;
+      needsUpdate = true;
     }
-  }, [projects]);
+    
+    if (needsUpdate) {
+      setColumnVisibilityModel(currentModel);
+      localStorage.setItem('projectTableColumnVisibility', JSON.stringify(currentModel));
+    }
+  }, []); // Only run once on mount
 
   // State for global search (must be declared before filteredProjects)
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +120,8 @@ function ProjectManagementPage() {
         project.pi_firstName || '',
         project.status || '',
         project.description || '',
+        project.overallProgress?.toString() || '',
+        `${project.overallProgress || 0}%`,
       ];
 
       return searchableFields.some(field => 
@@ -124,22 +138,38 @@ function ProjectManagementPage() {
 
   // States for column visibility and menu
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(() => {
-    const savedVisibility = localStorage.getItem('projectTableColumnVisibility');
-    if (savedVisibility) {
-      try {
-        return JSON.parse(savedVisibility);
-      } catch (e) {
-        console.error("Failed to parse saved column visibility from localStorage", e);
-      }
-    }
-    
-    // Default visibility - show essential columns, hide others
+    // First, create default visibility from config (respecting show: false)
     const defaultVisibility = {};
     projectTableColumnsConfig.forEach(col => {
-      defaultVisibility[col.id] = col.show;
+      defaultVisibility[col.id] = col.show !== false; // Explicitly set based on show property
     });
     // Always show actions column
     defaultVisibility['actions'] = true;
+    
+    // Try to load saved preferences from localStorage
+    const savedVisibility = localStorage.getItem('projectTableColumnVisibility');
+    if (savedVisibility) {
+      try {
+        const saved = JSON.parse(savedVisibility);
+        // Merge saved preferences with defaults
+        const merged = { ...defaultVisibility };
+        // Apply saved preferences for columns that exist in the config
+        projectTableColumnsConfig.forEach(col => {
+          if (saved.hasOwnProperty(col.id)) {
+            merged[col.id] = saved[col.id]; // Use saved preference
+          }
+        });
+        // Always ensure actions column is visible
+        merged['actions'] = true;
+        return merged;
+      } catch (e) {
+        console.error("Failed to parse saved column visibility from localStorage", e);
+        // Return defaults if parsing fails
+        return defaultVisibility;
+      }
+    }
+    
+    // Return defaults if no saved preferences
     return defaultVisibility;
   });
 
@@ -163,6 +193,29 @@ function ProjectManagementPage() {
 
   // State for DataGrid filter model (column filters)
   const [filterModel, setFilterModel] = useState({ items: [] });
+
+  // Handler to filter by progress percentage
+  const handleProgressFilter = useCallback((progressValue) => {
+    // Check if the same filter is already active, if so, clear it
+    const currentFilter = filterModel.items?.find(item => item.field === 'overallProgress');
+    if (currentFilter && parseFloat(currentFilter.value) === progressValue) {
+      // Clear the filter
+      setFilterModel({ items: [] });
+    } else {
+      // Set the filter - ensure value is a number
+      // Set the filter - ensure value is a number
+      setFilterModel({
+        items: [
+          {
+            id: 'overallProgress',
+            field: 'overallProgress',
+            operator: '=',
+            value: progressValue, // Keep as number for numeric comparison
+          }
+        ]
+      });
+    }
+  }, [filterModel]);
   
   // State for export loading
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -191,7 +244,7 @@ function ProjectManagementPage() {
     }
 
     // Apply column filters
-    return filteredProjects.filter(project => {
+    const filtered = filteredProjects.filter(project => {
       return filterModel.items.every(filterItem => {
         const { field, operator, value } = filterItem;
         const projectValue = project[field];
@@ -200,10 +253,80 @@ function ProjectManagementPage() {
           return true; // Empty filter means no filter
         }
 
+        // Handle numeric fields differently
+        if (field === 'overallProgress' || field === 'costOfProject' || field === 'paidOut' || field === 'Contracted' || field === 'id') {
+          const numValue = parseFloat(value);
+          if (isNaN(numValue)) {
+            return false;
+          }
+          
+          // Handle null/undefined project values
+          let numProjectValue;
+          if (projectValue === null || projectValue === undefined || projectValue === '') {
+            // For overallProgress, treat null/undefined as 0
+            numProjectValue = 0;
+          } else {
+            numProjectValue = parseFloat(projectValue);
+            if (isNaN(numProjectValue)) {
+              // If parsing fails, try to handle it
+              if (field === 'overallProgress') {
+                numProjectValue = 0; // Default to 0 for invalid overallProgress
+              } else {
+                return false;
+              }
+            }
+          }
+          
+          // For overallProgress, ensure we're comparing integers (0, 25, 50, 75, 100)
+          if (field === 'overallProgress') {
+            numProjectValue = Math.round(numProjectValue);
+            const roundedValue = Math.round(numValue);
+            const matches = numProjectValue === roundedValue;
+            
+            // For overallProgress, only use equality operator
+            if (operator === '=' || operator === 'equals') {
+              return matches;
+            }
+            // For other operators, use the rounded values
+            switch (operator) {
+              case '>':
+                return numProjectValue > roundedValue;
+              case '<':
+                return numProjectValue < roundedValue;
+              case '>=':
+                return numProjectValue >= roundedValue;
+              case '<=':
+                return numProjectValue <= roundedValue;
+              default:
+                return matches;
+            }
+          }
+          
+          // For other numeric fields, use standard comparison
+          switch (operator) {
+            case '=':
+            case 'equals':
+              return numProjectValue === numValue;
+            case '>':
+              return numProjectValue > numValue;
+            case '<':
+              return numProjectValue < numValue;
+            case '>=':
+              return numProjectValue >= numValue;
+            case '<=':
+              return numProjectValue <= numValue;
+            default:
+              return numProjectValue === numValue;
+          }
+        }
+
         const filterValue = String(value).toLowerCase();
         const projectValueStr = projectValue ? String(projectValue).toLowerCase() : '';
 
         switch (operator) {
+          case '=':
+          case 'equals':
+            return projectValueStr === filterValue;
           case 'contains':
             return projectValueStr.includes(filterValue);
           case 'equals':
@@ -225,6 +348,18 @@ function ProjectManagementPage() {
         }
       });
     });
+    
+    // Debug logging
+    if (filterModel.items?.some(item => item.field === 'overallProgress')) {
+      console.log('Filtered results:', {
+        totalProjects: filteredProjects.length,
+        filteredCount: filtered.length,
+        filterModel: filterModel.items,
+        sampleProject: filtered[0]
+      });
+    }
+    
+    return filtered;
   }, [filteredProjects, filterModel]);
 
   // Calculate summary statistics from filtered projects (respects search and column filters)
@@ -240,6 +375,13 @@ function ProjectManagementPage() {
         totalContracted: 0,
         totalPaidOut: 0,
         completionRate: 0,
+        progressStats: {
+          notStarted: 0,
+          quarter: 0,
+          halfway: 0,
+          threeQuarter: 0,
+          completed: 0
+        },
       };
     }
 
@@ -270,6 +412,30 @@ function ProjectManagementPage() {
       ? Math.round((completedProjects / projectsToUse.length) * 100) 
       : 0;
 
+    // Calculate progress-based statistics
+    const progressStats = {
+      notStarted: 0,      // 0%
+      quarter: 0,         // 25%
+      halfway: 0,         // 50%
+      threeQuarter: 0,    // 75%
+      completed: 0        // 100%
+    };
+
+    projectsToUse.forEach(p => {
+      const progress = p.overallProgress != null ? parseFloat(p.overallProgress) || 0 : 0;
+      if (progress === 0) {
+        progressStats.notStarted++;
+      } else if (progress === 25) {
+        progressStats.quarter++;
+      } else if (progress === 50) {
+        progressStats.halfway++;
+      } else if (progress === 75) {
+        progressStats.threeQuarter++;
+      } else if (progress === 100) {
+        progressStats.completed++;
+      }
+    });
+
     return {
       totalProjects: projectsToUse.length,
       totalBudget,
@@ -278,6 +444,7 @@ function ProjectManagementPage() {
       totalContracted,
       totalPaidOut,
       completionRate,
+      progressStats,
     };
   }, [dataGridFilteredProjects]);
 
@@ -382,8 +549,8 @@ function ProjectManagementPage() {
         columnVisibilityModel[col.field] !== false && col.field !== 'actions'
       );
       
-      // Prepare data for export (use filtered projects if search is active)
-      const projectsToExport = searchQuery ? filteredProjects : projects;
+      // Prepare data for export (use dataGridFilteredProjects to include search and column filters including progress)
+      const projectsToExport = dataGridFilteredProjects;
       const dataToExport = projectsToExport.map((project, index) => {
         const row = {};
         visibleColumns.forEach(col => {
@@ -418,6 +585,10 @@ function ProjectManagementPage() {
               if (value) {
                 value = new Date(value).toLocaleDateString();
               }
+            } else if (col.field === 'overallProgress') {
+              // Format progress as percentage
+              const progressValue = value != null ? parseFloat(value) || 0 : 0;
+              value = `${Math.min(100, Math.max(0, progressValue)).toFixed(0)}%`;
             }
             row[col.headerName] = value;
           }
@@ -432,7 +603,8 @@ function ProjectManagementPage() {
       
       // Generate filename with current date
       const dateStr = new Date().toISOString().split('T')[0];
-      const filename = searchQuery 
+      const hasFilters = searchQuery || (filterModel.items && filterModel.items.length > 0);
+      const filename = hasFilters 
         ? `projects_export_filtered_${dateStr}.xlsx`
         : `projects_export_${dateStr}.xlsx`;
       
@@ -462,8 +634,8 @@ function ProjectManagementPage() {
       // Prepare headers
       const headers = visibleColumns.map(col => col.headerName);
       
-      // Prepare data rows (use filtered projects if search is active)
-      const projectsToExport = searchQuery ? filteredProjects : projects;
+      // Prepare data rows (use dataGridFilteredProjects to include search and column filters including progress)
+      const projectsToExport = dataGridFilteredProjects;
       const dataRows = projectsToExport.map((project, index) => {
         return visibleColumns.map(col => {
           if (col.field === 'rowNumber') {
@@ -499,6 +671,10 @@ function ProjectManagementPage() {
               return new Date(value).toLocaleDateString();
             }
             return 'N/A';
+          } else if (col.field === 'overallProgress') {
+            // Format progress as percentage
+            const progressValue = value != null ? parseFloat(value) || 0 : 0;
+            return `${Math.min(100, Math.max(0, progressValue)).toFixed(0)}%`;
           }
           
           return String(value);
@@ -530,7 +706,8 @@ function ProjectManagementPage() {
       
       // Generate filename with current date
       const dateStr = new Date().toISOString().split('T')[0];
-      const filename = searchQuery 
+      const hasFilters = searchQuery || (filterModel.items && filterModel.items.length > 0);
+      const filename = hasFilters 
         ? `projects_export_filtered_${dateStr}.pdf`
         : `projects_export_${dateStr}.pdf`;
       
@@ -552,8 +729,10 @@ function ProjectManagementPage() {
   const handleResetColumns = () => {
     const defaultVisibility = {};
     projectTableColumnsConfig.forEach(col => {
-      defaultVisibility[col.field || col.id] = col.show;
+      defaultVisibility[col.id] = col.show !== false; // Explicitly respect show property
     });
+    // Always show actions column
+    defaultVisibility['actions'] = true;
     setColumnVisibilityModel(defaultVisibility);
     localStorage.setItem('projectTableColumnVisibility', JSON.stringify(defaultVisibility));
     setSnackbar({ open: true, message: 'Columns reset to defaults', severity: 'info' });
@@ -702,6 +881,64 @@ function ProjectManagementPage() {
             return currencyFormatter.format(parseFloat(value));
           }
           return value || 'N/A';
+        };
+        break;
+      case 'overallProgress':
+        dataGridColumn.type = 'number';
+        dataGridColumn.filterable = true;
+        dataGridColumn.valueGetter = (params) => {
+          if (!params || !params.row) return 0;
+          const progress = params.row.overallProgress;
+          return progress != null ? parseFloat(progress) || 0 : 0;
+        };
+        dataGridColumn.renderCell = (params) => {
+          if (!params || !params.row) return 'N/A';
+          const progress = params.row.overallProgress;
+          const progressValue = progress != null ? parseFloat(progress) || 0 : 0;
+          const clampedProgress = Math.min(100, Math.max(0, progressValue));
+          
+          return (
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 0.75, 
+              width: '100%',
+              height: '100%',
+              py: 0.5
+            }}>
+              <Box sx={{ flexGrow: 1, minWidth: 50, maxWidth: 70 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={clampedProgress}
+                  sx={{
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: isLight ? colors.grey[200] : colors.grey[700],
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 3,
+                      backgroundColor: clampedProgress === 100 
+                        ? (isLight ? colors.greenAccent[600] : colors.greenAccent[500])
+                        : (isLight ? colors.blueAccent[600] : colors.blueAccent[500])
+                    }
+                  }}
+                />
+              </Box>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  minWidth: 38,
+                  textAlign: 'right',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: isLight ? '#000000' : '#ffffff',
+                  lineHeight: 1.2,
+                  flexShrink: 0
+                }}
+              >
+                {clampedProgress.toFixed(0)}%
+              </Typography>
+            </Box>
+          );
         };
         break;
       case 'departmentName':
@@ -922,7 +1159,7 @@ function ProjectManagementPage() {
       <Box sx={{ mb: 1.5, mt: 1.5 }}>
         <TextField
           fullWidth
-          placeholder="Search projects by name, ID, department, location, status, or description..."
+          placeholder="Search projects by name, ID, department, location, status, progress, or description..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           variant="outlined"
@@ -1213,6 +1450,222 @@ function ProjectManagementPage() {
         </Grid>
       )}
 
+      {/* Progress Statistics Cards - Show projects by progress percentage */}
+      {!loading && !error && projects && projects.length > 0 && (
+        <Grid container spacing={1} sx={{ mb: 1.5, mt: 1 }}>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: isLight ? colors.grey[700] : colors.grey[300] }}>
+              Projects by Progress
+            </Typography>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+            <Card 
+              onClick={() => handleProgressFilter(0)}
+              sx={{ 
+                height: '100%',
+                background: isLight 
+                  ? 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)'
+                  : `linear-gradient(135deg, ${colors.grey[800]}, ${colors.grey[700]})`,
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#616161' : colors.grey[500]}`,
+                border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 0) 
+                  ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                  : 'none',
+                boxShadow: ui.elevatedShadow,
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: isLight ? '0 4px 12px rgba(158, 158, 158, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                    0% - Not Started
+                  </Typography>
+                  <ScheduleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[400], fontSize: 18 }} />
+                </Box>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                  {summaryStats.progressStats?.notStarted || 0}
+                </Typography>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                  {summaryStats.totalProjects > 0 
+                    ? Math.round((summaryStats.progressStats?.notStarted || 0) / summaryStats.totalProjects * 100) 
+                    : 0}% of total
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+            <Card 
+              onClick={() => handleProgressFilter(25)}
+              sx={{ 
+                height: '100%',
+                background: isLight 
+                  ? 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)'
+                  : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#f57c00' : colors.orange?.[500] || colors.yellowAccent[500]}`,
+                border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 25) 
+                  ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                  : 'none',
+                boxShadow: ui.elevatedShadow,
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: isLight ? '0 4px 12px rgba(255, 152, 0, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                    25% - Quarter
+                  </Typography>
+                  <PlayArrowIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[400] || colors.yellowAccent[400], fontSize: 18 }} />
+                </Box>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                  {summaryStats.progressStats?.quarter || 0}
+                </Typography>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                  {summaryStats.totalProjects > 0 
+                    ? Math.round((summaryStats.progressStats?.quarter || 0) / summaryStats.totalProjects * 100) 
+                    : 0}% of total
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+            <Card 
+              onClick={() => handleProgressFilter(50)}
+              sx={{ 
+                height: '100%',
+                background: isLight 
+                  ? 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)'
+                  : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
+                border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 50) 
+                  ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                  : 'none',
+                boxShadow: ui.elevatedShadow,
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: isLight ? '0 4px 12px rgba(33, 150, 243, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                    50% - Halfway
+                  </Typography>
+                  <HourglassIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 18 }} />
+                </Box>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                  {summaryStats.progressStats?.halfway || 0}
+                </Typography>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                  {summaryStats.totalProjects > 0 
+                    ? Math.round((summaryStats.progressStats?.halfway || 0) / summaryStats.totalProjects * 100) 
+                    : 0}% of total
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+            <Card 
+              onClick={() => handleProgressFilter(75)}
+              sx={{ 
+                height: '100%',
+                background: isLight 
+                  ? 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)'
+                  : `linear-gradient(135deg, ${colors.purple?.[800] || colors.blueAccent[800]}, ${colors.purple?.[700] || colors.blueAccent[700]})`,
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#7b1fa2' : colors.purple?.[500] || colors.blueAccent[500]}`,
+                border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 75) 
+                  ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                  : 'none',
+                boxShadow: ui.elevatedShadow,
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: isLight ? '0 4px 12px rgba(156, 39, 176, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                    75% - Nearly Complete
+                  </Typography>
+                  <CheckCircleOutlineIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.purple?.[400] || colors.blueAccent[400], fontSize: 18 }} />
+                </Box>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                  {summaryStats.progressStats?.threeQuarter || 0}
+                </Typography>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                  {summaryStats.totalProjects > 0 
+                    ? Math.round((summaryStats.progressStats?.threeQuarter || 0) / summaryStats.totalProjects * 100) 
+                    : 0}% of total
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+            <Card 
+              onClick={() => handleProgressFilter(100)}
+              sx={{ 
+                height: '100%',
+                background: isLight 
+                  ? 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)'
+                  : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
+                color: isLight ? 'white' : 'inherit',
+                borderTop: `3px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
+                border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 100) 
+                  ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                  : 'none',
+                boxShadow: ui.elevatedShadow,
+                transition: 'transform 0.2s ease-in-out',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: isLight ? '0 4px 12px rgba(76, 175, 80, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+                    100% - Completed
+                  </Typography>
+                  <CheckCircleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 18 }} />
+                </Box>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                  {summaryStats.progressStats?.completed || 0}
+                </Typography>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                  {summaryStats.totalProjects > 0 
+                    ? Math.round((summaryStats.progressStats?.completed || 0) / summaryStats.totalProjects * 100) 
+                    : 0}% of total
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
       {loading && (<Box display="flex" justifyContent="center" alignItems="center" height="200px"><CircularProgress /><Typography sx={{ ml: 2 }}>Loading projects...</Typography></Box>)}
       {error && (<Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>)}
       {!loading && !error && projects.length === 0 && checkUserPrivilege(user, 'project.read_all') && (<Alert severity="info" sx={{ mt: 2 }}>No projects found. Use the search bar or column filters to find projects, or add a new project.</Alert>)}
@@ -1222,9 +1675,14 @@ function ProjectManagementPage() {
           No projects match your search query "{searchQuery}". Try different keywords or clear the search.
         </Alert>
       )}
+      {!loading && !error && projects.length > 0 && filterModel.items?.length > 0 && dataGridFilteredProjects?.length === 0 && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          No projects match the current filter. Try adjusting your filters or clear them to see all projects.
+        </Alert>
+      )}
 
       
-      {!loading && !error && filteredProjects && filteredProjects.length > 0 && columns && columns.length > 0 && (
+      {!loading && !error && projects.length > 0 && columns && columns.length > 0 && (
         <Box
           sx={{
             mt: 2,
@@ -1239,7 +1697,7 @@ function ProjectManagementPage() {
           }}
         >
           <DataGrid
-            rows={filteredProjects || []}
+            rows={dataGridFilteredProjects || []}
             columns={columns}
             getRowId={(row) => row?.id || Math.random()}
             columnVisibilityModel={{
@@ -1252,8 +1710,11 @@ function ProjectManagementPage() {
               setColumnVisibilityModel(updatedModel);
               localStorage.setItem('projectTableColumnVisibility', JSON.stringify(updatedModel));
             }}
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
+            // Don't pass filterModel to DataGrid - we handle filtering ourselves in dataGridFilteredProjects
+            // filterModel={filterModel}
+            // onFilterModelChange={setFilterModel}
+            disableColumnFilter={true}
+            disableColumnMenu={false}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
             initialState={{
@@ -1264,7 +1725,6 @@ function ProjectManagementPage() {
             pageSizeOptions={[10, 25, 50, 100]}
             disableRowSelectionOnClick
             checkboxSelection={false}
-            disableColumnFilter={false}
             disableColumnSelector={false}
             disableDensitySelector={false}
             autoHeight={false}

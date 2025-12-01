@@ -19,3 +19,12 @@ WHERE voided IS NULL;
 -- GROUP BY voided;
 
 
+
+
+
+
+
+
+
+
+
