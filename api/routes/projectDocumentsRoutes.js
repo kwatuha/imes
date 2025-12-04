@@ -9,7 +9,9 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 // Main upload directory for all project documents
-const baseUploadDir = path.join(__dirname, '..', '..', 'uploads');
+// Use same path calculation as project photos: ../uploads (relative to routes directory)
+// In Docker: /app/routes -> /app/uploads (matches static file serving in app.js)
+const baseUploadDir = path.join(__dirname, '..', 'uploads');
 
 if (!fs.existsSync(baseUploadDir)) {
     try {
@@ -88,7 +90,9 @@ router.post('/', auth, privilege(['document.create']), upload.array('documents')
             
             fs.renameSync(tempPath, finalPath);
 
-            const documentPathForDb = path.relative(path.join(__dirname, '..', '..'), finalPath).replace(/\\/g, '/');
+            // Calculate path relative to the uploads directory (not including 'uploads' in the path)
+            // This ensures files are accessible via /uploads/projects/... instead of /uploads/uploads/projects/...
+            const documentPathForDb = path.relative(baseUploadDir, finalPath).replace(/\\/g, '/');
             
             return [
                 projectId, 
@@ -160,6 +164,50 @@ router.get('/project/:projectId', auth, async (req, res) => {
         res.status(500).json({ message: 'Error fetching project documents', error: error.message });
     } finally {
         if (connection) connection.release();
+    }
+});
+
+// @route   GET /api/documents/file/:documentPath(*)
+// @desc    Serve/download a document file by path (handles both old and new path formats)
+// @access  Private (file access is controlled by the document record)
+router.get('/file/*', auth, async (req, res) => {
+    try {
+        // Get the path from the wildcard parameter
+        const filePath = req.params[0];
+        
+        if (!filePath) {
+            return res.status(400).json({ message: 'File path is required' });
+        }
+        
+        // Normalize the path - remove any leading/trailing slashes and 'uploads/' prefix if present
+        let normalizedPath = filePath.replace(/^\/+|\/+$/g, ''); // Remove leading/trailing slashes
+        
+        // Remove 'uploads/' prefix if present (old format)
+        if (normalizedPath.startsWith('uploads/')) {
+            normalizedPath = normalizedPath.substring('uploads/'.length);
+        }
+        
+        // Construct the full file path
+        const fullPath = path.join(baseUploadDir, normalizedPath);
+        
+        // Security: Ensure the path is within the uploads directory (prevent directory traversal)
+        const resolvedPath = path.resolve(fullPath);
+        const resolvedBaseDir = path.resolve(baseUploadDir);
+        if (!resolvedPath.startsWith(resolvedBaseDir)) {
+            return res.status(403).json({ message: 'Access denied: Invalid file path' });
+        }
+        
+        // Check if file exists
+        if (!fs.existsSync(resolvedPath)) {
+            console.error(`File not found: ${resolvedPath} (requested path: ${filePath})`);
+            return res.status(404).json({ message: 'File not found' });
+        }
+        
+        // Send the file
+        res.sendFile(resolvedPath);
+    } catch (error) {
+        console.error('Error serving file:', error);
+        res.status(500).json({ message: 'Error serving file', error: error.message });
     }
 });
 

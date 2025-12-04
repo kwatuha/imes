@@ -338,29 +338,34 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
         const apiBaseUrl = getApiBaseUrl();
         let fileUrl = filePath;
         
-        // Documents are stored with path like "uploads/projects/123/general/file.pdf" (relative from project root)
-        // OR might be "api/uploads/projects/123/general/file.pdf" if project root is parent of api
+        // Documents can be stored with different path formats:
+        // - Old format: "uploads/projects/123/general/file.pdf" (includes uploads prefix)
+        // - New format: "projects/123/general/file.pdf" (relative to uploads directory)
         // Photos are stored with path like "project-photos/file.jpg" (relative from uploads directory)
-        // API serves static files at /uploads, so paths need to start with /uploads/
+        // API serves static files at /uploads, so all paths need to resolve to /uploads/...
         
         // Remove "api/" prefix if present (some paths might include it)
         if (fileUrl.startsWith('api/')) {
             fileUrl = fileUrl.substring(4); // Remove "api/" prefix
         }
         
+        // Normalize path: remove any existing "uploads/" prefix to avoid double prefix
+        // Handle both old format (uploads/projects/...) and new format (projects/...)
         if (fileUrl.startsWith('/uploads/')) {
-            // Already has /uploads/ prefix with leading slash
-            fileUrl = `${apiBaseUrl}${fileUrl}`;
+            // Remove leading slash and uploads prefix, will add it back
+            fileUrl = fileUrl.substring('/uploads/'.length);
         } else if (fileUrl.startsWith('uploads/')) {
-            // Has uploads/ prefix but missing leading slash (documents from project details)
-            // Convert: uploads/projects/123/general/file.pdf -> /uploads/projects/123/general/file.pdf
-            fileUrl = `${apiBaseUrl}/${fileUrl}`;
-        } else if (fileUrl.startsWith('/')) {
-            // Absolute path from root (shouldn't happen, but handle it)
-            fileUrl = `${apiBaseUrl}${fileUrl}`;
+            // Remove uploads prefix
+            fileUrl = fileUrl.substring('uploads/'.length);
+        }
+        
+        // Now construct the final URL with /uploads/ prefix
+        if (fileUrl.startsWith('/')) {
+            // Absolute path (shouldn't happen after normalization, but handle it)
+            fileUrl = `${apiBaseUrl}/uploads${fileUrl}`;
         } else {
-            // Relative path (photos from public approval like "project-photos/file.jpg")
-            // Add /uploads/ prefix: project-photos/file.jpg -> /uploads/project-photos/file.jpg
+            // Relative path (projects/... or project-photos/...)
+            // Add /uploads/ prefix: projects/123/general/file.pdf -> /uploads/projects/123/general/file.pdf
             fileUrl = `${apiBaseUrl}/uploads/${fileUrl}`;
         }
         
