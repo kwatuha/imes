@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
 import metaDataService from '../api/metaDataService';
 import useDepartmentData from '../hooks/useDepartmentData';
+import { DEFAULT_COUNTY } from '../configs/appConfig';
 
 // Reusable Delete Confirmation Dialog
 const DeleteConfirmDialog = ({ open, onClose, onConfirm, itemToDeleteName, itemType }) => {
@@ -632,8 +633,8 @@ const SubcountyManagement = () => {
   const [currentSubcounty, setCurrentSubcounty] = useState(null);
   const [currentWard, setCurrentWard] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
-  const [subcountyFormData, setSubcountyFormData] = useState({ name: '', countyId: '', geoLat: '', geoLon: '', remarks: '' });
-  const [wardFormData, setWardFormData] = useState({ name: '', subcountyId: '', geoLat: '', geoLon: '', remarks: '' });
+  const [subcountyFormData, setSubcountyFormData] = useState({ name: '', countyId: '', geoLat: '', geoLon: '' });
+  const [wardFormData, setWardFormData] = useState({ name: '', subcountyId: '', geoLat: '', geoLon: '' });
   const [subcountyFormErrors, setSubcountyFormErrors] = useState({});
   const [wardFormErrors, setWardFormErrors] = useState({});
 
@@ -672,10 +673,30 @@ const SubcountyManagement = () => {
     fetchSubcounties();
   }, [fetchSubcounties]);
 
+  // Set default county when counties are loaded and we're in create mode
+  useEffect(() => {
+    if (counties.length > 0 && !currentSubcounty && openSubcountyDialog) {
+      const defaultCounty = counties.find(c => c.name === DEFAULT_COUNTY.name);
+      const defaultCountyId = defaultCounty ? String(defaultCounty.countyId) : (DEFAULT_COUNTY.countyId ? String(DEFAULT_COUNTY.countyId) : '');
+      if (defaultCountyId) {
+        setSubcountyFormData(prev => {
+          // Only update if countyId is not already set
+          if (!prev.countyId) {
+            return { ...prev, countyId: defaultCountyId };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [counties, currentSubcounty, openSubcountyDialog]);
+
   // Subcounty handlers
   const handleOpenCreateSubcountyDialog = () => {
     setCurrentSubcounty(null);
-    setSubcountyFormData({ name: '', countyId: '', geoLat: '', geoLon: '', remarks: '' });
+    // Find the default county by name from the counties list
+    const defaultCounty = counties.find(c => c.name === DEFAULT_COUNTY.name);
+    const defaultCountyId = defaultCounty ? String(defaultCounty.countyId) : (DEFAULT_COUNTY.countyId ? String(DEFAULT_COUNTY.countyId) : '');
+    setSubcountyFormData({ name: '', countyId: defaultCountyId, geoLat: '', geoLon: '' });
     setSubcountyFormErrors({});
     setOpenSubcountyDialog(true);
   };
@@ -684,10 +705,9 @@ const SubcountyManagement = () => {
     setCurrentSubcounty(subcounty);
     setSubcountyFormData({
       name: subcounty.name || '',
-      countyId: subcounty.countyId || '',
+      countyId: subcounty.countyId != null ? String(subcounty.countyId) : '',
       geoLat: subcounty.geoLat || '',
-      geoLon: subcounty.geoLon || '',
-      remarks: subcounty.remarks || ''
+      geoLon: subcounty.geoLon || ''
     });
     setSubcountyFormErrors({});
     setOpenSubcountyDialog(true);
@@ -695,7 +715,9 @@ const SubcountyManagement = () => {
 
   const handleSubcountyFormChange = (e) => {
     const { name, value } = e.target;
-    setSubcountyFormData(prev => ({ ...prev, [name]: value }));
+    // Ensure countyId is stored as a string for consistency with Select component
+    const processedValue = name === 'countyId' ? String(value) : value;
+    setSubcountyFormData(prev => ({ ...prev, [name]: processedValue }));
     if (subcountyFormErrors[name]) {
       setSubcountyFormErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -706,7 +728,8 @@ const SubcountyManagement = () => {
     if (!subcountyFormData.name?.trim()) {
       errors.name = 'Name is required.';
     }
-    if (!subcountyFormData.countyId) {
+    // Only validate countyId when editing (not when creating, as it's auto-set from DEFAULT_COUNTY)
+    if (currentSubcounty && !subcountyFormData.countyId) {
       errors.countyId = 'County is required.';
     }
     setSubcountyFormErrors(errors);
@@ -720,11 +743,17 @@ const SubcountyManagement = () => {
     }
     setLoading(true);
     try {
+      // Convert countyId back to number for API call
+      const submitData = {
+        ...subcountyFormData,
+        countyId: subcountyFormData.countyId ? parseInt(subcountyFormData.countyId, 10) : null
+      };
+      
       if (currentSubcounty) {
-        await metaDataService.subcounties.updateSubcounty(currentSubcounty.subcountyId, subcountyFormData);
+        await metaDataService.subcounties.updateSubcounty(currentSubcounty.subcountyId, submitData);
         setSnackbar({ open: true, message: 'Subcounty updated successfully!', severity: 'success' });
       } else {
-        await metaDataService.subcounties.createSubcounty(subcountyFormData);
+        await metaDataService.subcounties.createSubcounty(submitData);
         setSnackbar({ open: true, message: 'Subcounty created successfully!', severity: 'success' });
       }
       setOpenSubcountyDialog(false);
@@ -741,7 +770,7 @@ const SubcountyManagement = () => {
   // Ward handlers
   const handleOpenCreateWardDialog = (subcountyId) => {
     setCurrentWard(null);
-    setWardFormData({ name: '', subcountyId, geoLat: '', geoLon: '', remarks: '' });
+    setWardFormData({ name: '', subcountyId, geoLat: '', geoLon: '' });
     setWardFormErrors({});
     setOpenWardDialog(true);
   };
@@ -750,10 +779,9 @@ const SubcountyManagement = () => {
     setCurrentWard(ward);
     setWardFormData({
       name: ward.name || '',
-      subcountyId: ward.subcountyId || '',
+      subcountyId: ward.subcountyId != null ? String(ward.subcountyId) : '',
       geoLat: ward.geoLat || '',
-      geoLon: ward.geoLon || '',
-      remarks: ward.remarks || ''
+      geoLon: ward.geoLon || ''
     });
     setWardFormErrors({});
     setOpenWardDialog(true);
@@ -761,7 +789,9 @@ const SubcountyManagement = () => {
 
   const handleWardFormChange = (e) => {
     const { name, value } = e.target;
-    setWardFormData(prev => ({ ...prev, [name]: value }));
+    // Ensure subcountyId is stored as a string for consistency with Select component
+    const processedValue = name === 'subcountyId' ? String(value) : value;
+    setWardFormData(prev => ({ ...prev, [name]: processedValue }));
     if (wardFormErrors[name]) {
       setWardFormErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -786,11 +816,19 @@ const SubcountyManagement = () => {
     }
     setLoading(true);
     try {
+      // Convert subcountyId to number and handle empty strings for optional fields
+      const submitData = {
+        name: wardFormData.name?.trim() || '',
+        subcountyId: wardFormData.subcountyId ? parseInt(wardFormData.subcountyId, 10) : null,
+        geoLat: wardFormData.geoLat?.trim() || null,
+        geoLon: wardFormData.geoLon?.trim() || null
+      };
+      
       if (currentWard) {
-        await metaDataService.wards.updateWard(currentWard.wardId, wardFormData);
+        await metaDataService.wards.updateWard(currentWard.wardId, submitData);
         setSnackbar({ open: true, message: 'Ward updated successfully!', severity: 'success' });
       } else {
-        await metaDataService.wards.createWard(wardFormData);
+        await metaDataService.wards.createWard(submitData);
         setSnackbar({ open: true, message: 'Ward created successfully!', severity: 'success' });
       }
       setOpenWardDialog(false);
@@ -990,27 +1028,29 @@ const SubcountyManagement = () => {
             helperText={subcountyFormErrors.name}
             sx={{ mb: 2 }}
           />
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>County</InputLabel>
-            <Select
-              name="countyId"
-              value={subcountyFormData.countyId}
-              onChange={handleSubcountyFormChange}
-              label="County"
-              error={!!subcountyFormErrors.countyId}
-            >
-              {counties.map((county) => (
-                <MenuItem key={county.countyId} value={county.countyId}>
-                  {county.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {subcountyFormErrors.countyId && (
-              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
-                {subcountyFormErrors.countyId}
-              </Typography>
-            )}
-          </FormControl>
+          {currentSubcounty && (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>County</InputLabel>
+              <Select
+                name="countyId"
+                value={subcountyFormData.countyId || ''}
+                onChange={handleSubcountyFormChange}
+                label="County"
+                error={!!subcountyFormErrors.countyId}
+              >
+                {counties.map((county) => (
+                  <MenuItem key={county.countyId} value={String(county.countyId)}>
+                    {county.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              {subcountyFormErrors.countyId && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                  {subcountyFormErrors.countyId}
+                </Typography>
+              )}
+            </FormControl>
+          )}
           <TextField
             margin="dense"
             name="geoLat"
@@ -1030,19 +1070,6 @@ const SubcountyManagement = () => {
             fullWidth
             variant="outlined"
             value={subcountyFormData.geoLon}
-            onChange={handleSubcountyFormChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="remarks"
-            label="Remarks"
-            type="text"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={3}
-            value={subcountyFormData.remarks}
             onChange={handleSubcountyFormChange}
             sx={{ mb: 2 }}
           />
@@ -1085,7 +1112,7 @@ const SubcountyManagement = () => {
               error={!!wardFormErrors.subcountyId}
             >
               {subcounties.map((subcounty) => (
-                <MenuItem key={subcounty.subcountyId} value={subcounty.subcountyId}>
+                <MenuItem key={subcounty.subcountyId} value={String(subcounty.subcountyId)}>
                   {subcounty.name}
                 </MenuItem>
               ))}
@@ -1115,19 +1142,6 @@ const SubcountyManagement = () => {
             fullWidth
             variant="outlined"
             value={wardFormData.geoLon}
-            onChange={handleWardFormChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            name="remarks"
-            label="Remarks"
-            type="text"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={3}
-            value={wardFormData.remarks}
             onChange={handleWardFormChange}
             sx={{ mb: 2 }}
           />

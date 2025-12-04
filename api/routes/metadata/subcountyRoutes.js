@@ -49,7 +49,7 @@ router.get('/:subcountyId', async (req, res) => {
 router.post('/', async (req, res) => {
     // TODO: Get userId from authenticated user (e.g., req.user.userId)
     const userId = 1; // Placeholder for now
-    const { name, countyId, geoLat, geoLon, remarks } = req.body;
+    const { name, countyId, geoLat, geoLon } = req.body;
 
     if (!name || !countyId) {
         return res.status(400).json({ message: 'Missing required fields: name, countyId' });
@@ -57,8 +57,8 @@ router.post('/', async (req, res) => {
 
     try {
         const [result] = await pool.query(
-            'INSERT INTO kemri_subcounties (name, countyId, geoLat, geoLon, remarks, userId) VALUES (?, ?, ?, ?, ?, ?)',
-            [name, countyId, geoLat, geoLon, remarks, userId]
+            'INSERT INTO kemri_subcounties (name, countyId, geoLat, geoLon, userId, voided) VALUES (?, ?, ?, ?, ?, 0)',
+            [name, countyId, geoLat, geoLon, userId]
         );
         res.status(201).json({ message: 'Sub-county created successfully', subcountyId: result.insertId });
     } catch (error) {
@@ -74,12 +74,12 @@ router.post('/', async (req, res) => {
  */
 router.put('/:subcountyId', async (req, res) => {
     const { subcountyId } = req.params;
-    const { name, countyId, geoLat, geoLon, remarks } = req.body;
+    const { name, countyId, geoLat, geoLon } = req.body;
 
     try {
         const [result] = await pool.query(
-            'UPDATE kemri_subcounties SET name = ?, countyId = ?, geoLat = ?, geoLon = ?, remarks = ?, updatedAt = CURRENT_TIMESTAMP WHERE subcountyId = ? AND voided = 0',
-            [name, countyId, geoLat, geoLon, remarks, subcountyId]
+            'UPDATE kemri_subcounties SET name = ?, countyId = ?, geoLat = ?, geoLon = ?, voided = 0, updatedAt = CURRENT_TIMESTAMP WHERE subcountyId = ? AND voided = 0',
+            [name, countyId, geoLat, geoLon, subcountyId]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Sub-county not found or already deleted' });
@@ -127,7 +127,7 @@ router.get('/:subcountyId/wards', async (req, res) => {
     const { subcountyId } = req.params;
     try {
         const [rows] = await pool.query(
-            'SELECT wardId, name, geoLat, geoLon FROM kemri_wards WHERE subcountyId = ? AND voided = 0',
+            'SELECT wardId, name, subcountyId, geoLat, geoLon FROM kemri_wards WHERE subcountyId = ? AND voided = 0',
             [subcountyId]
         );
         res.status(200).json(rows);
