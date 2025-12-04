@@ -51,7 +51,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
   const [paymentRequestDetails, setPaymentRequestDetails] = useState({});
   const [tabValues, setTabValues] = useState({});
 
-  const [deleteConfirmationModal, setDeleteConfirmationModal] = useState({ open: false, documentId: null });
+  const [deleteConfirmationModal, setDeleteConfirmationModal] = useState({ open: false, documentId: null, document: null });
   const [editDocumentModal, setEditDocumentModal] = useState({ open: false, document: null, newDescription: '' });
   const [fileToReplace, setFileToReplace] = useState(null);
   const [resizeConfirmationModal, setResizeConfirmationModal] = useState({ open: false, document: null, width: '', height: '' });
@@ -179,7 +179,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
     try {
       await apiService.documents.deleteDocument(deleteConfirmationModal.documentId);
       setSnackbar({ open: true, message: `Document deleted successfully.`, severity: 'success' });
-      setDeleteConfirmationModal({ open: false, documentId: null });
+      setDeleteConfirmationModal({ open: false, documentId: null, document: null });
       fetchData();
     } catch (err) {
       setSnackbar({ open: true, message: 'Failed to delete document.', severity: 'error' });
@@ -1251,7 +1251,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
                                                           {hasPrivilege('document.delete') && (
                                                               <Tooltip title="Delete Document">
                                                                 <IconButton 
-                                                                  onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id })}
+                                                                  onClick={() => setDeleteConfirmationModal({ open: true, documentId: doc.id, document: doc })}
                                                                   sx={{
                                                                     backgroundColor: colors.redAccent[50],
                                                                     color: colors.redAccent[500],
@@ -1485,14 +1485,20 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
       {/* Confirmation Modal for Deleting a Document */}
       <Dialog
         open={deleteConfirmationModal.open}
-        onClose={() => setDeleteConfirmationModal({ open: false, documentId: null })}
+        onClose={() => setDeleteConfirmationModal({ open: false, documentId: null, document: null })}
+        fullWidth
+        maxWidth="sm"
       >
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete this document? This action is permanent.</Typography>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            Are you sure you want to delete "{deleteConfirmationModal.document?.originalFileName || deleteConfirmationModal.document?.description || 'this document'}"? This action cannot be undone.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmationModal({ open: false, documentId: null })}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirmationModal({ open: false, documentId: null, document: null })} color="primary" variant="outlined">
+            Cancel
+          </Button>
           <Button onClick={handleDeleteDocument} color="error" variant="contained" disabled={submitting}>
             {submitting ? <CircularProgress size={24} /> : 'Delete'}
           </Button>
@@ -1588,7 +1594,7 @@ const ProjectManagerReviewPanel = ({ open, onClose, projectId, projectName, paym
         )}
         {hasPrivilege('document.delete') && (
           <MenuItem onClick={() => {
-            setDeleteConfirmationModal({ open: true, documentId: contextMenu.document.id });
+            setDeleteConfirmationModal({ open: true, documentId: contextMenu.document.id, document: contextMenu.document });
             handleContextMenuClose();
           }}>
             <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>

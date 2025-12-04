@@ -62,6 +62,8 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
     const [approvalDocument, setApprovalDocument] = useState(null);
     const [approvalNotes, setApprovalNotes] = useState('');
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [documentToDelete, setDocumentToDelete] = useState(null);
 
     const fetchDocuments = useCallback(async () => {
         if (!projectId) return;
@@ -121,7 +123,7 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
     }, [fetchDocuments]);
 
 
-    const handleDelete = async (documentId, isPhoto = false) => {
+    const handleDeleteClick = (document) => {
         if (!hasPrivilege('document.delete')) {
             setSnackbar({ 
                 open: true, 
@@ -130,7 +132,15 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
             });
             return;
         }
-        if (!window.confirm(`Are you sure you want to delete this ${isPhoto ? 'photo' : 'document'}?`)) return;
+        setDocumentToDelete(document);
+        setDeleteConfirmOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!documentToDelete) return;
+        
+        const documentId = documentToDelete.id;
+        const isPhoto = documentToDelete.isPhoto || false;
 
         try {
             if (isPhoto) {
@@ -145,6 +155,8 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                 message: `${isPhoto ? 'Photo' : 'Document'} deleted successfully`, 
                 severity: 'success' 
             });
+            setDeleteConfirmOpen(false);
+            setDocumentToDelete(null);
             fetchDocuments();
         } catch (error) {
             setSnackbar({ 
@@ -152,6 +164,8 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                 message: error.response?.data?.message || `Failed to delete ${isPhoto ? 'photo' : 'document'}`, 
                 severity: 'error' 
             });
+            setDeleteConfirmOpen(false);
+            setDocumentToDelete(null);
         }
     };
 
@@ -584,7 +598,7 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                                                         <IconButton 
                                                             size="small" 
                                                             color="error" 
-                                                            onClick={() => handleDelete(doc.isPhoto ? doc.photoId : doc.id, doc.isPhoto)}
+                                                            onClick={() => handleDeleteClick(doc)}
                                                         >
                                                             <DeleteIcon />
                                                         </IconButton>
@@ -728,6 +742,26 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                         color={approvalDocument?.approved_for_public ? "warning" : "success"}
                     >
                         {approvalDocument?.approved_for_public ? 'Revoke' : 'Approve'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+                <DialogTitle sx={{ backgroundColor: 'error.main', color: 'white' }}>
+                    Confirm Deletion
+                </DialogTitle>
+                <DialogContent dividers sx={{ pt: 2 }}>
+                    <Typography>
+                        Are you sure you want to delete "{documentToDelete?.originalFileName || documentToDelete?.fileName || documentToDelete?.description || (documentToDelete?.isPhoto ? 'this photo' : 'this document')}"? This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteConfirmOpen(false)} color="primary" variant="outlined">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+                        Delete
                     </Button>
                 </DialogActions>
             </Dialog>
