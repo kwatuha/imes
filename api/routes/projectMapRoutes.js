@@ -134,8 +134,30 @@ router.get('/', async (req, res) => {
 
 // The rest of your routes from the original code remain unchanged.
 /**
+ * @route GET /api/projects/project_maps/project/:projectId
+ * @description Get map data for a specific project by projectId.
+ */
+router.get('/project/:projectId', async (req, res) => {
+    const { projectId } = req.params;
+    try {
+        const [rows] = await pool.query(
+            'SELECT * FROM kemri_project_maps WHERE projectId = ? AND (voided = 0 OR voided IS NULL) ORDER BY mapId DESC LIMIT 1',
+            [projectId]
+        );
+        if (rows.length > 0) {
+            res.status(200).json(rows[0]);
+        } else {
+            res.status(404).json({ message: 'Project map not found' });
+        }
+    } catch (error) {
+        console.error('Error fetching project map:', error);
+        res.status(500).json({ message: 'Error fetching project map', error: error.message });
+    }
+});
+
+/**
  * @route GET /api/projects/project_maps/:id
- * @description Get a single project map by ID.
+ * @description Get a single project map by mapId.
  */
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
@@ -250,8 +272,54 @@ router.post('/import', async (req, res) => {
 });
 
 /**
+ * @route PUT /api/projects/project_maps/project/:projectId
+ * @description Update or create map data for a specific project by projectId.
+ */
+router.put('/project/:projectId', async (req, res) => {
+    const { projectId } = req.params;
+    const { map } = req.body;
+    
+    if (!map) {
+        return res.status(400).json({ message: 'Map data (GeoJSON) is required' });
+    }
+
+    try {
+        // Check if map data exists for this project
+        const [existing] = await pool.query(
+            'SELECT mapId FROM kemri_project_maps WHERE projectId = ? AND (voided = 0 OR voided IS NULL) ORDER BY mapId DESC LIMIT 1',
+            [projectId]
+        );
+
+        if (existing.length > 0) {
+            // Update existing map - ensure voided remains 0
+            const [result] = await pool.query(
+                'UPDATE kemri_project_maps SET map = ?, voided = 0 WHERE mapId = ?',
+                [map, existing[0].mapId]
+            );
+            if (result.affectedRows > 0) {
+                const [rows] = await pool.query('SELECT * FROM kemri_project_maps WHERE mapId = ?', [existing[0].mapId]);
+                res.status(200).json(rows[0]);
+            } else {
+                res.status(404).json({ message: 'Failed to update project map' });
+            }
+        } else {
+            // Create new map entry - ensure voided is set to 0
+            const [result] = await pool.query(
+                'INSERT INTO kemri_project_maps (projectId, map, voided) VALUES (?, ?, 0)',
+                [projectId, map]
+            );
+            const [rows] = await pool.query('SELECT * FROM kemri_project_maps WHERE mapId = ?', [result.insertId]);
+            res.status(201).json(rows[0]);
+        }
+    } catch (error) {
+        console.error('Error updating/creating project map:', error);
+        res.status(500).json({ message: 'Error updating/creating project map', error: error.message });
+    }
+});
+
+/**
  * @route PUT /api/projects/project_maps/:id
- * @description Update an existing project map.
+ * @description Update an existing project map by mapId.
  */
 router.put('/:id', async (req, res) => {
     const { id } = req.params;

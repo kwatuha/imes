@@ -62,8 +62,37 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
     );
   }
 
+  // Ensure mapContainerStyle is a proper object with width and height
+  // This is the actual div that Google Maps will render into
+  // If style.height is '100%', we need to ensure the parent has explicit height
+  // Otherwise use the style height or default
+  const getMapContainerHeight = () => {
+    if (style?.height === '100%') {
+      // For 100% height, we need to ensure the wrapper has proper height
+      // The parent container should have explicit height
+      return '100%';
+    }
+    return style?.height || '500px';
+  };
+
+  const mapContainerStyle = {
+    width: style?.width || '100%',
+    height: getMapContainerHeight(),
+  };
+
+  // Box wrapper height should match the map container height
+  const boxHeight = mapContainerStyle.height;
   return (
-    <Box sx={{ position: 'relative', ...style }}>
+    <Box sx={{ 
+      position: 'relative', 
+      width: '100%', 
+      height: boxHeight, 
+      overflow: 'hidden',
+      display: 'block',
+      backgroundColor: '#c8e6c9', // Light green background for debugging - should be covered by map
+      border: '2px solid #4caf50', // Green border for visibility
+      minHeight: boxHeight
+    }}>
       <StandaloneSearchBox
         onLoad={ref => searchBoxRef.current = ref}
         onPlacesChanged={onPlacesChanged}
@@ -93,7 +122,7 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
       </StandaloneSearchBox>
 
       <GoogleMap
-        mapContainerStyle={style}
+        mapContainerStyle={mapContainerStyle}
         center={center}
         zoom={zoom}
         onLoad={onLoad}

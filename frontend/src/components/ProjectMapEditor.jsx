@@ -1,0 +1,936 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
+import {
+  Box, Typography, Button, Paper, Grid, TextField, ToggleButton,
+  ToggleButtonGroup, Alert, CircularProgress, FormControl, InputLabel,
+  Select, MenuItem, FormHelperText, Stack, Dialog, DialogTitle, DialogContent,
+  DialogActions, IconButton, Snackbar
+} from '@mui/material';
+import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon, Close as CloseIcon, LocationOn as LocationOnIcon } from '@mui/icons-material';
+import GoogleMapComponent from './gis/GoogleMapComponent';
+import { MarkerF, PolylineF, PolygonF } from '@react-google-maps/api';
+import apiService from '../api';
+import { INITIAL_MAP_POSITION } from '../configs/appConfig';
+
+// Helper function for safe date formatting
+const formatDateSafe = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'N/A';
+    }
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', dateString, error);
+    return 'N/A';
+  }
+};
+
+const ProjectMapEditor = ({ projectId, projectName }) => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [mapModalOpen, setMapModalOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  const [mapData, setMapData] = useState(null);
+  const [geometryType, setGeometryType] = useState('Point');
+  const [coordinates, setCoordinates] = useState({
+    latitude: '',
+    longitude: '',
+    multiPointData: ''
+  });
+
+  const mapRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [tempMarkerPosition, setTempMarkerPosition] = useState(null);
+  const [markerIcon, setMarkerIcon] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] });
+  const [mapZoom, setMapZoom] = useState(6);
+  const [mapHeight, setMapHeight] = useState(600); // Default height in pixels
+
+  // Calculate map height based on viewport when modal opens
+  useEffect(() => {
+    if (mapModalOpen) {
+      // Calculate height: 90vh - 140px (dialog title + padding)
+      const calculatedHeight = Math.max(600, window.innerHeight * 0.9 - 140);
+      setMapHeight(calculatedHeight);
+    }
+  }, [mapModalOpen]);
+
+  // Fetch existing map data
+  useEffect(() => {
+    const fetchMapData = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await apiService.projectMaps.getProjectMap(projectId);
+        if (data && data.map) {
+          const geoJson = typeof data.map === 'string' ? JSON.parse(data.map) : data.map;
+          setMapData(data);
+          
+          // Parse GeoJSON to extract coordinates
+          if (geoJson.features && geoJson.features.length > 0) {
+            const feature = geoJson.features[0];
+            const { type, coordinates: coords } = feature.geometry;
+            
+            setGeometryType(type === 'MultiPoint' ? 'MultiPoint' : type === 'LineString' ? 'LineString' : type === 'Polygon' ? 'Polygon' : 'Point');
+            
+            if (type === 'Point') {
+              setCoordinates({
+                latitude: coords[1].toFixed(6),
+                longitude: coords[0].toFixed(6),
+                multiPointData: ''
+              });
+              setMapCenter({ lat: coords[1], lng: coords[0] });
+              setMapZoom(15);
+            } else if (type === 'Polygon') {
+              // Polygon coordinates are nested: [[[lng, lat], ...]]
+              // Extract the outer ring (first array)
+              const outerRing = coords[0] || [];
+              const multiPointStr = outerRing.map(coord => {
+                return `${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`;
+              }).join('\n');
+              setCoordinates({
+                latitude: '',
+                longitude: '',
+                multiPointData: multiPointStr
+              });
+            } else {
+              // For MultiPoint, LineString
+              const multiPointStr = coords.map(coord => {
+                return `${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`;
+              }).join('\n');
+              setCoordinates({
+                latitude: '',
+                longitude: '',
+                multiPointData: multiPointStr
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Check if it's a 404 (no map data exists in projectmap table - this is expected/OK)
+        // The axios interceptor now includes status in the error object
+        if (err.status === 404 || (err.message && err.message.toLowerCase().includes('not found'))) {
+          // 404 means no map data exists yet - this is normal, not an error
+          setMapData(null);
+          // No error message is shown - the UI will display an informational message instead
+        } else {
+          // Actual error occurred (network issue, server error, 500, etc.)
+          console.error('Error fetching project map:', err);
+          let errorMessage = 'An error occurred while loading map data from the server.';
+          
+          // Check for timeout or network errors (these have specific axios error codes)
+          if (err.code === 'ECONNABORTED') {
+            errorMessage = 'Request timeout: The server took too long to respond. Please try again.';
+          } else if (err.code === 'ERR_NETWORK' || err.code === 'ERR_INTERNET_DISCONNECTED') {
+            errorMessage = 'Network error: Unable to connect to the server. Please check your internet connection and try again.';
+          } else if (!err.status && err.request && !err.response) {
+            // Network error (request sent but no response received)
+            errorMessage = 'Network error: Unable to reach the server. The server may be temporarily unavailable. Please try again later.';
+          } else if (err.message && typeof err.message === 'string') {
+            // Error with message from backend or interceptor
+            errorMessage = err.message;
+          } else if (err.status) {
+            // Server error with status code
+            const statusMsg = err.message || errorMessage;
+            errorMessage = `Server error (${err.status}): ${statusMsg} Please try again or contact support if the problem persists.`;
+          }
+          
+          setError(errorMessage);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (projectId) {
+      fetchMapData();
+    }
+  }, [projectId]);
+
+  // Update map center when coordinates change
+  useEffect(() => {
+    if (coordinates.latitude && coordinates.longitude && mapRef.current) {
+      const lat = parseFloat(coordinates.latitude);
+      const lng = parseFloat(coordinates.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setMapCenter({ lat, lng });
+        if (mapZoom < 10) setMapZoom(15);
+      }
+    }
+  }, [coordinates.latitude, coordinates.longitude, mapZoom]);
+
+  // Update map when mapCenter or mapZoom changes and map is ready
+  useEffect(() => {
+    if (mapRef.current && mapReady) {
+      const centerToUse = (mapCenter.lat && mapCenter.lng) 
+        ? mapCenter 
+        : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] };
+      const zoomToUse = mapZoom || 6;
+      
+      mapRef.current.setCenter(centerToUse);
+      mapRef.current.setZoom(zoomToUse);
+      console.log('[ProjectMapEditor] Map updated via useEffect:', centerToUse, 'zoom:', zoomToUse);
+    }
+  }, [mapCenter, mapZoom, mapReady]);
+
+  const handleEdit = async () => {
+    console.log('[ProjectMapEditor] ========== handleEdit STARTED ==========');
+    console.log('[ProjectMapEditor] Opening map modal');
+    
+    // Open the modal first
+    setMapModalOpen(true);
+    setEditing(true);
+    setError('');
+    setSuccess('');
+    
+    // If map data exists, center map on saved coordinates
+    if (mapData && mapData.map) {
+      try {
+        const geoJson = typeof mapData.map === 'string' ? JSON.parse(mapData.map) : mapData.map;
+        if (geoJson.features && geoJson.features.length > 0) {
+          const feature = geoJson.features[0];
+          const { type, coordinates: coords } = feature.geometry;
+          
+          if (type === 'Point' && coords && coords.length === 2) {
+            // Center on Point coordinates
+            const lat = coords[1];
+            const lng = coords[0];
+            setMapCenter({ lat, lng });
+            setMapZoom(15);
+            console.log('[ProjectMapEditor] Centering map on saved Point coordinates:', { lat, lng });
+          } else if ((type === 'LineString' || type === 'MultiPoint') && coords && coords.length > 0) {
+            // Center on first coordinate of LineString/MultiPoint
+            const firstCoord = Array.isArray(coords[0]) ? coords[0] : coords;
+            if (firstCoord && firstCoord.length >= 2) {
+              const lat = firstCoord[1];
+              const lng = firstCoord[0];
+              setMapCenter({ lat, lng });
+              setMapZoom(13);
+              console.log('[ProjectMapEditor] Centering map on saved LineString/MultiPoint coordinates:', { lat, lng });
+            }
+          } else if (type === 'Polygon' && coords && coords.length > 0 && coords[0] && coords[0].length > 0) {
+            // Center on first coordinate of Polygon
+            const firstCoord = coords[0][0] || coords[0];
+            if (firstCoord && firstCoord.length >= 2) {
+              const lat = firstCoord[1];
+              const lng = firstCoord[0];
+              setMapCenter({ lat, lng });
+              setMapZoom(13);
+              console.log('[ProjectMapEditor] Centering map on saved Polygon coordinates:', { lat, lng });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ProjectMapEditor] Error parsing map data for centering:', err);
+      }
+    }
+    // If there's no existing map data, try to zoom to the project's ward location
+    else if (!mapData && projectId) {
+      console.log('[ProjectMapEditor] No map data exists, will fetch ward coordinates');
+      try {
+        console.log('[ProjectMapEditor] Fetching ward coordinates for project:', projectId);
+        // Fetch project wards - junctions is at top level of apiService, not inside projects
+        const wards = await apiService.junctions.getProjectWards(projectId);
+        console.log('[ProjectMapEditor] Received wards:', wards);
+        
+        // Find the first ward with coordinates
+        const wardWithCoords = wards.find(w => w.geoLat && w.geoLon && w.geoLat !== null && w.geoLon !== null);
+        
+        if (wardWithCoords) {
+          console.log('[ProjectMapEditor] Found ward with coordinates:', wardWithCoords);
+          const targetLat = parseFloat(wardWithCoords.geoLat);
+          const targetLng = parseFloat(wardWithCoords.geoLon);
+          
+          if (!isNaN(targetLat) && !isNaN(targetLng)) {
+            // Set map center and zoom to ward location (useState will trigger useEffect to update map)
+            setMapCenter({ lat: targetLat, lng: targetLng });
+            setMapZoom(15);
+            console.log('[ProjectMapEditor] Set map center to ward:', { lat: targetLat, lng: targetLng }, 'zoom: 15');
+            
+            // Update map immediately if it's ready, otherwise useEffect will handle it
+            if (mapRef.current && mapReady) {
+              console.log('[ProjectMapEditor] Map is ready, updating center immediately');
+              mapRef.current.setCenter({ lat: targetLat, lng: targetLng });
+              mapRef.current.setZoom(15);
+              setSuccess(`Map centered on: ${wardWithCoords.wardName || 'Ward location'}`);
+            } else {
+              console.log('[ProjectMapEditor] Map not ready yet, will be updated by useEffect');
+              // Map will be centered by useEffect when it becomes ready
+              setSuccess(`Map will center on: ${wardWithCoords.wardName || 'Ward location'}`);
+            }
+          }
+        } else {
+          console.log('[ProjectMapEditor] No ward coordinates found, trying subcounty');
+          // Fallback: try subcounty if no ward coordinates
+            try {
+            const subcounties = await apiService.junctions.getProjectSubcounties(projectId);
+            const subcountyWithCoords = subcounties.find(sc => sc.geoLat && sc.geoLon && sc.geoLat !== null && sc.geoLon !== null);
+            
+            if (subcountyWithCoords) {
+              console.log('[ProjectMapEditor] Found subcounty with coordinates:', subcountyWithCoords);
+              const targetLat = parseFloat(subcountyWithCoords.geoLat);
+              const targetLng = parseFloat(subcountyWithCoords.geoLon);
+              
+              if (!isNaN(targetLat) && !isNaN(targetLng)) {
+                setMapCenter({ lat: targetLat, lng: targetLng });
+                setMapZoom(13);
+                
+                // Update map immediately if it's ready, otherwise useEffect will handle it
+                if (mapRef.current && mapReady) {
+                  mapRef.current.setCenter({ lat: targetLat, lng: targetLng });
+                  mapRef.current.setZoom(13);
+                  setSuccess(`Map centered on: ${subcountyWithCoords.subcountyName || 'Subcounty location'}`);
+                } else {
+                  // Map will be centered by useEffect when it becomes ready
+                  setSuccess(`Map will center on: ${subcountyWithCoords.subcountyName || 'Subcounty location'}`);
+                }
+              }
+            }
+          } catch (subcountyErr) {
+            console.error('[ProjectMapEditor] Error fetching subcounty coordinates:', subcountyErr);
+          }
+        }
+      } catch (err) {
+        console.error('[ProjectMapEditor] Error fetching ward coordinates:', err);
+        // Don't show this as an error - it's just a convenience feature
+        // But still allow editing to proceed
+      }
+    } else {
+      console.log('[ProjectMapEditor] Map data exists or projectId missing - skipping ward fetch');
+    }
+    console.log('[ProjectMapEditor] ========== handleEdit COMPLETED ==========');
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+    setMapModalOpen(false);
+    setError('');
+    setSuccess('');
+    // Reload original data
+    if (mapData && mapData.map) {
+      const geoJson = typeof mapData.map === 'string' ? JSON.parse(mapData.map) : mapData.map;
+      if (geoJson.features && geoJson.features.length > 0) {
+        const feature = geoJson.features[0];
+        const { type, coordinates: coords } = feature.geometry;
+        if (type === 'Point') {
+          setCoordinates({
+            latitude: coords[1].toFixed(6),
+            longitude: coords[0].toFixed(6),
+            multiPointData: ''
+          });
+        }
+      }
+    } else {
+      setCoordinates({ latitude: '', longitude: '', multiPointData: '' });
+      setGeometryType('Point');
+    }
+  };
+
+  const handleGeometryTypeChange = (event, newType) => {
+    if (newType !== null) {
+      setGeometryType(newType);
+      if (newType === 'Point') {
+        setCoordinates(prev => ({ ...prev, multiPointData: '' }));
+      } else {
+        setCoordinates(prev => ({ ...prev, latitude: '', longitude: '' }));
+      }
+    }
+  };
+
+  const handleCoordinateChange = (e) => {
+    const { name, value } = e.target;
+    setCoordinates(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleMapClick = useCallback((e) => {
+    if (!editing) return;
+    
+    const clickedLat = e.latLng.lat();
+    const clickedLng = e.latLng.lng();
+
+    if (geometryType === 'Point') {
+      setCoordinates({
+        latitude: clickedLat.toFixed(6),
+        longitude: clickedLng.toFixed(6),
+        multiPointData: ''
+      });
+      setMapCenter({ lat: clickedLat, lng: clickedLng });
+      setMapZoom(15);
+    } else {
+      const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
+      setCoordinates(prev => ({
+        ...prev,
+        multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
+      }));
+    }
+    setTempMarkerPosition([clickedLat, clickedLng]);
+  }, [editing, geometryType]);
+
+  const getGeoJsonFromCoordinates = () => {
+    if (geometryType === 'Point') {
+      if (!coordinates.latitude || !coordinates.longitude) return null;
+      const lat = parseFloat(coordinates.latitude);
+      const lng = parseFloat(coordinates.longitude);
+      if (isNaN(lat) || isNaN(lng)) return null;
+
+      return {
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          properties: { name: projectName || 'Project Location' },
+          geometry: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          }
+        }]
+      };
+    } else {
+      if (!coordinates.multiPointData) return null;
+      
+      const lines = coordinates.multiPointData.split('\n').filter(line => line.trim());
+      if (lines.length === 0) return null;
+
+      const coords = lines.map(line => {
+        const parts = line.split(',').map(p => parseFloat(p.trim()));
+        return [parts[0], parts[1]]; // [lng, lat]
+      });
+
+      let geoType = 'LineString';
+      if (geometryType === 'Polygon') {
+        // Ensure polygon is closed (first and last points are the same)
+        if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
+          coords.push(coords[0]);
+        }
+        geoType = 'Polygon';
+        return {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: { name: projectName || 'Project Area' },
+            geometry: {
+              type: 'Polygon',
+              coordinates: [coords]
+            }
+          }]
+        };
+      } else if (geometryType === 'MultiPoint') {
+        return {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: { name: projectName || 'Project Points' },
+            geometry: {
+              type: 'MultiPoint',
+              coordinates: coords
+            }
+          }]
+        };
+      } else {
+        return {
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: { name: projectName || 'Project Route' },
+            geometry: {
+              type: 'LineString',
+              coordinates: coords
+            }
+          }]
+        };
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    setError('');
+    setSuccess('');
+    
+    const geoJson = getGeoJsonFromCoordinates();
+    if (!geoJson) {
+      setError('Please provide valid coordinates');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      console.log('[ProjectMapEditor] Saving map data for projectId:', projectId);
+      console.log('[ProjectMapEditor] GeoJSON to save:', geoJson);
+      const geoJsonString = JSON.stringify(geoJson);
+      console.log('[ProjectMapEditor] Stringified GeoJSON length:', geoJsonString.length);
+      
+      const savedData = await apiService.projectMaps.updateProjectMap(projectId, geoJsonString);
+      console.log('[ProjectMapEditor] Save response:', savedData);
+      
+      if (!savedData || !savedData.map) {
+        throw new Error('Save succeeded but no data returned from server');
+      }
+      
+      // Reload map data to get the latest from database
+      const data = await apiService.projectMaps.getProjectMap(projectId);
+      console.log('[ProjectMapEditor] Reloaded map data:', data);
+      
+      if (data && data.map) {
+        setMapData(data);
+        
+        // Re-parse coordinates from the saved data to update the form
+        const savedGeoJson = typeof data.map === 'string' ? JSON.parse(data.map) : data.map;
+        if (savedGeoJson.features && savedGeoJson.features.length > 0) {
+          const feature = savedGeoJson.features[0];
+          const { type, coordinates: coords } = feature.geometry;
+          
+          setGeometryType(type === 'MultiPoint' ? 'MultiPoint' : type === 'LineString' ? 'LineString' : type === 'Polygon' ? 'Polygon' : 'Point');
+          
+          if (type === 'Point') {
+            setCoordinates({
+              latitude: coords[1].toFixed(6),
+              longitude: coords[0].toFixed(6),
+              multiPointData: ''
+            });
+            setMapCenter({ lat: coords[1], lng: coords[0] });
+            setMapZoom(15);
+          } else if (type === 'Polygon') {
+            const outerRing = coords[0] || [];
+            const multiPointStr = outerRing.map(coord => {
+              return `${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`;
+            }).join('\n');
+            setCoordinates({
+              latitude: '',
+              longitude: '',
+              multiPointData: multiPointStr
+            });
+          } else {
+            const multiPointStr = coords.map(coord => {
+              return `${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`;
+            }).join('\n');
+            setCoordinates({
+              latitude: '',
+              longitude: '',
+              multiPointData: multiPointStr
+            });
+          }
+        }
+      } else {
+        setMapData(data);
+      }
+      
+      // Close modal first
+      setEditing(false);
+      setMapModalOpen(false);
+      
+      // Show success notification in Snackbar (persists after modal closes)
+      setSnackbarMessage('Map coordinates saved successfully!');
+      setSnackbarOpen(true);
+      setSuccess('Map data saved successfully!');
+    } catch (err) {
+      console.error('Error saving map data:', err);
+      console.error('Error details:', {
+        message: err.message,
+        status: err.status,
+        response: err.response?.data,
+        fullError: err
+      });
+      
+      // Handle error from axios interceptor (which preserves status)
+      let errorMessage = 'Failed to save map data. Please check the console for details.';
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message && typeof err.message === 'string') {
+        errorMessage = err.message;
+      } else if (err.status) {
+        errorMessage = `Error (${err.status}): ${errorMessage} Please try again.`;
+      }
+      
+      setError(errorMessage);
+      setSnackbarMessage(`Error: ${errorMessage}`);
+      setSnackbarOpen(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Helper functions for rendering map features
+  const getPointCoordinates = () => {
+    if (geometryType !== 'Point' || !coordinates.latitude || !coordinates.longitude) return null;
+    const lat = parseFloat(coordinates.latitude);
+    const lng = parseFloat(coordinates.longitude);
+    return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
+  };
+
+  const getMultiPointPath = () => {
+    if (geometryType === 'Point' || !coordinates.multiPointData) return [];
+    return coordinates.multiPointData
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => {
+        const parts = line.split(',').map(p => parseFloat(p.trim()));
+        return { lat: parts[1], lng: parts[0] };
+      });
+  };
+
+  const getPolygonPath = () => {
+    if (geometryType !== 'Polygon' || !coordinates.multiPointData) return [];
+    const path = getMultiPointPath();
+    // Ensure polygon is closed
+    if (path.length > 0 && (path[0].lat !== path[path.length - 1].lat || path[0].lng !== path[path.length - 1].lng)) {
+      return [...path, path[0]];
+    }
+    return path;
+  };
+
+  // Don't block rendering with loading - show the map immediately
+  // The map will show a loading state internally if Google Maps API isn't ready
+  // if (loading) {
+  //   return (
+  //     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+  //       <CircularProgress />
+  //     </Box>
+  //   );
+  // }
+
+  return (
+    <Box>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Box>
+          <Typography variant="h6">Project Location & Coordinates</Typography>
+          {!mapData && !editing && !loading && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              No map data available. Click "Add Map Data" to create coordinates for this project.
+            </Typography>
+          )}
+        </Box>
+        {!editing && (
+          <Button
+            startIcon={<EditIcon />}
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              console.log('[ProjectMapEditor] Add Map Data button clicked');
+              handleEdit();
+            }}
+          >
+            {mapData ? 'Edit Map' : 'Add Map Data'}
+          </Button>
+        )}
+      </Stack>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
+
+      {/* Display existing map data if available */}
+      {mapData && (
+        <Paper elevation={2} sx={{ p: 3, mt: 2 }}>
+          <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+            Current Coordinates
+          </Typography>
+          {geometryType === 'Point' && coordinates.latitude && coordinates.longitude && (
+            <Typography variant="body2" color="text.secondary">
+              Latitude: {coordinates.latitude}, Longitude: {coordinates.longitude}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            Last updated: {formatDateSafe(mapData.updatedAt || mapData.updated_at || mapData.createdAt || mapData.created_at)}
+          </Typography>
+        </Paper>
+      )}
+
+      {/* Map Editor Modal */}
+      <Dialog
+        open={mapModalOpen}
+        onClose={handleCancel}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+            borderRadius: 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          bgcolor: 'primary.main',
+          color: 'white'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LocationOnIcon />
+            <Typography variant="h6" fontWeight="bold">
+              {mapData ? 'Edit Project Location' : 'Add Project Location'}
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={handleCancel}
+            sx={{ color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: 'row', height: `${mapHeight}px`, width: '100%', overflow: 'hidden' }}>
+          {/* Left Column - Form */}
+          <Box sx={{ 
+            width: { xs: '100%', md: '33.333%' }, 
+            borderRight: { md: 1 }, 
+            borderColor: 'divider', 
+            p: 3, 
+            overflowY: 'auto',
+            flexShrink: 0
+          }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+                Coordinate Information
+              </Typography>
+              
+              <Box sx={{ mb: 3, mt: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>Geometry Type:</Typography>
+                <ToggleButtonGroup
+                  value={geometryType}
+                  exclusive
+                  onChange={handleGeometryTypeChange}
+                  color="primary"
+                  fullWidth
+                >
+                  <ToggleButton value="Point">Point</ToggleButton>
+                  <ToggleButton value="LineString">Line</ToggleButton>
+                  <ToggleButton value="Polygon">Polygon</ToggleButton>
+                  <ToggleButton value="MultiPoint">Multi-Point</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {geometryType === 'Point' ? (
+                <>
+                  <TextField
+                    fullWidth
+                    label="Latitude"
+                    name="latitude"
+                    value={coordinates.latitude}
+                    onChange={handleCoordinateChange}
+                    sx={{ mb: 2 }}
+                    helperText="Click on the map or enter latitude manually"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Longitude"
+                    name="longitude"
+                    value={coordinates.longitude}
+                    onChange={handleCoordinateChange}
+                    helperText="Click on the map or enter longitude manually"
+                  />
+                </>
+              ) : (
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={10}
+                  label={`${geometryType === 'Polygon' ? 'Polygon' : geometryType === 'LineString' ? 'Line' : 'Multi-Point'} Coordinates`}
+                  name="multiPointData"
+                  value={coordinates.multiPointData}
+                  onChange={handleCoordinateChange}
+                  placeholder='Enter coordinates as "longitude, latitude" (one per line)'
+                  helperText={`Click on the map to add points. For polygon, ensure first and last points match.`}
+                />
+              )}
+
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>
+                  Instructions:
+                </Typography>
+                <Typography variant="caption" display="block">
+                  • Click on the map to {geometryType === 'Point' ? 'set the location' : 'add points'}
+                </Typography>
+                <Typography variant="caption" display="block">
+                  • Or enter coordinates manually in the fields above
+                </Typography>
+                {geometryType === 'Polygon' && (
+                  <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                    • Ensure the first and last coordinates match to close the polygon
+                  </Typography>
+                )}
+              </Box>
+          </Box>
+
+          {/* Right Column - Map */}
+          <Box sx={{ 
+              position: 'relative', 
+              width: { xs: '100%', md: '66.667%' },
+              height: '100%',
+              backgroundColor: '#e3f2fd', // Light blue background for debugging
+              border: '2px solid #2196f3', // Blue border for visibility
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flexGrow: 1
+            }}>
+              <Box sx={{ 
+                position: 'absolute', 
+                top: 10, 
+                left: 10, 
+                bgcolor: 'info.main', 
+                color: 'white',
+                p: 1, 
+                borderRadius: 1,
+                zIndex: 1000,
+                boxShadow: 2
+              }}>
+                <Typography variant="caption" fontWeight="bold">
+                  Click on the map to {geometryType === 'Point' ? 'set location' : 'add points'}
+                </Typography>
+              </Box>
+              
+              {/* Map container - fill the Grid item */}
+              <Box sx={{
+                width: '100%',
+                height: '100%',
+                flex: 1,
+                backgroundColor: '#fff3cd', // Yellow background for debugging map component
+                border: '2px solid #ff9800' // Orange border
+              }}>
+                <GoogleMapComponent
+                key={`map-modal-${editing}-${mapCenter.lat}-${mapCenter.lng}`}
+                center={mapCenter}
+                zoom={mapZoom}
+                style={{ 
+                  height: `${mapHeight}px`, 
+                  width: '100%'
+                }}
+                onCreated={map => {
+                  console.log('[ProjectMapEditor] Map created in modal, setting center:', mapCenter);
+                  mapRef.current = map;
+                  setMapReady(true);
+                  if (window.google && window.google.maps) {
+                    setMarkerIcon({
+                      url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                      scaledSize: new window.google.maps.Size(32, 32),
+                    });
+                    // Always set the center and zoom when map is created
+                    const centerToUse = (mapCenter.lat && mapCenter.lng) 
+                      ? mapCenter 
+                      : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] };
+                    const zoomToUse = mapZoom || 6;
+                    
+                    map.setCenter(centerToUse);
+                    map.setZoom(zoomToUse);
+                    console.log('[ProjectMapEditor] Map centered at:', centerToUse, 'zoom:', zoomToUse);
+                  }
+                }}
+                onClick={handleMapClick}
+              >
+                {/* Render Point Marker */}
+                {geometryType === 'Point' && getPointCoordinates() && markerIcon && (
+                  <MarkerF
+                    position={getPointCoordinates()}
+                    icon={markerIcon}
+                    title={projectName || 'Project Location'}
+                  />
+                )}
+
+                {/* Render temporary marker for clicks */}
+                {tempMarkerPosition && markerIcon && (
+                  <MarkerF
+                    position={{ lat: tempMarkerPosition[0], lng: tempMarkerPosition[1] }}
+                    icon={{
+                      url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                      scaledSize: new window.google.maps.Size(32, 32),
+                    }}
+                  />
+                )}
+
+                {/* Render LineString or MultiPoint as Polyline */}
+                {(geometryType === 'LineString' || geometryType === 'MultiPoint') && getMultiPointPath().length > 0 && (
+                  <PolylineF
+                    path={getMultiPointPath()}
+                    options={{
+                      strokeColor: "#FF0000",
+                      strokeWeight: 4,
+                      strokeOpacity: 0.8
+                    }}
+                  />
+                )}
+
+                {/* Render Polygon */}
+                {geometryType === 'Polygon' && getPolygonPath().length > 0 && (
+                  <PolygonF
+                    paths={getPolygonPath()}
+                    options={{
+                      fillColor: "#FF0000",
+                      fillOpacity: 0.35,
+                      strokeColor: "#FF0000",
+                      strokeWeight: 2,
+                      strokeOpacity: 0.8
+                    }}
+                  />
+                )}
+              </GoogleMapComponent>
+              </Box>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 2, bgcolor: 'background.default' }}>
+          <Button
+            onClick={handleCancel}
+            variant="outlined"
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            color="primary"
+            startIcon={<SaveIcon />}
+            disabled={saving}
+          >
+            {saving ? <CircularProgress size={24} /> : 'Save Location'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success Snackbar - shows after modal closes */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
+ProjectMapEditor.propTypes = {
+  projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  projectName: PropTypes.string
+};
+
+export default ProjectMapEditor;
+

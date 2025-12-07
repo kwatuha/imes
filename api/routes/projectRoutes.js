@@ -2292,10 +2292,10 @@ router.get('/:projectId/subcounties', async (req, res) => {
     if (!(await checkProjectExists(projectId))) { return res.status(404).json({ message: 'Project not found' }); }
     try {
         const [rows] = await pool.query(
-            `SELECT psc.subcountyId, sc.name AS subcountyName, psc.assignedAt
+            `SELECT psc.subcountyId, sc.name AS subcountyName, sc.geoLat, sc.geoLon, psc.assignedAt
              FROM kemri_project_subcounties psc
              JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
-             WHERE psc.projectId = ?`, [projectId]
+             WHERE psc.projectId = ? AND (sc.voided IS NULL OR sc.voided = 0)`, [projectId]
         );
         res.status(200).json(rows);
     } catch (error) {
@@ -2355,10 +2355,10 @@ router.get('/:projectId/wards', async (req, res) => {
     if (!(await checkProjectExists(projectId))) { return res.status(404).json({ message: 'Project not found' }); }
     try {
         const [rows] = await pool.query(
-            `SELECT pw.wardId, w.name AS wardName, pw.assignedAt
+            `SELECT pw.wardId, w.name AS wardName, w.geoLat, w.geoLon, pw.assignedAt
              FROM kemri_project_wards pw
              JOIN kemri_wards w ON pw.wardId = w.wardId
-             WHERE pw.projectId = ?`, [projectId]
+             WHERE pw.projectId = ? AND (w.voided IS NULL OR w.voided = 0)`, [projectId]
         );
         res.status(200).json(rows);
     } catch (error) {

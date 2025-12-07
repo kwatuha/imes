@@ -56,9 +56,17 @@ axiosInstance.interceptors.response.use(
             }
         }
         
-        // If there's a response object (e.g., 4xx, 5xx errors), reject with its data
-        // Otherwise, reject with a generic Error object
-        return Promise.reject(error.response ? error.response.data : new Error(error.message));
+        // If there's a response object (e.g., 4xx, 5xx errors), reject with its data plus status
+        // Otherwise, reject with the original error (preserves request info for network errors)
+        if (error.response) {
+          // Preserve status code and response data
+          const errorWithStatus = error.response.data || {};
+          errorWithStatus.status = error.response.status;
+          errorWithStatus.statusText = error.response.statusText;
+          return Promise.reject(errorWithStatus);
+        }
+        // For network errors (no response), return the original error to preserve request info
+        return Promise.reject(error);
     }
 );
 

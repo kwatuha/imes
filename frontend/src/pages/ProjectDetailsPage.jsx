@@ -35,6 +35,7 @@ import {
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProjectDocumentsAttachments from '../components/ProjectDocumentsAttachments';
+import ProjectMapEditor from '../components/ProjectMapEditor';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 
 // Helper function to map milestone activity status to project status colors
@@ -1097,6 +1098,7 @@ function ProjectDetailsPage() {
                     <Tab label="Timeline & Milestones" icon={<ScheduleIcon />} iconPosition="start" />
                     <Tab label="Monitoring" icon={<AssessmentIcon />} iconPosition="start" />
                     <Tab label="Documents" icon={<DescriptionIcon />} iconPosition="start" />
+                    <Tab label="Map" icon={<LocationOnIcon />} iconPosition="start" />
                     <Tab label="Contractor" icon={<PeopleIcon />} iconPosition="start" />
                 </Tabs>
 
@@ -2766,6 +2768,16 @@ function ProjectDetailsPage() {
                 )}
 
                 {activeTab === 5 && (
+                    <Box>
+                        {/* Map Tab */}
+                        <ProjectMapEditor 
+                            projectId={projectId} 
+                            projectName={project?.projectName || ''}
+                        />
+                    </Box>
+                )}
+
+                {activeTab === 6 && (
                     <Box>
                         {/* Contractor Tab */}
                         <Typography variant="h6" sx={{ 

@@ -201,6 +201,14 @@ const projectService = {
         });
         return response.data;
       },
+      getProjectMap: async (projectId) => {
+        const response = await axiosInstance.get(`/projects/project_maps/project/${projectId}`);
+        return response.data;
+      },
+      updateProjectMap: async (projectId, mapData) => {
+        const response = await axiosInstance.put(`/projects/project_maps/project/${projectId}`, { map: mapData });
+        return response.data;
+      },
   },
   
   // --- NEW: Consolidated Documents API Calls ---
