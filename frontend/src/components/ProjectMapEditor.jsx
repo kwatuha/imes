@@ -6,7 +6,7 @@ import {
   Select, MenuItem, FormHelperText, Stack, Dialog, DialogTitle, DialogContent,
   DialogActions, IconButton, Snackbar
 } from '@mui/material';
-import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon, Close as CloseIcon, LocationOn as LocationOnIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon, Close as CloseIcon, LocationOn as LocationOnIcon, Map as MapIcon, Satellite as SatelliteIcon } from '@mui/icons-material';
 import GoogleMapComponent from './gis/GoogleMapComponent';
 import { MarkerF, PolylineF, PolygonF } from '@react-google-maps/api';
 import apiService from '../api';
@@ -58,6 +58,7 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
   const [mapCenter, setMapCenter] = useState({ lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] });
   const [mapZoom, setMapZoom] = useState(6);
   const [mapHeight, setMapHeight] = useState(600); // Default height in pixels
+  const [mapType, setMapType] = useState('roadmap'); // 'roadmap' or 'satellite'
 
   // Calculate map height based on viewport when modal opens
   useEffect(() => {
@@ -688,18 +689,41 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
 
           {/* Read-only map display */}
           <Paper elevation={2} sx={{ mt: 2, mb: 2, overflow: 'hidden' }}>
-            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Project Location Map
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {projectName || 'Project'} location displayed on map
-              </Typography>
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Project Location Map
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {projectName || 'Project'} location displayed on map
+                </Typography>
+              </Box>
+              <ToggleButtonGroup
+                value={mapType}
+                exclusive
+                onChange={(e, newType) => {
+                  if (newType !== null) {
+                    setMapType(newType);
+                  }
+                }}
+                size="small"
+                aria-label="map view type"
+              >
+                <ToggleButton value="roadmap" aria-label="roadmap view">
+                  <MapIcon sx={{ mr: 0.5 }} fontSize="small" />
+                  Map
+                </ToggleButton>
+                <ToggleButton value="satellite" aria-label="satellite view">
+                  <SatelliteIcon sx={{ mr: 0.5 }} fontSize="small" />
+                  Satellite
+                </ToggleButton>
+              </ToggleButtonGroup>
             </Box>
             <Box sx={{ height: '500px', width: '100%', position: 'relative' }}>
               <GoogleMapComponent
                 center={mapCenter}
                 zoom={mapZoom}
+                mapTypeId={mapType}
                 style={{ 
                   height: '500px', 
                   width: '100%'
@@ -856,6 +880,31 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 </ToggleButtonGroup>
               </Box>
 
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>Map View:</Typography>
+                <ToggleButtonGroup
+                  value={mapType}
+                  exclusive
+                  onChange={(e, newType) => {
+                    if (newType !== null) {
+                      setMapType(newType);
+                    }
+                  }}
+                  color="primary"
+                  fullWidth
+                  size="small"
+                >
+                  <ToggleButton value="roadmap">
+                    <MapIcon sx={{ mr: 0.5 }} fontSize="small" />
+                    Map
+                  </ToggleButton>
+                  <ToggleButton value="satellite">
+                    <SatelliteIcon sx={{ mr: 0.5 }} fontSize="small" />
+                    Satellite
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
               {geometryType === 'Point' ? (
                 <>
                   <TextField
@@ -945,9 +994,10 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 border: '2px solid #ff9800' // Orange border
               }}>
                 <GoogleMapComponent
-                key={`map-modal-${editing}-${mapCenter.lat}-${mapCenter.lng}`}
+                key={`map-modal-${editing}-${mapCenter.lat}-${mapCenter.lng}-${mapType}`}
                 center={mapCenter}
                 zoom={mapZoom}
+                mapTypeId={mapType}
                 style={{ 
                   height: `${mapHeight}px`, 
                   width: '100%'

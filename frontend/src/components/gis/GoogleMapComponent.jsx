@@ -5,7 +5,7 @@ import { CircularProgress, Alert, TextField, Box } from '@mui/material';
 // Define the Google Maps libraries you'll use
 const libraries = ['places'];
 
-function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearchPlaceChanged, onClick }) {
+function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearchPlaceChanged, onClick, mapTypeId = 'roadmap' }) {
   const mapRef = useRef(null);
   const searchBoxRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -31,6 +31,13 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
     mapRef.current = null;
     setMapLoaded(false);
   }, []);
+
+  // Update map type when prop changes
+  useEffect(() => {
+    if (mapRef.current && mapLoaded && window.google && window.google.maps) {
+      mapRef.current.setMapTypeId(mapTypeId);
+    }
+  }, [mapTypeId, mapLoaded]);
 
   const onPlacesChanged = useCallback(() => {
     if (searchBoxRef.current) {
@@ -133,6 +140,7 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
           mapTypeControl: false,
           streetViewControl: false,
           zoomControl: true,
+          mapTypeId: mapTypeId, // 'roadmap', 'satellite', 'hybrid', or 'terrain'
         }}
       >
         {children}
