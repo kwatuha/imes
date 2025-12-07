@@ -106,6 +106,16 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 longitude: '',
                 multiPointData: multiPointStr
               });
+              
+              // Calculate center and zoom for polygon
+              if (outerRing.length > 0) {
+                const lats = outerRing.map(c => c[1]);
+                const lngs = outerRing.map(c => c[0]);
+                const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+                const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+                setMapCenter({ lat: centerLat, lng: centerLng });
+                setMapZoom(13);
+              }
             } else {
               // For MultiPoint, LineString
               const multiPointStr = coords.map(coord => {
@@ -116,6 +126,22 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 longitude: '',
                 multiPointData: multiPointStr
               });
+              
+              // Calculate center and zoom for LineString/MultiPoint
+              if (coords.length > 0) {
+                const lats = coords.map(c => c[1]);
+                const lngs = coords.map(c => c[0]);
+                const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+                const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+                setMapCenter({ lat: centerLat, lng: centerLng });
+                // Use appropriate zoom based on spread of coordinates
+                const latRange = Math.max(...lats) - Math.min(...lats);
+                const lngRange = Math.max(...lngs) - Math.min(...lngs);
+                const maxRange = Math.max(latRange, lngRange);
+                // Adjust zoom based on coordinate spread (smaller spread = higher zoom)
+                const calculatedZoom = maxRange > 0.1 ? 11 : maxRange > 0.05 ? 13 : 15;
+                setMapZoom(calculatedZoom);
+              }
             }
           }
         }
@@ -640,19 +666,129 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
 
       {/* Display existing map data if available */}
       {mapData && (
-        <Paper elevation={2} sx={{ p: 3, mt: 2 }}>
-          <Typography variant="subtitle1" gutterBottom fontWeight="bold">
-            Current Coordinates
-          </Typography>
-          {geometryType === 'Point' && coordinates.latitude && coordinates.longitude && (
-            <Typography variant="body2" color="text.secondary">
-              Latitude: {coordinates.latitude}, Longitude: {coordinates.longitude}
+        <>
+          <Paper elevation={2} sx={{ p: 3, mt: 2, mb: 2 }}>
+            <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+              Current Coordinates
             </Typography>
-          )}
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            Last updated: {formatDateSafe(mapData.updatedAt || mapData.updated_at || mapData.createdAt || mapData.created_at)}
-          </Typography>
-        </Paper>
+            {geometryType === 'Point' && coordinates.latitude && coordinates.longitude && (
+              <Typography variant="body2" color="text.secondary">
+                Latitude: {coordinates.latitude}, Longitude: {coordinates.longitude}
+              </Typography>
+            )}
+            {(geometryType === 'LineString' || geometryType === 'MultiPoint' || geometryType === 'Polygon') && coordinates.multiPointData && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {geometryType === 'Polygon' ? 'Polygon' : geometryType === 'LineString' ? 'Line' : 'Multi-Point'} with {coordinates.multiPointData.split('\n').filter(l => l.trim()).length} point{coordinates.multiPointData.split('\n').filter(l => l.trim()).length !== 1 ? 's' : ''}
+              </Typography>
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Last updated: {formatDateSafe(mapData.updatedAt || mapData.updated_at || mapData.createdAt || mapData.created_at)}
+            </Typography>
+          </Paper>
+
+          {/* Read-only map display */}
+          <Paper elevation={2} sx={{ mt: 2, mb: 2, overflow: 'hidden' }}>
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Project Location Map
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {projectName || 'Project'} location displayed on map
+              </Typography>
+            </Box>
+            <Box sx={{ height: '500px', width: '100%', position: 'relative' }}>
+              <GoogleMapComponent
+                center={mapCenter}
+                zoom={mapZoom}
+                style={{ 
+                  height: '500px', 
+                  width: '100%'
+                }}
+                onCreated={map => {
+                  if (window.google && window.google.maps) {
+                    // For Point geometry, center and zoom
+                    if (geometryType === 'Point' && getPointCoordinates()) {
+                      map.setCenter(getPointCoordinates());
+                      map.setZoom(15);
+                    }
+                    // For LineString, MultiPoint, or Polygon, use fitBounds to show all coordinates
+                    else if ((geometryType === 'LineString' || geometryType === 'MultiPoint') && getMultiPointPath().length > 0) {
+                      const bounds = new window.google.maps.LatLngBounds();
+                      getMultiPointPath().forEach(point => {
+                        bounds.extend(point);
+                      });
+                      map.fitBounds(bounds);
+                      // Add padding around the bounds
+                      const boundsData = window.google.maps.event.addListener(map, 'bounds_changed', () => {
+                        window.google.maps.event.removeListener(boundsData);
+                        map.setZoom(Math.min(map.getZoom(), 16)); // Cap zoom at 16
+                      });
+                    }
+                    else if (geometryType === 'Polygon' && getPolygonPath().length > 0) {
+                      const bounds = new window.google.maps.LatLngBounds();
+                      getPolygonPath().forEach(point => {
+                        bounds.extend(point);
+                      });
+                      map.fitBounds(bounds);
+                      // Add padding around the bounds
+                      const boundsData = window.google.maps.event.addListener(map, 'bounds_changed', () => {
+                        window.google.maps.event.removeListener(boundsData);
+                        map.setZoom(Math.min(map.getZoom(), 16)); // Cap zoom at 16
+                      });
+                    }
+                    // Fallback to state values
+                    else {
+                      const centerToUse = (mapCenter.lat && mapCenter.lng) 
+                        ? mapCenter 
+                        : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] };
+                      const zoomToUse = mapZoom || 6;
+                      map.setCenter(centerToUse);
+                      map.setZoom(zoomToUse);
+                    }
+                  }
+                }}
+              >
+                {/* Render Point Marker */}
+                {geometryType === 'Point' && getPointCoordinates() && (
+                  <MarkerF
+                    position={getPointCoordinates()}
+                    icon={{
+                      url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                      scaledSize: new window.google.maps.Size(32, 32),
+                    }}
+                    title={projectName || 'Project Location'}
+                  />
+                )}
+
+                {/* Render LineString or MultiPoint as Polyline */}
+                {(geometryType === 'LineString' || geometryType === 'MultiPoint') && getMultiPointPath().length > 0 && (
+                  <PolylineF
+                    path={getMultiPointPath()}
+                    options={{
+                      strokeColor: "#FF0000",
+                      strokeWeight: 4,
+                      strokeOpacity: 0.8
+                    }}
+                  />
+                )}
+
+                {/* Render Polygon */}
+                {geometryType === 'Polygon' && getPolygonPath().length > 0 && (
+                  <PolygonF
+                    paths={getPolygonPath()}
+                    options={{
+                      fillColor: "#FF0000",
+                      fillOpacity: 0.35,
+                      strokeColor: "#FF0000",
+                      strokeWeight: 2,
+                      strokeOpacity: 0.8
+                    }}
+                  />
+                )}
+              </GoogleMapComponent>
+            </Box>
+          </Paper>
+        </>
       )}
 
       {/* Map Editor Modal */}
