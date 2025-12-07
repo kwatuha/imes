@@ -94,7 +94,7 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
       position: 'relative', 
       width: '100%', 
       height: boxHeight, 
-      overflow: 'hidden',
+      overflow: 'visible', // Changed to 'visible' to ensure zoom controls are not clipped
       display: 'block',
       backgroundColor: '#c8e6c9', // Light green background for debugging - should be covered by map
       border: '2px solid #4caf50', // Green border for visibility
@@ -136,11 +136,19 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
         onUnmount={onUnmount}
         onClick={onClick}
         options={{
-          fullscreenControl: false,
+          fullscreenControl: true,
+          fullscreenControlOptions: {
+            position: window.google?.maps?.ControlPosition?.RIGHT_TOP || 3
+          },
           mapTypeControl: false,
           streetViewControl: false,
           zoomControl: true,
+          zoomControlOptions: {
+            position: window.google?.maps?.ControlPosition?.RIGHT_CENTER || 9,
+            style: window.google?.maps?.ZoomControlStyle?.SMALL || 0
+          },
           mapTypeId: mapTypeId, // 'roadmap', 'satellite', 'hybrid', or 'terrain'
+          gestureHandling: 'greedy', // Allow zoom with mouse wheel and touch gestures
         }}
       >
         {children}

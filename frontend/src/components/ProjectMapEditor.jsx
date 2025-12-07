@@ -59,6 +59,8 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
   const [mapZoom, setMapZoom] = useState(6);
   const [mapHeight, setMapHeight] = useState(600); // Default height in pixels
   const [mapType, setMapType] = useState('roadmap'); // 'roadmap' or 'satellite'
+  const [selectedPointIndex, setSelectedPointIndex] = useState(null); // Index of selected point for editing
+  const [editingPoints, setEditingPoints] = useState(false); // Whether we're in point editing mode
 
   // Calculate map height based on viewport when modal opens
   useEffect(() => {
@@ -385,10 +387,11 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
   const handleMapClick = useCallback((e) => {
     if (!editing) return;
     
-    const clickedLat = e.latLng.lat();
-    const clickedLng = e.latLng.lng();
-
+    // Don't handle map clicks for LineString/MultiPoint/Polygon - they're handled by onClick on the shape itself
+    // Only handle clicks for Point geometry or empty areas
     if (geometryType === 'Point') {
+      const clickedLat = e.latLng.lat();
+      const clickedLng = e.latLng.lng();
       setCoordinates({
         latitude: clickedLat.toFixed(6),
         longitude: clickedLng.toFixed(6),
@@ -396,15 +399,20 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
       });
       setMapCenter({ lat: clickedLat, lng: clickedLng });
       setMapZoom(15);
-    } else {
+      setTempMarkerPosition([clickedLat, clickedLng]);
+    }
+    // For other geometries, clicking on empty space can still add points
+    else if (!getMultiPointPath().length || selectedPointIndex === null) {
+      const clickedLat = e.latLng.lat();
+      const clickedLng = e.latLng.lng();
       const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
       setCoordinates(prev => ({
         ...prev,
         multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
       }));
+      setTempMarkerPosition([clickedLat, clickedLng]);
     }
-    setTempMarkerPosition([clickedLat, clickedLng]);
-  }, [editing, geometryType]);
+  }, [editing, geometryType, selectedPointIndex]);
 
   const getGeoJsonFromCoordinates = () => {
     if (geometryType === 'Point') {
@@ -943,18 +951,113 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>
                   Instructions:
                 </Typography>
-                <Typography variant="caption" display="block">
-                  • Click on the map to {geometryType === 'Point' ? 'set the location' : 'add points'}
-                </Typography>
-                <Typography variant="caption" display="block">
-                  • Or enter coordinates manually in the fields above
-                </Typography>
-                {geometryType === 'Polygon' && (
-                  <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                    • Ensure the first and last coordinates match to close the polygon
+                {geometryType === 'Point' ? (
+                  <Typography variant="caption" display="block">
+                    • Click on the map to set the location
                   </Typography>
+                ) : (
+                  <>
+                    <Typography variant="caption" display="block">
+                      • Click on the map to add new points
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • Drag the blue vertex markers to adjust point positions
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • Click on the {geometryType === 'Polygon' ? 'polygon' : 'line'} to add points along the path
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • Click a blue marker to select and edit that point
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • Or enter coordinates manually in the fields above
+                    </Typography>
+                    {geometryType === 'Polygon' && (
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                        • The polygon will automatically close (first and last points connect)
+                      </Typography>
+                    )}
+                  </>
                 )}
               </Box>
+              
+              {/* Point editing controls for LineString/MultiPoint/Polygon */}
+              {(geometryType === 'LineString' || geometryType === 'MultiPoint' || geometryType === 'Polygon') && 
+               coordinates.multiPointData && 
+               getMultiPointPath().length > 0 && 
+               selectedPointIndex !== null && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
+                    Editing Point {selectedPointIndex + 1}
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
+                    <TextField
+                      size="small"
+                      label="Latitude"
+                      value={getMultiPointPath()[selectedPointIndex]?.lat.toFixed(6) || ''}
+                      onChange={(e) => {
+                        const newLat = parseFloat(e.target.value);
+                        if (!isNaN(newLat)) {
+                          const path = getMultiPointPath();
+                          path[selectedPointIndex] = { ...path[selectedPointIndex], lat: newLat };
+                          const newPath = path.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: newPath.join('\n')
+                          }));
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="Longitude"
+                      value={getMultiPointPath()[selectedPointIndex]?.lng.toFixed(6) || ''}
+                      onChange={(e) => {
+                        const newLng = parseFloat(e.target.value);
+                        if (!isNaN(newLng)) {
+                          const path = getMultiPointPath();
+                          path[selectedPointIndex] = { ...path[selectedPointIndex], lng: newLng };
+                          const newPath = path.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: newPath.join('\n')
+                          }));
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={() => {
+                        const path = getMultiPointPath();
+                        if (path.length > 2) { // Keep at least 2 points
+                          path.splice(selectedPointIndex, 1);
+                          const newPath = path.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: newPath.join('\n')
+                          }));
+                          setSelectedPointIndex(null);
+                        } else {
+                          setError('Cannot delete point. A ' + (geometryType === 'Polygon' ? 'polygon' : 'line') + ' needs at least 2 points.');
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setSelectedPointIndex(null)}
+                    >
+                      Done
+                    </Button>
+                  </Stack>
+                </Box>
+              )}
           </Box>
 
           {/* Right Column - Map */}
@@ -978,7 +1081,8 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 p: 1, 
                 borderRadius: 1,
                 zIndex: 1000,
-                boxShadow: 2
+                boxShadow: 2,
+                maxWidth: '300px'
               }}>
                 <Typography variant="caption" fontWeight="bold">
                   Click on the map to {geometryType === 'Point' ? 'set location' : 'add points'}
@@ -1046,28 +1150,151 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
 
                 {/* Render LineString or MultiPoint as Polyline */}
                 {(geometryType === 'LineString' || geometryType === 'MultiPoint') && getMultiPointPath().length > 0 && (
-                  <PolylineF
-                    path={getMultiPointPath()}
-                    options={{
-                      strokeColor: "#FF0000",
-                      strokeWeight: 4,
-                      strokeOpacity: 0.8
-                    }}
-                  />
+                  <>
+                    <PolylineF
+                      path={getMultiPointPath()}
+                      editable={editing}
+                      draggable={false}
+                      onEdit={(e) => {
+                        if (editing && e.getPath) {
+                          const path = e.getPath();
+                          const newPath = [];
+                          path.forEach((latLng) => {
+                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                          });
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: newPath.join('\n')
+                          }));
+                        }
+                      }}
+                      onClick={(e) => {
+                        if (editing && e.latLng) {
+                          // Add a new point at the clicked location
+                          const clickedLat = e.latLng.lat();
+                          const clickedLng = e.latLng.lng();
+                          const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
+                          }));
+                        }
+                      }}
+                      options={{
+                        strokeColor: "#FF0000",
+                        strokeWeight: 4,
+                        strokeOpacity: 0.8
+                      }}
+                    />
+                    {/* Render vertex markers when editing */}
+                    {editing && getMultiPointPath().map((point, index) => (
+                      <MarkerF
+                        key={`vertex-${index}`}
+                        position={point}
+                        icon={{
+                          url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                          scaledSize: new window.google.maps.Size(20, 20),
+                        }}
+                        draggable={true}
+                        onDragEnd={(e) => {
+                          if (e.latLng) {
+                            const newLat = e.latLng.lat();
+                            const newLng = e.latLng.lng();
+                            const path = getMultiPointPath();
+                            path[index] = { lat: newLat, lng: newLng };
+                            const newPath = path.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                            setCoordinates(prev => ({
+                              ...prev,
+                              multiPointData: newPath.join('\n')
+                            }));
+                          }
+                        }}
+                        onClick={() => {
+                          setSelectedPointIndex(index);
+                        }}
+                        title={`Point ${index + 1} - Click to select, drag to move`}
+                        zIndex={1000}
+                      />
+                    ))}
+                  </>
                 )}
 
                 {/* Render Polygon */}
                 {geometryType === 'Polygon' && getPolygonPath().length > 0 && (
-                  <PolygonF
-                    paths={getPolygonPath()}
-                    options={{
-                      fillColor: "#FF0000",
-                      fillOpacity: 0.35,
-                      strokeColor: "#FF0000",
-                      strokeWeight: 2,
-                      strokeOpacity: 0.8
-                    }}
-                  />
+                  <>
+                    <PolygonF
+                      paths={getPolygonPath()}
+                      editable={editing}
+                      draggable={false}
+                      onEdit={(e) => {
+                        if (editing && e.getPath) {
+                          const path = e.getPath();
+                          const newPath = [];
+                          path.forEach((latLng) => {
+                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                          });
+                          // Remove duplicate last point (polygon closing point)
+                          if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
+                            newPath.pop();
+                          }
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: newPath.join('\n')
+                          }));
+                        }
+                      }}
+                      onClick={(e) => {
+                        if (editing && e.latLng) {
+                          // Add a new point at the clicked location
+                          const clickedLat = e.latLng.lat();
+                          const clickedLng = e.latLng.lng();
+                          const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
+                          setCoordinates(prev => ({
+                            ...prev,
+                            multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
+                          }));
+                        }
+                      }}
+                      options={{
+                        fillColor: "#FF0000",
+                        fillOpacity: 0.35,
+                        strokeColor: "#FF0000",
+                        strokeWeight: 2,
+                        strokeOpacity: 0.8
+                      }}
+                    />
+                    {/* Render vertex markers when editing (excluding duplicate closing point) */}
+                    {editing && getMultiPointPath().map((point, index) => (
+                      <MarkerF
+                        key={`vertex-${index}`}
+                        position={point}
+                        icon={{
+                          url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                          scaledSize: new window.google.maps.Size(20, 20),
+                        }}
+                        draggable={true}
+                        onDragEnd={(e) => {
+                          if (e.latLng) {
+                            const newLat = e.latLng.lat();
+                            const newLng = e.latLng.lng();
+                            const path = getMultiPointPath();
+                            const realPath = path.slice(0, -1); // Remove closing point for editing
+                            realPath[index] = { lat: newLat, lng: newLng };
+                            const newPath = realPath.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                            setCoordinates(prev => ({
+                              ...prev,
+                              multiPointData: newPath.join('\n')
+                            }));
+                          }
+                        }}
+                        onClick={() => {
+                          setSelectedPointIndex(index);
+                        }}
+                        title={`Vertex ${index + 1} - Click to select, drag to move`}
+                        zIndex={1000}
+                      />
+                    ))}
+                  </>
                 )}
               </GoogleMapComponent>
               </Box>
