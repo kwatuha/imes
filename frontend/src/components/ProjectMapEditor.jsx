@@ -521,24 +521,72 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
     setError('');
     setSuccess('');
     
-    // Use the latest edited path from ref if available (captured during editing)
-    // This ensures we save the most recent edited coordinates, not stale state
+    // For LineString/MultiPoint/Polygon, we need to get the latest coordinates from the actual map components
+    // since dragging might not have updated state yet
     let coordinatesToUse = coordinates;
-    if (latestEditedPathRef.current && (geometryType === 'LineString' || geometryType === 'MultiPoint' || geometryType === 'Polygon')) {
-      console.log('[ProjectMapEditor] handleSave - Using latest edited path from ref:', latestEditedPathRef.current);
-      coordinatesToUse = {
-        ...coordinates,
-        multiPointData: latestEditedPathRef.current
-      };
+    
+    if (geometryType === 'LineString' || geometryType === 'MultiPoint' || geometryType === 'Polygon') {
+      // Try to get coordinates directly from the polyline/polygon refs if they exist
+      let pathFromMap = null;
+      
+      if (geometryType === 'LineString' || geometryType === 'MultiPoint') {
+        if (polylineRef.current && polylineRef.current.getPath) {
+          try {
+            const path = polylineRef.current.getPath();
+            const newPath = [];
+            path.forEach((latLng) => {
+              newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+            });
+            pathFromMap = newPath.join('\n');
+            console.log('[ProjectMapEditor] handleSave - Got path from polyline ref:', pathFromMap);
+          } catch (err) {
+            console.warn('[ProjectMapEditor] handleSave - Could not get path from polyline ref:', err);
+          }
+        }
+      } else if (geometryType === 'Polygon') {
+        if (polygonRef.current && polygonRef.current.getPath) {
+          try {
+            const path = polygonRef.current.getPath();
+            const newPath = [];
+            path.forEach((latLng) => {
+              newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+            });
+            // Remove duplicate closing point if present
+            if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
+              newPath.pop();
+            }
+            pathFromMap = newPath.join('\n');
+            console.log('[ProjectMapEditor] handleSave - Got path from polygon ref:', pathFromMap);
+          } catch (err) {
+            console.warn('[ProjectMapEditor] handleSave - Could not get path from polygon ref:', err);
+          }
+        }
+      }
+      
+      // Use path from map if available, otherwise use ref, otherwise use state
+      if (pathFromMap) {
+        coordinatesToUse = {
+          ...coordinates,
+          multiPointData: pathFromMap
+        };
+        console.log('[ProjectMapEditor] handleSave - Using coordinates from map component');
+      } else if (latestEditedPathRef.current) {
+        coordinatesToUse = {
+          ...coordinates,
+          multiPointData: latestEditedPathRef.current
+        };
+        console.log('[ProjectMapEditor] handleSave - Using latest edited path from ref:', latestEditedPathRef.current);
+      } else {
+        console.log('[ProjectMapEditor] handleSave - Using coordinates from state');
+      }
+      
       // Update state for consistency
       setCoordinates(coordinatesToUse);
       // Wait a moment for state to update
       await new Promise(resolve => setTimeout(resolve, 100));
     } else {
-      // Even if ref is null, ensure we're using the latest state
-      // Wait a brief moment to ensure state has propagated
+      // For Point, just use state
       await new Promise(resolve => setTimeout(resolve, 50));
-      // Re-read coordinates from state to ensure we have the latest
       coordinatesToUse = coordinates;
     }
     
@@ -1253,43 +1301,53 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                       editable={editing}
                       draggable={false}
                       onEdit={(e) => {
-                        if (editing && e.getPath) {
-                          const path = e.getPath();
-                          const newPath = [];
-                          path.forEach((latLng) => {
-                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
-                          });
-                          const updatedMultiPointData = newPath.join('\n');
-                          console.log('[ProjectMapEditor] Polyline edited, new path:', updatedMultiPointData);
-                          console.log('[ProjectMapEditor] Number of points:', newPath.length);
-                          // Store in ref for immediate access
-                          latestEditedPathRef.current = updatedMultiPointData;
-                          setCoordinates(prev => {
-                            const updated = {
-                              ...prev,
-                              multiPointData: updatedMultiPointData
-                            };
-                            console.log('[ProjectMapEditor] Updated coordinates state:', updated);
-                            return updated;
-                          });
+                        if (editing && e && e.getPath) {
+                          try {
+                            const path = e.getPath();
+                            const newPath = [];
+                            path.forEach((latLng) => {
+                              newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                            });
+                            const updatedMultiPointData = newPath.join('\n');
+                            console.log('[ProjectMapEditor] Polyline edited, new path:', updatedMultiPointData);
+                            console.log('[ProjectMapEditor] Number of points:', newPath.length);
+                            // Store in ref for immediate access (critical for save)
+                            latestEditedPathRef.current = updatedMultiPointData;
+                            // Also update state
+                            setCoordinates(prev => {
+                              const updated = {
+                                ...prev,
+                                multiPointData: updatedMultiPointData
+                              };
+                              console.log('[ProjectMapEditor] Updated coordinates state:', updated);
+                              return updated;
+                            });
+                          } catch (err) {
+                            console.error('[ProjectMapEditor] Error in onEdit handler:', err);
+                          }
                         }
                       }}
                       onEditEnd={(e) => {
                         // Capture final edited state when user finishes editing
                         if (editing && e && e.getPath) {
-                          const path = e.getPath();
-                          const newPath = [];
-                          path.forEach((latLng) => {
-                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
-                          });
-                          const updatedMultiPointData = newPath.join('\n');
-                          console.log('[ProjectMapEditor] Polyline edit ended, final path:', updatedMultiPointData);
-                          // Store in ref for immediate access
-                          latestEditedPathRef.current = updatedMultiPointData;
-                          setCoordinates(prev => ({
-                            ...prev,
-                            multiPointData: updatedMultiPointData
-                          }));
+                          try {
+                            const path = e.getPath();
+                            const newPath = [];
+                            path.forEach((latLng) => {
+                              newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                            });
+                            const updatedMultiPointData = newPath.join('\n');
+                            console.log('[ProjectMapEditor] Polyline edit ended, final path:', updatedMultiPointData);
+                            // Store in ref for immediate access (critical for save)
+                            latestEditedPathRef.current = updatedMultiPointData;
+                            // Also update state
+                            setCoordinates(prev => ({
+                              ...prev,
+                              multiPointData: updatedMultiPointData
+                            }));
+                          } catch (err) {
+                            console.error('[ProjectMapEditor] Error in onEditEnd handler:', err);
+                          }
                         }
                       }}
                       onClick={(e) => {
@@ -1362,51 +1420,61 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                       editable={editing}
                       draggable={false}
                       onEdit={(e) => {
-                        if (editing && e.getPath) {
-                          const path = e.getPath();
-                          const newPath = [];
-                          path.forEach((latLng) => {
-                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
-                          });
-                          // Remove duplicate last point (polygon closing point)
-                          if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
-                            newPath.pop();
+                        if (editing && e && e.getPath) {
+                          try {
+                            const path = e.getPath();
+                            const newPath = [];
+                            path.forEach((latLng) => {
+                              newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                            });
+                            // Remove duplicate last point (polygon closing point)
+                            if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
+                              newPath.pop();
+                            }
+                            const updatedMultiPointData = newPath.join('\n');
+                            console.log('[ProjectMapEditor] Polygon edited, new path:', updatedMultiPointData);
+                            console.log('[ProjectMapEditor] Number of vertices:', newPath.length);
+                            // Store in ref for immediate access (critical for save)
+                            latestEditedPathRef.current = updatedMultiPointData;
+                            // Also update state
+                            setCoordinates(prev => {
+                              const updated = {
+                                ...prev,
+                                multiPointData: updatedMultiPointData
+                              };
+                              console.log('[ProjectMapEditor] Updated coordinates state:', updated);
+                              return updated;
+                            });
+                          } catch (err) {
+                            console.error('[ProjectMapEditor] Error in polygon onEdit handler:', err);
                           }
-                          const updatedMultiPointData = newPath.join('\n');
-                          console.log('[ProjectMapEditor] Polygon edited, new path:', updatedMultiPointData);
-                          console.log('[ProjectMapEditor] Number of vertices:', newPath.length);
-                          // Store in ref for immediate access
-                          latestEditedPathRef.current = updatedMultiPointData;
-                          setCoordinates(prev => {
-                            const updated = {
-                              ...prev,
-                              multiPointData: updatedMultiPointData
-                            };
-                            console.log('[ProjectMapEditor] Updated coordinates state:', updated);
-                            return updated;
-                          });
                         }
                       }}
                       onEditEnd={(e) => {
                         // Capture final edited state when user finishes editing
                         if (editing && e && e.getPath) {
-                          const path = e.getPath();
-                          const newPath = [];
-                          path.forEach((latLng) => {
-                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
-                          });
-                          // Remove duplicate last point (polygon closing point)
-                          if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
-                            newPath.pop();
+                          try {
+                            const path = e.getPath();
+                            const newPath = [];
+                            path.forEach((latLng) => {
+                              newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                            });
+                            // Remove duplicate last point (polygon closing point)
+                            if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
+                              newPath.pop();
+                            }
+                            const updatedMultiPointData = newPath.join('\n');
+                            console.log('[ProjectMapEditor] Polygon edit ended, final path:', updatedMultiPointData);
+                            // Store in ref for immediate access (critical for save)
+                            latestEditedPathRef.current = updatedMultiPointData;
+                            // Also update state
+                            setCoordinates(prev => ({
+                              ...prev,
+                              multiPointData: updatedMultiPointData
+                            }));
+                          } catch (err) {
+                            console.error('[ProjectMapEditor] Error in polygon onEditEnd handler:', err);
                           }
-                          const updatedMultiPointData = newPath.join('\n');
-                          console.log('[ProjectMapEditor] Polygon edit ended, final path:', updatedMultiPointData);
-                          // Store in ref for immediate access
-                          latestEditedPathRef.current = updatedMultiPointData;
-                          setCoordinates(prev => ({
-                            ...prev,
-                            multiPointData: updatedMultiPointData
-                          }));
                         }
                       }}
                       onClick={(e) => {

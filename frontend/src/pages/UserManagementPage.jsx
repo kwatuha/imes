@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Paper, CircularProgress, IconButton,
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, Stack, useTheme,
   OutlinedInput, Chip, ListSubheader, Checkbox, ListItemText, Avatar,
-  DialogContentText,
+  DialogContentText, InputAdornment, Grid,
 } from '@mui/material';
 import { DataGrid } from "@mui/x-data-grid";
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon, Dashboard as DashboardIcon, LockReset as LockResetIcon, Block as BlockIcon, CheckCircle as CheckCircleIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon, Settings as SettingsIcon, Lock as LockIcon, Dashboard as DashboardIcon, LockReset as LockResetIcon, Block as BlockIcon, CheckCircle as CheckCircleIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
 import apiService from '../api/userService';
 import { useAuth } from '../context/AuthContext.jsx';
 import { tokens } from "./dashboard/theme";
@@ -41,6 +41,9 @@ function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Global search state
+  const [globalSearch, setGlobalSearch] = useState('');
 
   // User Management States
   const [openUserDialog, setOpenUserDialog] = useState(false);
@@ -733,6 +736,32 @@ function UserManagementPage() {
     }
   };
 
+  // Filter users based on global search
+  const filteredUsers = useMemo(() => {
+    if (!globalSearch.trim()) {
+      return users;
+    }
+
+    const query = globalSearch.toLowerCase().trim();
+    return users.filter(user => {
+      const searchableFields = [
+        user.userId?.toString() || '',
+        user.username || '',
+        user.email || '',
+        user.firstName || '',
+        user.lastName || '',
+        user.role || '',
+        `${user.firstName || ''} ${user.lastName || ''}`.trim(), // Full name
+        user.isActive ? 'active' : 'disabled',
+        user.isActive ? 'enabled' : 'disabled',
+      ];
+
+      return searchableFields.some(field => 
+        field.toLowerCase().includes(query)
+      );
+    });
+  }, [users, globalSearch]);
+
   const userColumns = [
     { field: "userId", headerName: "ID" },
     {
@@ -997,8 +1026,78 @@ function UserManagementPage() {
         </Stack>
       </Box>
 
+      {/* Global Search Bar */}
+      <Paper 
+        elevation={2} 
+        sx={{ 
+          p: 2, 
+          mb: 3, 
+          backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+          borderRadius: 2
+        }}
+      >
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search users by username, email, name, role, or status..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: globalSearch && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setGlobalSearch('')}
+                      edge="end"
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[500] : 'white',
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: colors.blueAccent[500],
+                  },
+                },
+              }}
+            />
+          </Grid>
+          {globalSearch && (
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  label={`${filteredUsers.length} result${filteredUsers.length !== 1 ? 's' : ''} found`}
+                  color="primary"
+                  size="small"
+                  icon={<SearchIcon />}
+                />
+                {filteredUsers.length < users.length && (
+                  <Typography variant="caption" color="text.secondary">
+                    (filtered from {users.length} total)
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+          )}
+        </Grid>
+      </Paper>
+
       {users.length === 0 && hasPrivilege('user.read_all') ? (
         <Alert severity="info">No users found. Add a new user to get started.</Alert>
+      ) : filteredUsers.length === 0 && globalSearch ? (
+        <Alert severity="info">
+          No users found matching "{globalSearch}". Try a different search term.
+        </Alert>
       ) : (
         <Box
           m="40px 0 0 0"
@@ -1030,7 +1129,7 @@ function UserManagementPage() {
           }}
         >
           <DataGrid
-            rows={users}
+            rows={filteredUsers}
             columns={userColumns}
             getRowId={(row) => row.userId}
           />
