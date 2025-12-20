@@ -1,12 +1,13 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, CircularProgress, IconButton,
   Alert, Snackbar, Stack, Collapse, Accordion, AccordionSummary, AccordionDetails,
-  Grid, useTheme, Tabs, Tab, FormControl, InputLabel, Select, MenuItem
+  Grid, useTheme, Tabs, Tab, FormControl, InputLabel, Select, MenuItem,
+  InputAdornment, Chip
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon, LocationCity as LocationCityIcon, Map as MapIcon, CalendarToday as CalendarTodayIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon, LocationCity as LocationCityIcon, Map as MapIcon, CalendarToday as CalendarTodayIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext.jsx';
 import apiService from '../api';
 import metaDataService from '../api/metaDataService';
@@ -38,6 +39,9 @@ const DepartmentAndSectionManagement = () => {
     departments, loading, setLoading, snackbar, setSnackbar,
     fetchDepartmentsAndSections,
   } = useDepartmentData();
+
+  // Global search state
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const [dialogState, setDialogState] = useState({
     openDeptDialog: false,
@@ -331,6 +335,59 @@ const DepartmentAndSectionManagement = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Filter departments and sections based on global search
+  const filteredDepartments = useMemo(() => {
+    if (!globalSearch.trim()) {
+      return departments;
+    }
+
+    const query = globalSearch.toLowerCase().trim();
+    return departments
+      .map(department => {
+        // Check if department matches search
+        const deptMatches = [
+          department.departmentId?.toString() || '',
+          department.name || '',
+          department.alias || '',
+          department.location || '',
+          department.address || '',
+          department.contactPerson || '',
+          department.phoneNumber || '',
+          department.email || '',
+          department.remarks || '',
+        ].some(field => field.toLowerCase().includes(query));
+
+        // Filter sections that match search
+        const filteredSections = department.sections?.filter(section => {
+          const sectionMatches = [
+            section.sectionId?.toString() || '',
+            section.name || '',
+            section.alias || '',
+          ].some(field => field.toLowerCase().includes(query));
+          return sectionMatches;
+        }) || [];
+
+        // Include department if it matches OR if any of its sections match
+        if (deptMatches || filteredSections.length > 0) {
+          return {
+            ...department,
+            sections: deptMatches ? department.sections : filteredSections, // Show all sections if dept matches, otherwise only matching sections
+          };
+        }
+        return null;
+      })
+      .filter(dept => dept !== null);
+  }, [departments, globalSearch]);
+
+  // Calculate total count of matching items
+  const totalMatches = useMemo(() => {
+    if (!globalSearch.trim()) return { departments: departments.length, sections: departments.reduce((sum, dept) => sum + (dept.sections?.length || 0), 0) };
+    
+    let deptCount = filteredDepartments.length;
+    let sectionCount = filteredDepartments.reduce((sum, dept) => sum + (dept.sections?.length || 0), 0);
+    return { departments: deptCount, sections: sectionCount };
+  }, [filteredDepartments, globalSearch, departments]);
+
   if (loading && departments.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -357,8 +414,83 @@ const DepartmentAndSectionManagement = () => {
         )}
       </Box>
 
+      {/* Global Search Bar */}
+      <Paper 
+        elevation={2} 
+        sx={{ 
+          p: 2, 
+          mb: 3, 
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+          borderRadius: 2
+        }}
+      >
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search departments and sections by name, alias, location, contact, email..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: globalSearch && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setGlobalSearch('')}
+                      edge="end"
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'white',
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.main,
+                  },
+                },
+              }}
+            />
+          </Grid>
+          {globalSearch && (
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Chip
+                  label={`${totalMatches.departments} department${totalMatches.departments !== 1 ? 's' : ''}`}
+                  color="primary"
+                  size="small"
+                  icon={<SearchIcon />}
+                />
+                <Chip
+                  label={`${totalMatches.sections} section${totalMatches.sections !== 1 ? 's' : ''}`}
+                  color="secondary"
+                  size="small"
+                />
+                {totalMatches.departments < departments.length && (
+                  <Typography variant="caption" color="text.secondary">
+                    (filtered from {departments.length} total)
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+          )}
+        </Grid>
+      </Paper>
+
       {departments.length === 0 ? (
         <Alert severity="info">No departments found. Add a new department to get started.</Alert>
+      ) : filteredDepartments.length === 0 && globalSearch ? (
+        <Alert severity="info">
+          No departments or sections found matching "{globalSearch}". Try a different search term.
+        </Alert>
       ) : (
         <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
           <Table>
@@ -369,7 +501,7 @@ const DepartmentAndSectionManagement = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {departments.map((department) => (
+              {filteredDepartments.map((department) => (
                 <TableRow key={department.departmentId}>
                   <TableCell colSpan={2} sx={{ p: 0, borderBottom: 'none' }}>
                     <Accordion sx={{ boxShadow: 'none', '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover } }}>
