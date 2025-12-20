@@ -62,8 +62,6 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
     const [approvalDocument, setApprovalDocument] = useState(null);
     const [approvalNotes, setApprovalNotes] = useState('');
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [documentToDelete, setDocumentToDelete] = useState(null);
 
     const fetchDocuments = useCallback(async () => {
         if (!projectId) return;
@@ -123,7 +121,7 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
     }, [fetchDocuments]);
 
 
-    const handleDeleteClick = (document) => {
+    const handleDelete = async (documentId, isPhoto = false) => {
         if (!hasPrivilege('document.delete')) {
             setSnackbar({ 
                 open: true, 
@@ -132,15 +130,7 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
             });
             return;
         }
-        setDocumentToDelete(document);
-        setDeleteConfirmOpen(true);
-    };
-
-    const handleDeleteConfirm = async () => {
-        if (!documentToDelete) return;
-        
-        const documentId = documentToDelete.id;
-        const isPhoto = documentToDelete.isPhoto || false;
+        if (!window.confirm(`Are you sure you want to delete this ${isPhoto ? 'photo' : 'document'}?`)) return;
 
         try {
             if (isPhoto) {
@@ -155,8 +145,6 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                 message: `${isPhoto ? 'Photo' : 'Document'} deleted successfully`, 
                 severity: 'success' 
             });
-            setDeleteConfirmOpen(false);
-            setDocumentToDelete(null);
             fetchDocuments();
         } catch (error) {
             setSnackbar({ 
@@ -164,8 +152,6 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                 message: error.response?.data?.message || `Failed to delete ${isPhoto ? 'photo' : 'document'}`, 
                 severity: 'error' 
             });
-            setDeleteConfirmOpen(false);
-            setDocumentToDelete(null);
         }
     };
 
@@ -352,34 +338,29 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
         const apiBaseUrl = getApiBaseUrl();
         let fileUrl = filePath;
         
-        // Documents can be stored with different path formats:
-        // - Old format: "uploads/projects/123/general/file.pdf" (includes uploads prefix)
-        // - New format: "projects/123/general/file.pdf" (relative to uploads directory)
+        // Documents are stored with path like "uploads/projects/123/general/file.pdf" (relative from project root)
+        // OR might be "api/uploads/projects/123/general/file.pdf" if project root is parent of api
         // Photos are stored with path like "project-photos/file.jpg" (relative from uploads directory)
-        // API serves static files at /uploads, so all paths need to resolve to /uploads/...
+        // API serves static files at /uploads, so paths need to start with /uploads/
         
         // Remove "api/" prefix if present (some paths might include it)
         if (fileUrl.startsWith('api/')) {
             fileUrl = fileUrl.substring(4); // Remove "api/" prefix
         }
         
-        // Normalize path: remove any existing "uploads/" prefix to avoid double prefix
-        // Handle both old format (uploads/projects/...) and new format (projects/...)
         if (fileUrl.startsWith('/uploads/')) {
-            // Remove leading slash and uploads prefix, will add it back
-            fileUrl = fileUrl.substring('/uploads/'.length);
+            // Already has /uploads/ prefix with leading slash
+            fileUrl = `${apiBaseUrl}${fileUrl}`;
         } else if (fileUrl.startsWith('uploads/')) {
-            // Remove uploads prefix
-            fileUrl = fileUrl.substring('uploads/'.length);
-        }
-        
-        // Now construct the final URL with /uploads/ prefix
-        if (fileUrl.startsWith('/')) {
-            // Absolute path (shouldn't happen after normalization, but handle it)
-            fileUrl = `${apiBaseUrl}/uploads${fileUrl}`;
+            // Has uploads/ prefix but missing leading slash (documents from project details)
+            // Convert: uploads/projects/123/general/file.pdf -> /uploads/projects/123/general/file.pdf
+            fileUrl = `${apiBaseUrl}/${fileUrl}`;
+        } else if (fileUrl.startsWith('/')) {
+            // Absolute path from root (shouldn't happen, but handle it)
+            fileUrl = `${apiBaseUrl}${fileUrl}`;
         } else {
-            // Relative path (projects/... or project-photos/...)
-            // Add /uploads/ prefix: projects/123/general/file.pdf -> /uploads/projects/123/general/file.pdf
+            // Relative path (photos from public approval like "project-photos/file.jpg")
+            // Add /uploads/ prefix: project-photos/file.jpg -> /uploads/project-photos/file.jpg
             fileUrl = `${apiBaseUrl}/uploads/${fileUrl}`;
         }
         
@@ -598,7 +579,7 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                                                         <IconButton 
                                                             size="small" 
                                                             color="error" 
-                                                            onClick={() => handleDeleteClick(doc)}
+                                                            onClick={() => handleDelete(doc.isPhoto ? doc.photoId : doc.id, doc.isPhoto)}
                                                         >
                                                             <DeleteIcon />
                                                         </IconButton>
@@ -742,26 +723,6 @@ const ProjectDocumentsAttachments = ({ projectId }) => {
                         color={approvalDocument?.approved_for_public ? "warning" : "success"}
                     >
                         {approvalDocument?.approved_for_public ? 'Revoke' : 'Approve'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-                <DialogTitle sx={{ backgroundColor: 'error.main', color: 'white' }}>
-                    Confirm Deletion
-                </DialogTitle>
-                <DialogContent dividers sx={{ pt: 2 }}>
-                    <Typography>
-                        Are you sure you want to delete "{documentToDelete?.originalFileName || documentToDelete?.fileName || documentToDelete?.description || (documentToDelete?.isPhoto ? 'this photo' : 'this document')}"? This action cannot be undone.
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteConfirmOpen(false)} color="primary" variant="outlined">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-                        Delete
                     </Button>
                 </DialogActions>
             </Dialog>

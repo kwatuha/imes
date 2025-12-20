@@ -28,11 +28,13 @@ import {
   Comment,
   PhotoLibrary,
   NavigateBefore,
-  NavigateNext
+  NavigateNext,
+  Map as MapIcon
 } from '@mui/icons-material';
-import { getProjectDetails } from '../services/publicApi';
+import { getProjectDetails, getProjectMap } from '../services/publicApi';
 import { formatCurrency, formatDate, getStatusColor, formatStatus } from '../utils/formatters';
 import ProjectFeedbackModal from './ProjectFeedbackModal';
+import ReadOnlyMapComponent from './ReadOnlyMapComponent';
 
 // Get API base URL for image serving
 // In production, API is on port 3000, frontend can be on port 8080 (nginx) or 5174 (public dashboard)
@@ -102,6 +104,20 @@ const ProjectDetailsModal = ({ open, onClose, projectId, project }) => {
     try {
       const data = await getProjectDetails(projectId);
       // API returns project data directly, not wrapped in { project: ... }
+      
+      // If map data is not included in project details, fetch it separately
+      if (!data.map && projectId) {
+        try {
+          const mapData = await getProjectMap(projectId);
+          if (mapData) {
+            data.map = mapData;
+          }
+        } catch (mapError) {
+          // Map data is optional, so don't fail the whole request if map fetch fails
+          console.warn('Could not fetch map data:', mapError);
+        }
+      }
+      
       setProjectDetails(data);
     } catch (err) {
       console.error('Error fetching project details:', err);
@@ -371,6 +387,82 @@ const ProjectDetailsModal = ({ open, onClose, projectId, project }) => {
                     </Box>
                   </Grid>
                 </Grid>
+
+                {/* Project Map */}
+                {projectData.map && (() => {
+                  // Extract the actual GeoJSON - handle both nested and direct structures
+                  const mapGeoJson = projectData.map?.geoJson || projectData.map;
+                  
+                  // Debug logging
+                  console.log('[ProjectDetailsModal] Map data:', projectData.map);
+                  console.log('[ProjectDetailsModal] Extracted geoJson:', mapGeoJson);
+                  console.log('[ProjectDetailsModal] Has features?', mapGeoJson?.features);
+                  
+                  // Only show map section if we have valid GeoJSON with features
+                  if (!mapGeoJson || !mapGeoJson.features || mapGeoJson.features.length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <>
+                      <Divider sx={{ my: 3 }} />
+                      <Box sx={{ mt: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                          <MapIcon sx={{ fontSize: 24, color: 'primary.main' }} />
+                          <Typography variant="h6" fontWeight="bold">
+                            Project Location
+                          </Typography>
+                        </Box>
+                        <Paper 
+                          elevation={2}
+                          sx={{ 
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: '1px solid #e0e0e0'
+                          }}
+                        >
+                          <ReadOnlyMapComponent
+                            geoJson={mapGeoJson}
+                            projectName={projectData.project_name || projectData.projectName}
+                            style={{ height: '400px', width: '100%' }}
+                          />
+                        </Paper>
+                      {/* Coordinates Display */}
+                      {(() => {
+                        const geoJsonData = projectData.map?.geoJson || projectData.map;
+                        if (!geoJsonData || !geoJsonData.features || !geoJsonData.features[0]?.geometry) return null;
+                        
+                        const geometry = geoJsonData.features[0].geometry;
+                        let coordsText = '';
+                        try {
+                          if (geometry.type === 'Point') {
+                            const [lng, lat] = geometry.coordinates;
+                            coordsText = `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                          } else if (geometry.type === 'LineString' || geometry.type === 'MultiPoint') {
+                            const firstCoord = geometry.coordinates[0];
+                            const [lng, lat] = firstCoord;
+                            coordsText = `Starting Point: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                          } else if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
+                            const firstCoord = geometry.type === 'Polygon' 
+                              ? geometry.coordinates[0][0]
+                              : geometry.coordinates[0][0][0];
+                            const [lng, lat] = firstCoord;
+                            coordsText = `Area Center: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                          }
+                        } catch (e) {
+                          console.error('Error extracting coordinates:', e);
+                          return null;
+                        }
+                        return coordsText ? (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            {coordsText}
+                          </Typography>
+                        ) : null;
+                      })()}
+                      </Box>
+                    </>
+                  );
+                })()}
 
                 {/* Project Photos Gallery */}
                 {projectData.photos && projectData.photos.length > 0 && (

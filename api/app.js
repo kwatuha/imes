@@ -44,22 +44,7 @@ const app = express();
 const server = http.createServer(app);
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or same-origin requests)
-    if (!origin) {
-      return callback(null, true);
-    }
-    // Return the origin to allow it (instead of '*')
-    // This allows credentials to work properly
-    // In production, you may want to restrict this to specific origins:
-    // const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'https://yourdomain.com'];
-    // if (allowedOrigins.includes(origin)) {
-    //   callback(null, true);
-    // } else {
-    //   callback(new Error('Not allowed by CORS'));
-    // }
-    callback(null, true);
-  },
+  origin: '*',
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
@@ -77,27 +62,7 @@ app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
-// Serve uploads with proper CORS headers for file access
-app.use('/uploads', (req, res, next) => {
-  // Handle preflight OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    }
-    return res.status(204).send();
-  }
-  // Set CORS headers for actual file requests
-  const origin = req.headers.origin;
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-  next();
-}, express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
     res.send('Welcome to the KEMRI CRUD API!');

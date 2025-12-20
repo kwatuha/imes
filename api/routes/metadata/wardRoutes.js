@@ -49,7 +49,7 @@ router.get('/:wardId', async (req, res) => {
 router.post('/', async (req, res) => {
     // TODO: Get userId from authenticated user (e.g., req.user.userId)
     const userId = 1; // Placeholder for now
-    const { name, subcountyId, geoLat, geoLon } = req.body;
+    const { name, subcountyId, geoLat, geoLon, remarks } = req.body;
 
     if (!name || !subcountyId) {
         return res.status(400).json({ message: 'Missing required fields: name, subcountyId' });
@@ -57,8 +57,8 @@ router.post('/', async (req, res) => {
 
     try {
         const [result] = await pool.query(
-            'INSERT INTO kemri_wards (name, subcountyId, geoLat, geoLon, userId, voided) VALUES (?, ?, ?, ?, ?, 0)',
-            [name, subcountyId, geoLat, geoLon, userId]
+            'INSERT INTO kemri_wards (name, subcountyId, geoLat, geoLon, remarks, userId) VALUES (?, ?, ?, ?, ?, ?)',
+            [name, subcountyId, geoLat, geoLon, remarks, userId]
         );
         res.status(201).json({ message: 'Ward created successfully', wardId: result.insertId });
     } catch (error) {
@@ -74,16 +74,12 @@ router.post('/', async (req, res) => {
  */
 router.put('/:wardId', async (req, res) => {
     const { wardId } = req.params;
-    const { name, subcountyId, geoLat, geoLon } = req.body;
-
-    if (!name || !subcountyId) {
-        return res.status(400).json({ message: 'Missing required fields: name, subcountyId' });
-    }
+    const { name, subcountyId, geoLat, geoLon, remarks } = req.body;
 
     try {
         const [result] = await pool.query(
-            'UPDATE kemri_wards SET name = ?, subcountyId = ?, geoLat = ?, geoLon = ?, voided = 0, updatedAt = CURRENT_TIMESTAMP WHERE wardId = ? AND voided = 0',
-            [name, subcountyId, geoLat, geoLon, wardId]
+            'UPDATE kemri_wards SET name = ?, subcountyId = ?, geoLat = ?, geoLon = ?, remarks = ?, updatedAt = CURRENT_TIMESTAMP WHERE wardId = ? AND voided = 0',
+            [name, subcountyId, geoLat, geoLon, remarks, wardId]
         );
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Ward not found or already deleted' });

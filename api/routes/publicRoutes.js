@@ -297,6 +297,67 @@ router.get('/projects', async (req, res) => {
 });
 
 /**
+ * @route GET /api/public/projects/:id/map
+ * @description Get project map/GeoJSON data for a specific approved public project
+ * @access Public (no authentication required)
+ * NOTE: This route must come BEFORE /projects/:id to avoid route conflicts
+ */
+router.get('/projects/:id/map', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // First verify the project exists and is approved for public
+        const projectCheckQuery = `
+            SELECT id, projectName, approved_for_public
+            FROM kemri_projects
+            WHERE id = ? AND voided = 0 AND approved_for_public = 1
+        `;
+        const [projects] = await pool.query(projectCheckQuery, [id]);
+
+        if (projects.length === 0) {
+            return res.status(404).json({ error: 'Project not found or not approved for public viewing' });
+        }
+
+        // Get project map/GeoJSON data - only for approved public projects
+        const mapQuery = `
+            SELECT 
+                pm.mapId,
+                pm.map as geoJson
+            FROM kemri_project_maps pm
+            INNER JOIN kemri_projects p ON pm.projectId = p.id
+            WHERE pm.projectId = ? 
+            AND pm.voided = 0 
+            AND p.voided = 0 
+            AND p.approved_for_public = 1
+            ORDER BY pm.mapId DESC
+            LIMIT 1
+        `;
+        const [maps] = await pool.query(mapQuery, [id]);
+        
+        if (maps.length === 0) {
+            return res.status(404).json({ error: 'No map data available for this project' });
+        }
+
+        let mapData = null;
+        try {
+            mapData = {
+                mapId: maps[0].mapId,
+                geoJson: typeof maps[0].geoJson === 'string' 
+                    ? JSON.parse(maps[0].geoJson) 
+                    : maps[0].geoJson
+            };
+            res.json(mapData);
+        } catch (e) {
+            console.error('Error parsing GeoJSON for project:', id, e);
+            res.status(500).json({ error: 'Error parsing map data', details: e.message });
+        }
+    } catch (error) {
+        console.error('Error fetching project map:', error);
+        res.status(500).json({ error: 'Failed to fetch project map', details: error.message });
+    }
+});
+
+/**
  * @route GET /api/public/projects/:id
  * @description Get detailed information about a specific project
  * @access Public
@@ -355,9 +416,42 @@ router.get('/projects/:id', async (req, res) => {
         `;
         const [photos] = await pool.query(photosQuery, [id]);
 
-        // Return project data with photos included
+        // Get project map/GeoJSON data - only for approved public projects
+        const mapQuery = `
+            SELECT 
+                pm.mapId,
+                pm.map as geoJson
+            FROM kemri_project_maps pm
+            INNER JOIN kemri_projects p ON pm.projectId = p.id
+            WHERE pm.projectId = ? 
+            AND pm.voided = 0 
+            AND p.voided = 0 
+            AND p.approved_for_public = 1
+            ORDER BY pm.mapId DESC
+            LIMIT 1
+        `;
+        const [maps] = await pool.query(mapQuery, [id]);
+        
+        let mapData = null;
+        if (maps.length > 0 && maps[0].geoJson) {
+            try {
+                mapData = {
+                    mapId: maps[0].mapId,
+                    geoJson: typeof maps[0].geoJson === 'string' 
+                        ? JSON.parse(maps[0].geoJson) 
+                        : maps[0].geoJson
+                };
+            } catch (e) {
+                console.error('Error parsing GeoJSON for project:', id, e);
+            }
+        }
+
+        // Return project data with photos and map included
         const projectData = projects[0];
         projectData.photos = photos || [];
+        if (mapData) {
+            projectData.map = mapData;
+        }
         res.json(projectData);
     } catch (error) {
         console.error('Error fetching project details:', error);

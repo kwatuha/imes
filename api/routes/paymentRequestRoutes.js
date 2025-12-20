@@ -9,9 +9,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 // Main upload directory for all project documents
-// Use same path calculation as project photos: ../uploads (relative to routes directory)
-// In Docker: /app/routes -> /app/uploads (matches static file serving in app.js)
-const baseUploadDir = path.join(__dirname, '..', 'uploads');
+const baseUploadDir = path.join(__dirname, '..', '..', 'uploads');
 
 // Ensure the base upload directory exists
 if (!fs.existsSync(baseUploadDir)) {

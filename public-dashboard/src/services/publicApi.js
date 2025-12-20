@@ -73,6 +73,19 @@ export const getProjectDetails = async (projectId) => {
   return response.data;
 };
 
+export const getProjectMap = async (projectId) => {
+  try {
+    const response = await publicApi.get(`/projects/${projectId}/map`);
+    return response.data;
+  } catch (error) {
+    // If map endpoint returns 404, return null instead of throwing
+    if (error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+};
+
 export const getProjectsByDepartment = async (departmentId, finYearId = null) => {
   const params = { departmentId };
   if (finYearId) params.finYearId = finYearId;

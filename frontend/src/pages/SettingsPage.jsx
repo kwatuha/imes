@@ -634,7 +634,7 @@ const SubcountyManagement = () => {
   const [currentWard, setCurrentWard] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [subcountyFormData, setSubcountyFormData] = useState({ name: '', countyId: '', geoLat: '', geoLon: '' });
-  const [wardFormData, setWardFormData] = useState({ name: '', subcountyId: '', geoLat: '', geoLon: '' });
+  const [wardFormData, setWardFormData] = useState({ name: '', subcountyId: '', geoLat: '', geoLon: '', remarks: '' });
   const [subcountyFormErrors, setSubcountyFormErrors] = useState({});
   const [wardFormErrors, setWardFormErrors] = useState({});
 
@@ -770,7 +770,7 @@ const SubcountyManagement = () => {
   // Ward handlers
   const handleOpenCreateWardDialog = (subcountyId) => {
     setCurrentWard(null);
-    setWardFormData({ name: '', subcountyId, geoLat: '', geoLon: '' });
+    setWardFormData({ name: '', subcountyId, geoLat: '', geoLon: '', remarks: '' });
     setWardFormErrors({});
     setOpenWardDialog(true);
   };
@@ -779,9 +779,10 @@ const SubcountyManagement = () => {
     setCurrentWard(ward);
     setWardFormData({
       name: ward.name || '',
-      subcountyId: ward.subcountyId != null ? String(ward.subcountyId) : '',
+      subcountyId: ward.subcountyId || '',
       geoLat: ward.geoLat || '',
-      geoLon: ward.geoLon || ''
+      geoLon: ward.geoLon || '',
+      remarks: ward.remarks || ''
     });
     setWardFormErrors({});
     setOpenWardDialog(true);
@@ -789,9 +790,7 @@ const SubcountyManagement = () => {
 
   const handleWardFormChange = (e) => {
     const { name, value } = e.target;
-    // Ensure subcountyId is stored as a string for consistency with Select component
-    const processedValue = name === 'subcountyId' ? String(value) : value;
-    setWardFormData(prev => ({ ...prev, [name]: processedValue }));
+    setWardFormData(prev => ({ ...prev, [name]: value }));
     if (wardFormErrors[name]) {
       setWardFormErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -816,19 +815,11 @@ const SubcountyManagement = () => {
     }
     setLoading(true);
     try {
-      // Convert subcountyId to number and handle empty strings for optional fields
-      const submitData = {
-        name: wardFormData.name?.trim() || '',
-        subcountyId: wardFormData.subcountyId ? parseInt(wardFormData.subcountyId, 10) : null,
-        geoLat: wardFormData.geoLat?.trim() || null,
-        geoLon: wardFormData.geoLon?.trim() || null
-      };
-      
       if (currentWard) {
-        await metaDataService.wards.updateWard(currentWard.wardId, submitData);
+        await metaDataService.wards.updateWard(currentWard.wardId, wardFormData);
         setSnackbar({ open: true, message: 'Ward updated successfully!', severity: 'success' });
       } else {
-        await metaDataService.wards.createWard(submitData);
+        await metaDataService.wards.createWard(wardFormData);
         setSnackbar({ open: true, message: 'Ward created successfully!', severity: 'success' });
       }
       setOpenWardDialog(false);
@@ -1112,7 +1103,7 @@ const SubcountyManagement = () => {
               error={!!wardFormErrors.subcountyId}
             >
               {subcounties.map((subcounty) => (
-                <MenuItem key={subcounty.subcountyId} value={String(subcounty.subcountyId)}>
+                <MenuItem key={subcounty.subcountyId} value={subcounty.subcountyId}>
                   {subcounty.name}
                 </MenuItem>
               ))}
@@ -1142,6 +1133,19 @@ const SubcountyManagement = () => {
             fullWidth
             variant="outlined"
             value={wardFormData.geoLon}
+            onChange={handleWardFormChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            margin="dense"
+            name="remarks"
+            label="Remarks"
+            type="text"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={3}
+            value={wardFormData.remarks}
             onChange={handleWardFormChange}
             sx={{ mb: 2 }}
           />

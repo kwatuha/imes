@@ -50,6 +50,7 @@ export default function RibbonMenu({ isAdmin = false }) {
   const location = useLocation();
   const { hasPrivilege, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [hoveredTab, setHoveredTab] = useState(null);
   
   // Get filtered menu categories based on user permissions (memoized to prevent unnecessary recalculations)
   const menuCategories = useMemo(() => {
@@ -63,8 +64,11 @@ export default function RibbonMenu({ isAdmin = false }) {
 
   const go = (to) => () => navigate(to);
 
+  // Only collapse the primary menu bar height on scroll, but keep submenu visible when tab is active or hovered
   useEffect(() => {
     const onScroll = () => {
+      // Collapse primary menu height when scrolled, but don't hide submenu if tab is active
+      // The submenu visibility is controlled separately by validTab and hoveredTab
       setCollapsed(window.scrollY > 80);
     };
     onScroll();
@@ -168,8 +172,14 @@ export default function RibbonMenu({ isAdmin = false }) {
       borderBottom: `1px solid ${theme.palette.divider}`,
       boxShadow: theme.palette.mode === 'dark' ? 'inset 0 -1px 0 rgba(255,255,255,0.06)' : '0 2px 8px rgba(0,0,0,0.06)',
     }}
-    onMouseEnter={() => setCollapsed(false)}
-    onMouseLeave={() => { if (window.scrollY > 80) setCollapsed(true); }}
+    onMouseEnter={() => {
+      setCollapsed(false);
+    }}
+    onMouseLeave={() => { 
+      if (window.scrollY > 80 && hoveredTab === null) {
+        setCollapsed(true);
+      }
+    }}
     >
       {/* Segmented ribbon bar */}
       <Box sx={{
@@ -181,10 +191,23 @@ export default function RibbonMenu({ isAdmin = false }) {
       }}>
         {menuCategories.map((category, idx, arr) => {
           const IconComponent = ICON_MAP[category.icon] || DashboardIcon;
+          const isActiveOrHovered = idx === validTab || idx === hoveredTab;
           return (
             <Button
             key={category.label}
             onClick={() => setTab(idx)}
+            onMouseEnter={() => {
+              setHoveredTab(idx);
+              setCollapsed(false); // Show submenu when hovering
+            }}
+            onMouseLeave={() => {
+              // Delay clearing hover to allow moving to submenu
+              setTimeout(() => {
+                if (window.scrollY > 80 && idx !== validTab) {
+                  setHoveredTab(null);
+                }
+              }, 150);
+            }}
             startIcon={<IconComponent fontSize="small" />}
             disableElevation
             sx={{
@@ -218,20 +241,53 @@ export default function RibbonMenu({ isAdmin = false }) {
         })}
       </Box>
 
-      {/* Ribbon group row (hidden when collapsed to maximize space) */}
-      {!collapsed && menuCategories[validTab] && menuCategories[validTab].submenus && (
-      <Box sx={{ display: 'flex', gap: 0, px: 1, py: 0.5, flexWrap: 'wrap', borderTop: `1px solid ${theme.palette.divider}`, minHeight: 50 }}>
-        {menuCategories[validTab].submenus.map((submenu, subIdx) => (
-          <Btn 
-            key={subIdx}
-            title={submenu.title} 
-            icon={submenu.icon} 
-            route={submenu.route}
-            to={submenu.to}
-          />
-        ))}
-      </Box>
-      )}
+      {/* Ribbon group row - Always show when tab is active or hovered, regardless of scroll */}
+      {(() => {
+        const activeTabIndex = hoveredTab !== null ? hoveredTab : validTab;
+        const activeCategory = menuCategories[activeTabIndex];
+        const shouldShowSubmenu = activeCategory && activeCategory.submenus && activeCategory.submenus.length > 0;
+        
+        // Always show submenu when a tab is active or hovered, regardless of scroll position
+        return shouldShowSubmenu && (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 0, 
+              px: 1, 
+              py: 0.5, 
+              flexWrap: 'wrap', 
+              borderTop: `1px solid ${theme.palette.divider}`, 
+              minHeight: 50,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(20,25,30,0.95)' : 'rgba(255,255,255,0.95)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+            onMouseEnter={() => {
+              if (hoveredTab === null) {
+                setHoveredTab(activeTabIndex);
+              }
+            }}
+            onMouseLeave={() => {
+              // Only clear hover if we're not leaving to another tab
+              setTimeout(() => {
+                if (hoveredTab === activeTabIndex) {
+                  setHoveredTab(null);
+                }
+              }, 100);
+            }}
+          >
+            {activeCategory.submenus.map((submenu, subIdx) => (
+              <Btn 
+                key={subIdx}
+                title={submenu.title} 
+                icon={submenu.icon} 
+                route={submenu.route}
+                to={submenu.to}
+              />
+            ))}
+          </Box>
+        );
+      })()}
     </Box>
   );
 }

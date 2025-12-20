@@ -52,6 +52,11 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
   });
 
   const mapRef = useRef(null);
+  const polylineRef = useRef(null);
+  const polygonRef = useRef(null);
+  const latestEditedPathRef = useRef(null); // Store the latest edited path
+  const mapCenterRef = useRef(null); // Store latest map center for onCreated callback
+  const mapZoomRef = useRef(null); // Store latest map zoom for onCreated callback
   const [mapReady, setMapReady] = useState(false);
   const [tempMarkerPosition, setTempMarkerPosition] = useState(null);
   const [markerIcon, setMarkerIcon] = useState(null);
@@ -201,27 +206,36 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
     }
   }, [coordinates.latitude, coordinates.longitude, mapZoom]);
 
+  // Update refs when mapCenter or mapZoom changes
+  useEffect(() => {
+    mapCenterRef.current = mapCenter;
+    mapZoomRef.current = mapZoom;
+  }, [mapCenter, mapZoom]);
+
   // Update map when mapCenter or mapZoom changes and map is ready
   useEffect(() => {
-    if (mapRef.current && mapReady) {
-      const centerToUse = (mapCenter.lat && mapCenter.lng) 
-        ? mapCenter 
-        : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] };
-      const zoomToUse = mapZoom || 6;
+    if (mapRef.current && mapReady && mapModalOpen) {
+      // Use refs first (most up-to-date), then state, then initial position
+      const centerToUse = (mapCenterRef.current && mapCenterRef.current.lat && mapCenterRef.current.lng) 
+        ? mapCenterRef.current 
+        : ((mapCenter && mapCenter.lat && mapCenter.lng)
+          ? mapCenter
+          : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] });
+      const zoomToUse = mapZoomRef.current || mapZoom || 6;
       
       mapRef.current.setCenter(centerToUse);
       mapRef.current.setZoom(zoomToUse);
       console.log('[ProjectMapEditor] Map updated via useEffect:', centerToUse, 'zoom:', zoomToUse);
     }
-  }, [mapCenter, mapZoom, mapReady]);
+  }, [mapCenter, mapZoom, mapReady, mapModalOpen]);
 
   const handleEdit = async () => {
     console.log('[ProjectMapEditor] ========== handleEdit STARTED ==========');
     console.log('[ProjectMapEditor] Opening map modal');
     
-    // Open the modal first
-    setMapModalOpen(true);
-    setEditing(true);
+    // Reset the edited path ref when starting a new edit session
+    latestEditedPathRef.current = null;
+    
     setError('');
     setSuccess('');
     
@@ -267,13 +281,15 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
       }
     }
     // If there's no existing map data, try to zoom to the project's ward location
-    else if (!mapData && projectId) {
-      console.log('[ProjectMapEditor] No map data exists, will fetch ward coordinates');
+    // Fetch ward coordinates BEFORE opening the modal so map initializes with correct center
+    if (!mapData && projectId) {
+      console.log('[ProjectMapEditor] No map data exists, will fetch ward coordinates for project:', projectId);
       try {
         console.log('[ProjectMapEditor] Fetching ward coordinates for project:', projectId);
         // Fetch project wards - junctions is at top level of apiService, not inside projects
         const wards = await apiService.junctions.getProjectWards(projectId);
-        console.log('[ProjectMapEditor] Received wards:', wards);
+        console.log('[ProjectMapEditor] Received wards response:', wards);
+        console.log('[ProjectMapEditor] Wards array length:', Array.isArray(wards) ? wards.length : 'not an array');
         
         // Find the first ward with coordinates
         const wardWithCoords = wards.find(w => w.geoLat && w.geoLon && w.geoLat !== null && w.geoLon !== null);
@@ -284,27 +300,21 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
           const targetLng = parseFloat(wardWithCoords.geoLon);
           
           if (!isNaN(targetLat) && !isNaN(targetLng)) {
-            // Set map center and zoom to ward location (useState will trigger useEffect to update map)
-            setMapCenter({ lat: targetLat, lng: targetLng });
-            setMapZoom(15);
-            console.log('[ProjectMapEditor] Set map center to ward:', { lat: targetLat, lng: targetLng }, 'zoom: 15');
-            
-            // Update map immediately if it's ready, otherwise useEffect will handle it
-            if (mapRef.current && mapReady) {
-              console.log('[ProjectMapEditor] Map is ready, updating center immediately');
-              mapRef.current.setCenter({ lat: targetLat, lng: targetLng });
-              mapRef.current.setZoom(15);
-              setSuccess(`Map centered on: ${wardWithCoords.wardName || 'Ward location'}`);
-            } else {
-              console.log('[ProjectMapEditor] Map not ready yet, will be updated by useEffect');
-              // Map will be centered by useEffect when it becomes ready
-              setSuccess(`Map will center on: ${wardWithCoords.wardName || 'Ward location'}`);
-            }
+            // Set map center and zoom to ward location BEFORE opening modal
+            const newCenter = { lat: targetLat, lng: targetLng };
+            const newZoom = 15;
+            setMapCenter(newCenter);
+            setMapZoom(newZoom);
+            // Update refs immediately so onCreated callback can use them
+            mapCenterRef.current = newCenter;
+            mapZoomRef.current = newZoom;
+            console.log('[ProjectMapEditor] Set map center to ward:', newCenter, 'zoom:', newZoom);
+            setSuccess(`Map will center on: ${wardWithCoords.wardName || 'Ward location'}`);
           }
         } else {
           console.log('[ProjectMapEditor] No ward coordinates found, trying subcounty');
           // Fallback: try subcounty if no ward coordinates
-            try {
+          try {
             const subcounties = await apiService.junctions.getProjectSubcounties(projectId);
             const subcountyWithCoords = subcounties.find(sc => sc.geoLat && sc.geoLon && sc.geoLat !== null && sc.geoLon !== null);
             
@@ -314,18 +324,14 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
               const targetLng = parseFloat(subcountyWithCoords.geoLon);
               
               if (!isNaN(targetLat) && !isNaN(targetLng)) {
-                setMapCenter({ lat: targetLat, lng: targetLng });
-                setMapZoom(13);
-                
-                // Update map immediately if it's ready, otherwise useEffect will handle it
-                if (mapRef.current && mapReady) {
-                  mapRef.current.setCenter({ lat: targetLat, lng: targetLng });
-                  mapRef.current.setZoom(13);
-                  setSuccess(`Map centered on: ${subcountyWithCoords.subcountyName || 'Subcounty location'}`);
-                } else {
-                  // Map will be centered by useEffect when it becomes ready
-                  setSuccess(`Map will center on: ${subcountyWithCoords.subcountyName || 'Subcounty location'}`);
-                }
+                const newCenter = { lat: targetLat, lng: targetLng };
+                const newZoom = 13;
+                setMapCenter(newCenter);
+                setMapZoom(newZoom);
+                // Update refs immediately so onCreated callback can use them
+                mapCenterRef.current = newCenter;
+                mapZoomRef.current = newZoom;
+                setSuccess(`Map will center on: ${subcountyWithCoords.subcountyName || 'Subcounty location'}`);
               }
             }
           } catch (subcountyErr) {
@@ -340,6 +346,13 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
     } else {
       console.log('[ProjectMapEditor] Map data exists or projectId missing - skipping ward fetch');
     }
+    
+    // Open the modal AFTER setting the map center (so map initializes with correct location)
+    // Use a small delay to ensure state updates are processed
+    await new Promise(resolve => setTimeout(resolve, 50));
+    setMapModalOpen(true);
+    setEditing(true);
+    
     console.log('[ProjectMapEditor] ========== handleEdit COMPLETED ==========');
   };
 
@@ -402,23 +415,38 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
       setTempMarkerPosition([clickedLat, clickedLng]);
     }
     // For other geometries, clicking on empty space can still add points
-    else if (!getMultiPointPath().length || selectedPointIndex === null) {
-      const clickedLat = e.latLng.lat();
-      const clickedLng = e.latLng.lng();
-      const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
-      setCoordinates(prev => ({
-        ...prev,
-        multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
-      }));
-      setTempMarkerPosition([clickedLat, clickedLng]);
+    else {
+      // Check if we have existing points by reading current coordinates state
+      setCoordinates(prev => {
+        const hasExistingPoints = prev.multiPointData && prev.multiPointData.trim().length > 0;
+        if (!hasExistingPoints || selectedPointIndex === null) {
+          const clickedLat = e.latLng.lat();
+          const clickedLng = e.latLng.lng();
+          const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
+          console.log('[ProjectMapEditor] handleMapClick - Adding new point:', newPoint);
+          const updated = {
+            ...prev,
+            multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
+          };
+          console.log('[ProjectMapEditor] handleMapClick - Updated coordinates:', updated);
+          // Update the ref so save can use the latest coordinates
+          latestEditedPathRef.current = updated.multiPointData;
+          setTempMarkerPosition([clickedLat, clickedLng]);
+          return updated;
+        }
+        return prev;
+      });
     }
   }, [editing, geometryType, selectedPointIndex]);
 
-  const getGeoJsonFromCoordinates = () => {
+  const getGeoJsonFromCoordinates = (coordsOverride = null) => {
+    // Use provided coordinates override, or fall back to state
+    const coords = coordsOverride || coordinates;
+    
     if (geometryType === 'Point') {
-      if (!coordinates.latitude || !coordinates.longitude) return null;
-      const lat = parseFloat(coordinates.latitude);
-      const lng = parseFloat(coordinates.longitude);
+      if (!coords.latitude || !coords.longitude) return null;
+      const lat = parseFloat(coords.latitude);
+      const lng = parseFloat(coords.longitude);
       if (isNaN(lat) || isNaN(lng)) return null;
 
       return {
@@ -433,12 +461,12 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
         }]
       };
     } else {
-      if (!coordinates.multiPointData) return null;
+      if (!coords.multiPointData) return null;
       
-      const lines = coordinates.multiPointData.split('\n').filter(line => line.trim());
+      const lines = coords.multiPointData.split('\n').filter(line => line.trim());
       if (lines.length === 0) return null;
 
-      const coords = lines.map(line => {
+      const parsedCoords = lines.map(line => {
         const parts = line.split(',').map(p => parseFloat(p.trim()));
         return [parts[0], parts[1]]; // [lng, lat]
       });
@@ -446,8 +474,8 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
       let geoType = 'LineString';
       if (geometryType === 'Polygon') {
         // Ensure polygon is closed (first and last points are the same)
-        if (coords.length > 0 && (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1])) {
-          coords.push(coords[0]);
+        if (parsedCoords.length > 0 && (parsedCoords[0][0] !== parsedCoords[parsedCoords.length - 1][0] || parsedCoords[0][1] !== parsedCoords[parsedCoords.length - 1][1])) {
+          parsedCoords.push(parsedCoords[0]);
         }
         geoType = 'Polygon';
         return {
@@ -457,7 +485,7 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
             properties: { name: projectName || 'Project Area' },
             geometry: {
               type: 'Polygon',
-              coordinates: [coords]
+              coordinates: [parsedCoords]
             }
           }]
         };
@@ -469,7 +497,7 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
             properties: { name: projectName || 'Project Points' },
             geometry: {
               type: 'MultiPoint',
-              coordinates: coords
+              coordinates: parsedCoords
             }
           }]
         };
@@ -481,7 +509,7 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
             properties: { name: projectName || 'Project Route' },
             geometry: {
               type: 'LineString',
-              coordinates: coords
+              coordinates: parsedCoords
             }
           }]
         };
@@ -493,11 +521,51 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
     setError('');
     setSuccess('');
     
-    const geoJson = getGeoJsonFromCoordinates();
+    // Use the latest edited path from ref if available (captured during editing)
+    // This ensures we save the most recent edited coordinates, not stale state
+    let coordinatesToUse = coordinates;
+    if (latestEditedPathRef.current && (geometryType === 'LineString' || geometryType === 'MultiPoint' || geometryType === 'Polygon')) {
+      console.log('[ProjectMapEditor] handleSave - Using latest edited path from ref:', latestEditedPathRef.current);
+      coordinatesToUse = {
+        ...coordinates,
+        multiPointData: latestEditedPathRef.current
+      };
+      // Update state for consistency
+      setCoordinates(coordinatesToUse);
+      // Wait a moment for state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } else {
+      // Even if ref is null, ensure we're using the latest state
+      // Wait a brief moment to ensure state has propagated
+      await new Promise(resolve => setTimeout(resolve, 50));
+      // Re-read coordinates from state to ensure we have the latest
+      coordinatesToUse = coordinates;
+    }
+    
+    // Log current coordinates state before building GeoJSON
+    console.log('[ProjectMapEditor] handleSave - Current coordinates state:', coordinatesToUse);
+    console.log('[ProjectMapEditor] handleSave - Geometry type:', geometryType);
+    
+    // Build GeoJSON using the coordinates (either from ref or state)
+    const geoJson = getGeoJsonFromCoordinates(coordinatesToUse);
     if (!geoJson) {
-      setError('Please provide valid coordinates');
+      let errorMsg = 'Please provide valid coordinates. ';
+      if (geometryType === 'Point') {
+        errorMsg += 'For a Point, please enter both latitude and longitude, or click on the map.';
+      } else {
+        errorMsg += `For a ${geometryType}, please add at least one point by clicking on the map, or enter coordinates manually.`;
+      }
+      setError(errorMsg);
+      setSnackbarMessage(errorMsg);
+      setSnackbarOpen(true);
       return;
     }
+    
+    // Log the GeoJSON that will be saved
+    console.log('[ProjectMapEditor] handleSave - GeoJSON to save:', JSON.stringify(geoJson, null, 2));
+    
+    // Clear the ref after using it
+    latestEditedPathRef.current = null;
 
     setSaving(true);
     try {
@@ -729,6 +797,7 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
             </Box>
             <Box sx={{ height: '500px', width: '100%', position: 'relative' }}>
               <GoogleMapComponent
+                key={`readonly-map-${mapData?.mapId || 'new'}-${geometryType}-${coordinates.multiPointData ? coordinates.multiPointData.substring(0, 50) : coordinates.latitude || ''}-${mapData?.updatedAt || mapData?.updated_at || ''}`}
                 center={mapCenter}
                 zoom={mapZoom}
                 mapTypeId={mapType}
@@ -1107,7 +1176,8 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                   width: '100%'
                 }}
                 onCreated={map => {
-                  console.log('[ProjectMapEditor] Map created in modal, setting center:', mapCenter);
+                  console.log('[ProjectMapEditor] Map created in modal, current mapCenter state:', mapCenter, 'mapZoom:', mapZoom);
+                  console.log('[ProjectMapEditor] Refs - mapCenterRef:', mapCenterRef.current, 'mapZoomRef:', mapZoomRef.current);
                   mapRef.current = map;
                   setMapReady(true);
                   if (window.google && window.google.maps) {
@@ -1115,15 +1185,40 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                       url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
                       scaledSize: new window.google.maps.Size(32, 32),
                     });
-                    // Always set the center and zoom when map is created
-                    const centerToUse = (mapCenter.lat && mapCenter.lng) 
-                      ? mapCenter 
-                      : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] };
-                    const zoomToUse = mapZoom || 6;
                     
-                    map.setCenter(centerToUse);
-                    map.setZoom(zoomToUse);
-                    console.log('[ProjectMapEditor] Map centered at:', centerToUse, 'zoom:', zoomToUse);
+                    // Ensure zoom controls are visible and properly positioned
+                    map.setOptions({
+                      zoomControl: true,
+                      zoomControlOptions: {
+                        position: window.google.maps.ControlPosition.RIGHT_CENTER,
+                      },
+                    });
+                    
+                    // Function to center the map - will be called multiple times to ensure it works
+                    const centerMap = () => {
+                      if (mapRef.current) {
+                        // Check refs first (most up-to-date), then state, then initial position
+                        const centerToUse = (mapCenterRef.current && mapCenterRef.current.lat && mapCenterRef.current.lng) 
+                          ? mapCenterRef.current 
+                          : ((mapCenter && mapCenter.lat && mapCenter.lng)
+                            ? mapCenter
+                            : { lat: INITIAL_MAP_POSITION[0], lng: INITIAL_MAP_POSITION[1] });
+                        const zoomToUse = mapZoomRef.current || mapZoom || 6;
+                        
+                        console.log('[ProjectMapEditor] Centering map to:', centerToUse, 'zoom:', zoomToUse);
+                        mapRef.current.setCenter(centerToUse);
+                        mapRef.current.setZoom(zoomToUse);
+                      }
+                    };
+                    
+                    // Try immediately
+                    centerMap();
+                    
+                    // Try again after a short delay (in case refs/state haven't updated yet)
+                    setTimeout(centerMap, 100);
+                    
+                    // Try again after a longer delay (for async ward fetching)
+                    setTimeout(centerMap, 500);
                   }
                 }}
                 onClick={handleMapClick}
@@ -1152,6 +1247,8 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 {(geometryType === 'LineString' || geometryType === 'MultiPoint') && getMultiPointPath().length > 0 && (
                   <>
                     <PolylineF
+                      key={`polyline-${coordinates.multiPointData ? coordinates.multiPointData.substring(0, 50) : ''}`}
+                      ref={polylineRef}
                       path={getMultiPointPath()}
                       editable={editing}
                       draggable={false}
@@ -1162,9 +1259,36 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                           path.forEach((latLng) => {
                             newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
                           });
+                          const updatedMultiPointData = newPath.join('\n');
+                          console.log('[ProjectMapEditor] Polyline edited, new path:', updatedMultiPointData);
+                          console.log('[ProjectMapEditor] Number of points:', newPath.length);
+                          // Store in ref for immediate access
+                          latestEditedPathRef.current = updatedMultiPointData;
+                          setCoordinates(prev => {
+                            const updated = {
+                              ...prev,
+                              multiPointData: updatedMultiPointData
+                            };
+                            console.log('[ProjectMapEditor] Updated coordinates state:', updated);
+                            return updated;
+                          });
+                        }
+                      }}
+                      onEditEnd={(e) => {
+                        // Capture final edited state when user finishes editing
+                        if (editing && e && e.getPath) {
+                          const path = e.getPath();
+                          const newPath = [];
+                          path.forEach((latLng) => {
+                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                          });
+                          const updatedMultiPointData = newPath.join('\n');
+                          console.log('[ProjectMapEditor] Polyline edit ended, final path:', updatedMultiPointData);
+                          // Store in ref for immediate access
+                          latestEditedPathRef.current = updatedMultiPointData;
                           setCoordinates(prev => ({
                             ...prev,
-                            multiPointData: newPath.join('\n')
+                            multiPointData: updatedMultiPointData
                           }));
                         }
                       }}
@@ -1174,10 +1298,15 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                           const clickedLat = e.latLng.lat();
                           const clickedLng = e.latLng.lng();
                           const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
-                          setCoordinates(prev => ({
-                            ...prev,
-                            multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
-                          }));
+                          setCoordinates(prev => {
+                            const updated = {
+                              ...prev,
+                              multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
+                            };
+                            // Update the ref so save can use the latest coordinates
+                            latestEditedPathRef.current = updated.multiPointData;
+                            return updated;
+                          });
                         }
                       }}
                       options={{
@@ -1203,9 +1332,13 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                             const path = getMultiPointPath();
                             path[index] = { lat: newLat, lng: newLng };
                             const newPath = path.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                            const updatedMultiPointData = newPath.join('\n');
+                            console.log('[ProjectMapEditor] Vertex dragged, updated path:', updatedMultiPointData);
+                            // Store in ref for immediate access
+                            latestEditedPathRef.current = updatedMultiPointData;
                             setCoordinates(prev => ({
                               ...prev,
-                              multiPointData: newPath.join('\n')
+                              multiPointData: updatedMultiPointData
                             }));
                           }
                         }}
@@ -1223,6 +1356,8 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                 {geometryType === 'Polygon' && getPolygonPath().length > 0 && (
                   <>
                     <PolygonF
+                      key={`polygon-${coordinates.multiPointData ? coordinates.multiPointData.substring(0, 50) : ''}`}
+                      ref={polygonRef}
                       paths={getPolygonPath()}
                       editable={editing}
                       draggable={false}
@@ -1237,9 +1372,40 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                           if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
                             newPath.pop();
                           }
+                          const updatedMultiPointData = newPath.join('\n');
+                          console.log('[ProjectMapEditor] Polygon edited, new path:', updatedMultiPointData);
+                          console.log('[ProjectMapEditor] Number of vertices:', newPath.length);
+                          // Store in ref for immediate access
+                          latestEditedPathRef.current = updatedMultiPointData;
+                          setCoordinates(prev => {
+                            const updated = {
+                              ...prev,
+                              multiPointData: updatedMultiPointData
+                            };
+                            console.log('[ProjectMapEditor] Updated coordinates state:', updated);
+                            return updated;
+                          });
+                        }
+                      }}
+                      onEditEnd={(e) => {
+                        // Capture final edited state when user finishes editing
+                        if (editing && e && e.getPath) {
+                          const path = e.getPath();
+                          const newPath = [];
+                          path.forEach((latLng) => {
+                            newPath.push(`${latLng.lng().toFixed(6)}, ${latLng.lat().toFixed(6)}`);
+                          });
+                          // Remove duplicate last point (polygon closing point)
+                          if (newPath.length > 1 && newPath[0] === newPath[newPath.length - 1]) {
+                            newPath.pop();
+                          }
+                          const updatedMultiPointData = newPath.join('\n');
+                          console.log('[ProjectMapEditor] Polygon edit ended, final path:', updatedMultiPointData);
+                          // Store in ref for immediate access
+                          latestEditedPathRef.current = updatedMultiPointData;
                           setCoordinates(prev => ({
                             ...prev,
-                            multiPointData: newPath.join('\n')
+                            multiPointData: updatedMultiPointData
                           }));
                         }
                       }}
@@ -1249,10 +1415,15 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                           const clickedLat = e.latLng.lat();
                           const clickedLng = e.latLng.lng();
                           const newPoint = `${clickedLng.toFixed(6)}, ${clickedLat.toFixed(6)}`;
-                          setCoordinates(prev => ({
-                            ...prev,
-                            multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
-                          }));
+                          setCoordinates(prev => {
+                            const updated = {
+                              ...prev,
+                              multiPointData: prev.multiPointData ? `${prev.multiPointData}\n${newPoint}` : newPoint
+                            };
+                            // Update the ref so save can use the latest coordinates
+                            latestEditedPathRef.current = updated.multiPointData;
+                            return updated;
+                          });
                         }
                       }}
                       options={{
@@ -1281,9 +1452,13 @@ const ProjectMapEditor = ({ projectId, projectName }) => {
                             const realPath = path.slice(0, -1); // Remove closing point for editing
                             realPath[index] = { lat: newLat, lng: newLng };
                             const newPath = realPath.map(p => `${p.lng.toFixed(6)}, ${p.lat.toFixed(6)}`);
+                            const updatedMultiPointData = newPath.join('\n');
+                            console.log('[ProjectMapEditor] Polygon vertex dragged, updated path:', updatedMultiPointData);
+                            // Store in ref for immediate access
+                            latestEditedPathRef.current = updatedMultiPointData;
                             setCoordinates(prev => ({
                               ...prev,
-                              multiPointData: newPath.join('\n')
+                              multiPointData: updatedMultiPointData
                             }));
                           }
                         }}

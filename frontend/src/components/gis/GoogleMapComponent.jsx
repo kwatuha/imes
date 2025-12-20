@@ -5,7 +5,7 @@ import { CircularProgress, Alert, TextField, Box } from '@mui/material';
 // Define the Google Maps libraries you'll use
 const libraries = ['places'];
 
-function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearchPlaceChanged, onClick, mapTypeId = 'roadmap' }) {
+function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearchPlaceChanged, onClick, mapTypeId }) {
   const mapRef = useRef(null);
   const searchBoxRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -22,22 +22,45 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
   const onLoad = useCallback(map => {
     mapRef.current = map;
     setMapLoaded(true);
+    
+    // Ensure zoom controls are visible and properly positioned
+    if (window.google && window.google.maps) {
+      // Set map type if provided
+      if (mapTypeId) {
+        map.setMapTypeId(mapTypeId);
+      }
+      
+      // Set zoom control position explicitly - do this after a small delay to ensure it takes effect
+      setTimeout(() => {
+        map.setOptions({
+          zoomControl: true,
+          zoomControlOptions: {
+            position: window.google.maps.ControlPosition.RIGHT_CENTER,
+          },
+        });
+      }, 100);
+    }
+    
     if (onCreated) {
       onCreated(map);
     }
-  }, [onCreated]);
+  }, [onCreated, mapTypeId]);
 
   const onUnmount = useCallback(() => {
     mapRef.current = null;
     setMapLoaded(false);
   }, []);
 
-  // Update map type when prop changes
+  // Update map center and zoom when props change
   useEffect(() => {
-    if (mapRef.current && mapLoaded && window.google && window.google.maps) {
-      mapRef.current.setMapTypeId(mapTypeId);
+    if (mapRef.current && mapLoaded && center && typeof center === 'object' && 
+        center.lat !== undefined && center.lng !== undefined && 
+        !isNaN(center.lat) && !isNaN(center.lng) && zoom) {
+      console.log('[GoogleMapComponent] Updating center/zoom from props:', center, zoom);
+      mapRef.current.setCenter(center);
+      mapRef.current.setZoom(zoom);
     }
-  }, [mapTypeId, mapLoaded]);
+  }, [center, zoom, mapLoaded]);
 
   const onPlacesChanged = useCallback(() => {
     if (searchBoxRef.current) {
@@ -69,37 +92,8 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
     );
   }
 
-  // Ensure mapContainerStyle is a proper object with width and height
-  // This is the actual div that Google Maps will render into
-  // If style.height is '100%', we need to ensure the parent has explicit height
-  // Otherwise use the style height or default
-  const getMapContainerHeight = () => {
-    if (style?.height === '100%') {
-      // For 100% height, we need to ensure the wrapper has proper height
-      // The parent container should have explicit height
-      return '100%';
-    }
-    return style?.height || '500px';
-  };
-
-  const mapContainerStyle = {
-    width: style?.width || '100%',
-    height: getMapContainerHeight(),
-  };
-
-  // Box wrapper height should match the map container height
-  const boxHeight = mapContainerStyle.height;
   return (
-    <Box sx={{ 
-      position: 'relative', 
-      width: '100%', 
-      height: boxHeight, 
-      overflow: 'visible', // Changed to 'visible' to ensure zoom controls are not clipped
-      display: 'block',
-      backgroundColor: '#c8e6c9', // Light green background for debugging - should be covered by map
-      border: '2px solid #4caf50', // Green border for visibility
-      minHeight: boxHeight
-    }}>
+    <Box sx={{ position: 'relative', ...style }}>
       <StandaloneSearchBox
         onLoad={ref => searchBoxRef.current = ref}
         onPlacesChanged={onPlacesChanged}
@@ -129,26 +123,22 @@ function GoogleMapComponent({ children, center, zoom, style, onCreated, onSearch
       </StandaloneSearchBox>
 
       <GoogleMap
-        mapContainerStyle={mapContainerStyle}
+        mapContainerStyle={style}
         center={center}
         zoom={zoom}
         onLoad={onLoad}
         onUnmount={onUnmount}
         onClick={onClick}
         options={{
-          fullscreenControl: true,
-          fullscreenControlOptions: {
-            position: window.google?.maps?.ControlPosition?.RIGHT_TOP || 3
-          },
+          fullscreenControl: false,
           mapTypeControl: false,
           streetViewControl: false,
           zoomControl: true,
           zoomControlOptions: {
-            position: window.google?.maps?.ControlPosition?.RIGHT_CENTER || 9,
-            style: window.google?.maps?.ZoomControlStyle?.SMALL || 0
+            position: window.google?.maps?.ControlPosition?.RIGHT_CENTER || 10,
           },
-          mapTypeId: mapTypeId, // 'roadmap', 'satellite', 'hybrid', or 'terrain'
-          gestureHandling: 'greedy', // Allow zoom with mouse wheel and touch gestures
+          disableDefaultUI: false,
+          mapTypeId: mapTypeId || 'roadmap',
         }}
       >
         {children}

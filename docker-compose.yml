@@ -43,9 +43,9 @@ services:
     depends_on:
       - api
     command: npm run dev
-    # Remove VITE_API_URL - let .env.development handle it
-    # environment:
-    #   VITE_API_URL: /api  # Uses vite.config.js proxy to api:3000
+    environment:
+      - VITE_API_URL=/api
+      - VITE_MAPS_API_KEY=AIzaSyArNdYrq_WsuoGc34C7Osua7kbpt2Twf_s
 
   api:
     build:

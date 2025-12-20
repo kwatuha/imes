@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
 
     try {
         const [result] = await pool.query(
-            'INSERT INTO kemri_subcounties (name, countyId, geoLat, geoLon, userId, voided) VALUES (?, ?, ?, ?, ?, 0)',
+            'INSERT INTO kemri_subcounties (name, countyId, geoLat, geoLon, userId) VALUES (?, ?, ?, ?, ?)',
             [name, countyId, geoLat, geoLon, userId]
         );
         res.status(201).json({ message: 'Sub-county created successfully', subcountyId: result.insertId });
@@ -78,7 +78,7 @@ router.put('/:subcountyId', async (req, res) => {
 
     try {
         const [result] = await pool.query(
-            'UPDATE kemri_subcounties SET name = ?, countyId = ?, geoLat = ?, geoLon = ?, voided = 0, updatedAt = CURRENT_TIMESTAMP WHERE subcountyId = ? AND voided = 0',
+            'UPDATE kemri_subcounties SET name = ?, countyId = ?, geoLat = ?, geoLon = ?, updatedAt = CURRENT_TIMESTAMP WHERE subcountyId = ? AND voided = 0',
             [name, countyId, geoLat, geoLon, subcountyId]
         );
         if (result.affectedRows === 0) {
@@ -127,7 +127,7 @@ router.get('/:subcountyId/wards', async (req, res) => {
     const { subcountyId } = req.params;
     try {
         const [rows] = await pool.query(
-            'SELECT wardId, name, subcountyId, geoLat, geoLon FROM kemri_wards WHERE subcountyId = ? AND voided = 0',
+            'SELECT wardId, name, geoLat, geoLon FROM kemri_wards WHERE subcountyId = ? AND voided = 0',
             [subcountyId]
         );
         res.status(200).json(rows);

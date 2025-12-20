@@ -2295,7 +2295,7 @@ router.get('/:projectId/subcounties', async (req, res) => {
             `SELECT psc.subcountyId, sc.name AS subcountyName, sc.geoLat, sc.geoLon, psc.assignedAt
              FROM kemri_project_subcounties psc
              JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
-             WHERE psc.projectId = ? AND (sc.voided IS NULL OR sc.voided = 0)`, [projectId]
+             WHERE psc.projectId = ? AND sc.voided = 0`, [projectId]
         );
         res.status(200).json(rows);
     } catch (error) {
@@ -2358,7 +2358,7 @@ router.get('/:projectId/wards', async (req, res) => {
             `SELECT pw.wardId, w.name AS wardName, w.geoLat, w.geoLon, pw.assignedAt
              FROM kemri_project_wards pw
              JOIN kemri_wards w ON pw.wardId = w.wardId
-             WHERE pw.projectId = ? AND (w.voided IS NULL OR w.voided = 0)`, [projectId]
+             WHERE pw.projectId = ? AND w.voided = 0`, [projectId]
         );
         res.status(200).json(rows);
     } catch (error) {
