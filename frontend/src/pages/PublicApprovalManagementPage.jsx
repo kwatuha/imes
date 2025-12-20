@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -57,7 +57,8 @@ import {
   Person as PersonIcon,
   ExpandMore as ExpandMoreIcon,
   Close as CloseIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useNavigate } from 'react-router-dom';
@@ -121,9 +122,56 @@ const PublicApprovalManagementPage = () => {
   const [selectedProgress, setSelectedProgress] = useState(0);
   const [updatingProgress, setUpdatingProgress] = useState(false);
 
+  // Filter and search states
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  
+  // Metadata for filters
+  const [departments, setDepartments] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [statuses, setStatuses] = useState([]);
+
   useEffect(() => {
     fetchAllData();
+    fetchFilterMetadata();
   }, []);
+
+  const fetchFilterMetadata = async () => {
+    try {
+      // Fetch departments
+      const deptResponse = await axiosInstance.get('/metadata/departments');
+      const deptData = Array.isArray(deptResponse.data) ? deptResponse.data : [];
+      setDepartments(deptData);
+
+      // Extract unique statuses from projects
+      const statusSet = new Set();
+      projects.forEach(p => p.status && statusSet.add(p.status));
+      countyProjects.forEach(p => p.status && statusSet.add(p.status));
+      citizenProposals.forEach(p => p.status && statusSet.add(p.status));
+      announcements.forEach(p => p.status && statusSet.add(p.status));
+      setStatuses(Array.from(statusSet).sort());
+
+      // Extract unique categories
+      const categorySet = new Set();
+      projects.forEach(p => p.categoryName && categorySet.add(p.categoryName));
+      countyProjects.forEach(p => p.category && categorySet.add(p.category));
+      citizenProposals.forEach(p => p.category && categorySet.add(p.category));
+      announcements.forEach(p => p.category && categorySet.add(p.category));
+      setCategories(Array.from(categorySet).sort());
+    } catch (err) {
+      console.error('Error fetching filter metadata:', err);
+    }
+  };
+
+  useEffect(() => {
+    // Update metadata when data changes
+    if (projects.length > 0 || countyProjects.length > 0 || citizenProposals.length > 0 || announcements.length > 0) {
+      fetchFilterMetadata();
+    }
+  }, [projects, countyProjects, citizenProposals, announcements]);
 
   useEffect(() => {
     if (activeTab === 4) {
@@ -993,16 +1041,93 @@ const PublicApprovalManagementPage = () => {
     }
   ];
 
+  // Filter data based on search and filters
+  const filterData = useMemo(() => {
+    let data = [];
+    switch (activeTab) {
+      case 0:
+        data = projects;
+        break;
+      case 1:
+        data = countyProjects;
+        break;
+      case 2:
+        data = citizenProposals;
+        break;
+      case 3:
+        data = announcements;
+        break;
+      default:
+        return [];
+    }
+
+    // Apply global search
+    if (globalSearch.trim()) {
+      const query = globalSearch.toLowerCase().trim();
+      data = data.filter(item => {
+        const searchableFields = [
+          item.projectName || item.title || '',
+          item.id?.toString() || '',
+          item.description || '',
+          item.departmentName || item.department || '',
+          item.categoryName || item.category || '',
+          item.status || '',
+          item.proposer_name || '',
+        ];
+        return searchableFields.some(field => 
+          field.toLowerCase().includes(query)
+        );
+      });
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      data = data.filter(item => item.status === statusFilter);
+    }
+
+    // Apply approval status filter
+    if (approvalStatusFilter !== 'all') {
+      if (approvalStatusFilter === 'approved') {
+        data = data.filter(item => item.approved_for_public === 1 || item.approved_for_public === true);
+      } else if (approvalStatusFilter === 'pending') {
+        data = data.filter(item => 
+          (item.approved_for_public === 0 || item.approved_for_public === false) &&
+          (item.revision_requested === 0 || item.revision_requested === false)
+        );
+      } else if (approvalStatusFilter === 'revision') {
+        data = data.filter(item => item.revision_requested === 1 || item.revision_requested === true);
+      }
+    }
+
+    // Apply department filter
+    if (departmentFilter !== 'all') {
+      data = data.filter(item => {
+        const deptName = item.departmentName || item.department || '';
+        return deptName === departmentFilter;
+      });
+    }
+
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      data = data.filter(item => {
+        const catName = item.categoryName || item.category || '';
+        return catName === categoryFilter;
+      });
+    }
+
+    return data;
+  }, [projects, countyProjects, citizenProposals, announcements, activeTab, globalSearch, statusFilter, approvalStatusFilter, departmentFilter, categoryFilter]);
+
   const getCurrentData = () => {
     switch (activeTab) {
       case 0:
-        return { data: projects, columns: projectsColumns, title: 'Projects (Gallery)' };
+        return { data: filterData, columns: projectsColumns, title: 'Projects (Gallery)' };
       case 1:
-        return { data: countyProjects, columns: countyProjectsColumns, title: 'County Proposed Projects' };
+        return { data: filterData, columns: countyProjectsColumns, title: 'County Proposed Projects' };
       case 2:
-        return { data: citizenProposals, columns: citizenProposalsColumns, title: 'Citizen Proposals' };
+        return { data: filterData, columns: citizenProposalsColumns, title: 'Citizen Proposals' };
       case 3:
-        return { data: announcements, columns: announcementsColumns, title: 'Project Announcements' };
+        return { data: filterData, columns: announcementsColumns, title: 'Project Announcements' };
       case 4:
         return { data: [], columns: [], title: 'Feedback Moderation' };
       default:
@@ -1011,6 +1136,16 @@ const PublicApprovalManagementPage = () => {
   };
 
   const currentData = getCurrentData();
+
+  const hasActiveFilters = globalSearch.trim() || statusFilter !== 'all' || approvalStatusFilter !== 'all' || departmentFilter !== 'all' || categoryFilter !== 'all';
+
+  const handleClearFilters = () => {
+    setGlobalSearch('');
+    setStatusFilter('all');
+    setApprovalStatusFilter('all');
+    setDepartmentFilter('all');
+    setCategoryFilter('all');
+  };
 
   if (!hasPrivilege('public_content.approve') && user?.roleName !== 'admin') {
     return (
@@ -1050,10 +1185,50 @@ const PublicApprovalManagementPage = () => {
           onChange={(e, newValue) => setActiveTab(newValue)}
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label={`Projects (Gallery) (${projects.length})`} />
-          <Tab label={`County Projects (${countyProjects.length})`} />
-          <Tab label={`Citizen Proposals (${citizenProposals.length})`} />
-          <Tab label={`Announcements (${announcements.length})`} />
+          <Tab label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>Projects (Gallery)</span>
+              <Chip 
+                label={activeTab === 0 && hasActiveFilters ? filterData.length : projects.length} 
+                size="small" 
+                color={activeTab === 0 && hasActiveFilters ? "primary" : "default"}
+                sx={{ height: '20px', fontSize: '0.7rem' }}
+              />
+            </Box>
+          } />
+          <Tab label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>County Projects</span>
+              <Chip 
+                label={activeTab === 1 && hasActiveFilters ? filterData.length : countyProjects.length} 
+                size="small" 
+                color={activeTab === 1 && hasActiveFilters ? "primary" : "default"}
+                sx={{ height: '20px', fontSize: '0.7rem' }}
+              />
+            </Box>
+          } />
+          <Tab label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>Citizen Proposals</span>
+              <Chip 
+                label={activeTab === 2 && hasActiveFilters ? filterData.length : citizenProposals.length} 
+                size="small" 
+                color={activeTab === 2 && hasActiveFilters ? "primary" : "default"}
+                sx={{ height: '20px', fontSize: '0.7rem' }}
+              />
+            </Box>
+          } />
+          <Tab label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>Announcements</span>
+              <Chip 
+                label={activeTab === 3 && hasActiveFilters ? filterData.length : announcements.length} 
+                size="small" 
+                color={activeTab === 3 && hasActiveFilters ? "primary" : "default"}
+                sx={{ height: '20px', fontSize: '0.7rem' }}
+              />
+            </Box>
+          } />
           <Tab 
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1073,6 +1248,170 @@ const PublicApprovalManagementPage = () => {
         </Tabs>
 
         <Box sx={{ p: 3 }}>
+          {/* Global Search and Filters - Show for tabs 0-3 (DataGrid tabs) */}
+          {activeTab !== 4 && (
+            <Paper 
+              elevation={2} 
+              sx={{ 
+                p: 2, 
+                mb: 3, 
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                borderRadius: 2
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <SearchIcon color="primary" />
+                <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                  Search & Filter
+                </Typography>
+                {hasActiveFilters && (
+                  <Button
+                    size="small"
+                    startIcon={<ClearIcon />}
+                    onClick={handleClearFilters}
+                    variant="outlined"
+                    color="secondary"
+                  >
+                    Clear All
+                  </Button>
+                )}
+              </Box>
+              
+              <Grid container spacing={2}>
+                {/* Global Search */}
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder={`Search ${currentData.title.toLowerCase()}...`}
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                      endAdornment: globalSearch && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={() => setGlobalSearch('')}
+                            edge="end"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+
+                {/* Approval Status Filter */}
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Approval Status</InputLabel>
+                    <Select
+                      value={approvalStatusFilter}
+                      onChange={(e) => setApprovalStatusFilter(e.target.value)}
+                      label="Approval Status"
+                    >
+                      <MenuItem value="all">All Status</MenuItem>
+                      <MenuItem value="pending">Pending</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                      <MenuItem value="revision">Revision Requested</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Status Filter */}
+                {statuses.length > 0 && (
+                  <Grid item xs={12} sm={6} md={2}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Status</InputLabel>
+                      <Select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        label="Status"
+                      >
+                        <MenuItem value="all">All Status</MenuItem>
+                        {statuses.map(status => (
+                          <MenuItem key={status} value={status}>{status}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Department Filter */}
+                {departments.length > 0 && (
+                  <Grid item xs={12} sm={6} md={2}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Department</InputLabel>
+                      <Select
+                        value={departmentFilter}
+                        onChange={(e) => setDepartmentFilter(e.target.value)}
+                        label="Department"
+                      >
+                        <MenuItem value="all">All Departments</MenuItem>
+                        {departments.map(dept => (
+                          <MenuItem key={dept.departmentId || dept.id} value={dept.name || dept.departmentName}>
+                            {dept.name || dept.departmentName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+
+                {/* Category Filter */}
+                {categories.length > 0 && (
+                  <Grid item xs={12} sm={6} md={2}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Category</InputLabel>
+                      <Select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        label="Category"
+                      >
+                        <MenuItem value="all">All Categories</MenuItem>
+                        {categories.map(cat => (
+                          <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
+              </Grid>
+
+              {/* Results count */}
+              {hasActiveFilters && (
+                <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip
+                    label={`${filterData.length} result${filterData.length !== 1 ? 's' : ''} found`}
+                    color="primary"
+                    size="small"
+                    icon={<SearchIcon />}
+                  />
+                  {(() => {
+                    const totalCount = activeTab === 0 ? projects.length : 
+                                     activeTab === 1 ? countyProjects.length :
+                                     activeTab === 2 ? citizenProposals.length :
+                                     announcements.length;
+                    if (filterData.length < totalCount) {
+                      return (
+                        <Typography variant="caption" color="text.secondary">
+                          (filtered from {totalCount} total)
+                        </Typography>
+                      );
+                    }
+                    return null;
+                  })()}
+                </Box>
+              )}
+            </Paper>
+          )}
+
           {activeTab === 4 ? (
             // Moderation Queue Tab
             <Box>
