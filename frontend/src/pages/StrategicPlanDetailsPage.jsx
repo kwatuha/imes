@@ -210,7 +210,7 @@ function StrategicPlanDetailsPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">{error}</Alert>
-        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={() => navigate('/strategic-plans')} sx={{ mt: 2 }}>
+        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={() => navigate('/strategic-planning')} sx={{ mt: 2 }}>
           Back to Strategic Plans
         </Button>
       </Box>
@@ -221,7 +221,7 @@ function StrategicPlanDetailsPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning">Strategic Plan not found.</Alert>
-        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={() => navigate('/strategic-plans')} sx={{ mt: 2 }}>
+        <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={() => navigate('/strategic-planning')} sx={{ mt: 2 }}>
           Back to Strategic Plans
         </Button>
       </Box>
@@ -243,7 +243,7 @@ function StrategicPlanDetailsPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/strategic-plans')}>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/strategic-planning')}>
           Back to All Plans
         </Button>
         {checkUserPrivilege(user, 'strategic_plan_pdf.download') && (

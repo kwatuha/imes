@@ -188,8 +188,30 @@ function StrategicPlanningPage() {
 
   const columns = [
     { field: 'cidpName', headerName: strategicPlanningLabels.strategicPlan.fields.cidpName, flex: 1.5, minWidth: 250 },
-    { field: 'startDate', headerName: strategicPlanningLabels.strategicPlan.fields.startDate, flex: 1, minWidth: 150, valueGetter: (params) => formatDate(params.row?.startDate) },
-    { field: 'endDate', headerName: strategicPlanningLabels.strategicPlan.fields.endDate, flex: 1, minWidth: 150, valueGetter: (params) => formatDate(params.row?.endDate) },
+    { 
+      field: 'startDate', 
+      headerName: strategicPlanningLabels.strategicPlan.fields.startDate, 
+      flex: 1, 
+      minWidth: 150,
+      renderCell: (params) => {
+        // Access date directly from row - DataGrid should map the field automatically
+        const dateValue = params.row?.startDate || params.row?.StartDate || params.value;
+        if (!dateValue) return 'N/A';
+        return formatDate(dateValue);
+      }
+    },
+    { 
+      field: 'endDate', 
+      headerName: strategicPlanningLabels.strategicPlan.fields.endDate, 
+      flex: 1, 
+      minWidth: 150,
+      renderCell: (params) => {
+        // Access date directly from row - DataGrid should map the field automatically
+        const dateValue = params.row?.endDate || params.row?.EndDate || params.value;
+        if (!dateValue) return 'N/A';
+        return formatDate(dateValue);
+      }
+    },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -233,12 +255,15 @@ function StrategicPlanningPage() {
   }
 
   return (
-    <Box m="20px">
-      <Header title={strategicPlanningLabels.strategicPlan.plural.toUpperCase()} subtitle="List of strategic plans" />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+    <Box m="5px 20px">
+      <Box sx={{ mb: 0.5, '& > div': { mb: '0 !important' } }}>
+        <Header title={strategicPlanningLabels.strategicPlan.plural.toUpperCase()} subtitle="List of strategic plans" />
+      </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
         {checkUserPrivilege(user, 'strategic_plan.create') && (
           <Button
             variant="contained"
+            size="small"
             startIcon={<AddIcon />}
             onClick={handleOpenCreateDialog}
             sx={{ backgroundColor: colors.greenAccent[600], '&:hover': { backgroundColor: colors.greenAccent[700] }, color: colors.white }}
@@ -260,7 +285,7 @@ function StrategicPlanningPage() {
         <Alert severity="warning">You do not have the necessary permissions to view any {strategicPlanningLabels.strategicPlan.plural.toLowerCase()}.</Alert>
       ) : (
         <Box
-          m="40px 0 0 0"
+          mt={0.5}
           height="75vh"
           sx={{
             "& .MuiDataGrid-root": {
