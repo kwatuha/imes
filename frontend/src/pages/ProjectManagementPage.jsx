@@ -185,6 +185,10 @@ function ProjectManagementPage() {
   const [openAssignModal, setOpenAssignModal] = useState(false);
   const [selectedProjectForAssignment, setSelectedProjectForAssignment] = useState(null);
   
+  // State for context menu
+  const [contextMenu, setContextMenu] = useState(null);
+  const [selectedProjectForContextMenu, setSelectedProjectForContextMenu] = useState(null);
+  
   // State for pagination
   const [paginationModel, setPaginationModel] = useState({
     pageSize: 25,
@@ -538,6 +542,90 @@ function ProjectManagementPage() {
       navigate(`/projects/${projectId}/kdsp-details`);
     }
   }, [navigate]);
+
+  // Ref for DataGrid container
+  const dataGridRef = useRef(null);
+
+  // Context menu handlers
+  const handleRowContextMenu = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Find the row element from the event target
+    const rowElement = event.target.closest('.MuiDataGrid-row');
+    if (!rowElement) return;
+    
+    // Try multiple methods to get the row ID
+    let rowId = rowElement.getAttribute('data-id') || 
+                rowElement.getAttribute('data-row-id') ||
+                rowElement.id?.replace('MuiDataGrid-row-', '');
+    
+    // If still no ID, try to get it from the first cell
+    if (!rowId) {
+      const firstCell = rowElement.querySelector('.MuiDataGrid-cell[data-field]');
+      if (firstCell) {
+        // Try to extract from cell data
+        const cellData = firstCell.getAttribute('data-value');
+        if (cellData) {
+          rowId = cellData;
+        }
+      }
+    }
+    
+    if (!rowId) {
+      // Last resort: try to find row by index
+      const allRows = Array.from(rowElement.parentElement?.querySelectorAll('.MuiDataGrid-row') || []);
+      const rowIndex = allRows.indexOf(rowElement);
+      if (rowIndex >= 0 && dataGridFilteredProjects[rowIndex]) {
+        const row = dataGridFilteredProjects[rowIndex];
+        setContextMenu({
+          mouseX: event.clientX + 2,
+          mouseY: event.clientY - 6,
+        });
+        setSelectedProjectForContextMenu(row);
+        return;
+      }
+      return;
+    }
+    
+    // Find the corresponding row data
+    const row = dataGridFilteredProjects.find(p => {
+      const id = p.id?.toString();
+      return id === rowId || id === rowId.toString();
+    });
+    
+    if (row) {
+      setContextMenu({
+        mouseX: event.clientX + 2,
+        mouseY: event.clientY - 6,
+      });
+      setSelectedProjectForContextMenu(row);
+    }
+  }, [dataGridFilteredProjects]);
+
+  // Add event listener to DataGrid container for context menu
+  useEffect(() => {
+    const gridContainer = dataGridRef.current;
+    if (!gridContainer) return;
+
+    const handleContextMenu = (event) => {
+      // Only handle if clicking on a row (not on header or other elements)
+      const rowElement = event.target.closest('.MuiDataGrid-row');
+      if (rowElement && !event.target.closest('.MuiDataGrid-columnHeader')) {
+        handleRowContextMenu(event);
+      }
+    };
+
+    gridContainer.addEventListener('contextmenu', handleContextMenu);
+    return () => {
+      gridContainer.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [handleRowContextMenu]);
+
+  const handleContextMenuClose = useCallback(() => {
+    setContextMenu(null);
+    setSelectedProjectForContextMenu(null);
+  }, []);
 
   const handleCloseSnackbar = (event, reason) => { if (reason === 'clickaway') return; setSnackbar({ ...snackbar, open: false }); };
 
@@ -1684,6 +1772,7 @@ function ProjectManagementPage() {
       
       {!loading && !error && projects.length > 0 && columns && columns.length > 0 && (
         <Box
+          ref={dataGridRef}
           sx={{
             mt: 2,
             backgroundColor: ui.bodyBg,
@@ -1768,6 +1857,75 @@ function ProjectManagementPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Context Menu for Row Actions */}
+      <Menu
+        open={contextMenu !== null}
+        onClose={handleContextMenuClose}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu !== null
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+      >
+        {selectedProjectForContextMenu && (
+          <>
+            {checkUserPrivilege(user, 'projects.assign_contractor') && (
+              <MenuItem onClick={() => {
+                handleOpenAssignModal(selectedProjectForContextMenu);
+                handleContextMenuClose();
+              }}>
+                <ListItemIcon><GroupAddIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Assign Contractors</ListItemText>
+              </MenuItem>
+            )}
+            {checkUserPrivilege(user, 'project.update') && (
+              <MenuItem onClick={() => {
+                handleOpenFormDialog(selectedProjectForContextMenu);
+                handleContextMenuClose();
+              }}>
+                <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Edit Project</ListItemText>
+              </MenuItem>
+            )}
+            {checkUserPrivilege(user, 'project.delete') && (
+              <MenuItem onClick={() => {
+                handleDeleteProject(selectedProjectForContextMenu);
+                handleContextMenuClose();
+              }}>
+                <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Delete Project</ListItemText>
+              </MenuItem>
+            )}
+            {checkUserPrivilege(user, 'project.read_gantt_chart') && (
+              <MenuItem onClick={() => {
+                handleViewGanttChart(selectedProjectForContextMenu.id);
+                handleContextMenuClose();
+              }}>
+                <ListItemIcon><GanttChartIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>View Gantt Chart</ListItemText>
+              </MenuItem>
+            )}
+            <MenuItem onClick={() => {
+              handleViewDetails(selectedProjectForContextMenu.id);
+              handleContextMenuClose();
+            }}>
+              <ListItemIcon><ViewDetailsIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>View Details</ListItemText>
+            </MenuItem>
+            {checkUserPrivilege(user, 'project.read_kdsp_details') && (
+              <MenuItem onClick={() => {
+                handleViewKdspDetails(selectedProjectForContextMenu.id);
+                handleContextMenuClose();
+              }}>
+                <ListItemIcon><ViewDetailsIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>View KDSP Details</ListItemText>
+              </MenuItem>
+            )}
+          </>
+        )}
+      </Menu>
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>{snackbar.message}</Alert>
