@@ -652,7 +652,19 @@ router.post('/check-metadata-mapping', async (req, res) => {
             // Normalize financial year name: strip FY prefix, normalize separators to slash, lowercase
             const normalizeFinancialYear = (name) => {
                 if (!name) return '';
-                let normalized = normalizeStr(name).toLowerCase();
+                // Convert to string if not already, and normalize
+                const normalizedStr = normalizeStr(name);
+                if (typeof normalizedStr !== 'string') {
+                    // If normalizeStr returned non-string, convert to string first
+                    const strValue = String(name || '').trim();
+                    if (!strValue) return '';
+                    let normalized = strValue.toLowerCase();
+                    normalized = normalized.replace(/^fy\s*/i, '');
+                    normalized = normalized.replace(/[\s\-]/g, '/');
+                    normalized = normalized.replace(/\/+/g, '/');
+                    return normalized.trim();
+                }
+                let normalized = normalizedStr.toLowerCase();
                 // Remove FY or fy prefix (with optional space)
                 normalized = normalized.replace(/^fy\s*/i, '');
                 // Normalize all separators (space, dash) to slash
