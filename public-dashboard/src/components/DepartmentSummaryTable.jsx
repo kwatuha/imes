@@ -108,9 +108,10 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
     stalled: acc.stalled + (dept.stalled_projects || 0),
     notStarted: acc.notStarted + (dept.not_started_projects || 0),
     underProcurement: acc.underProcurement + (dept.under_procurement_projects || 0),
+    other: acc.other + (dept.other_projects || 0),
     total: acc.total + (dept.total_projects || 0),
     budget: acc.budget + (parseFloat(dept.total_budget) || 0)
-  }), { completed: 0, ongoing: 0, stalled: 0, notStarted: 0, underProcurement: 0, total: 0, budget: 0 });
+  }), { completed: 0, ongoing: 0, stalled: 0, notStarted: 0, underProcurement: 0, other: 0, total: 0, budget: 0 });
 
   return (
     <>
@@ -148,6 +149,7 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
               <TableCell align="center">Stalled</TableCell>
               <TableCell align="center">Not Started</TableCell>
               <TableCell align="center">Under Procurement</TableCell>
+              <TableCell align="center">Other</TableCell>
               <TableCell align="center">All Projects</TableCell>
               <TableCell align="right">Total Budget</TableCell>
               <TableCell align="center">Actions</TableCell>
@@ -239,6 +241,17 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
                   />
                 </TableCell>
                 <TableCell align="center">
+                  <Chip
+                    label={dept.other_projects || 0}
+                    size="small"
+                    sx={{
+                      backgroundColor: alpha('#9e9e9e', 0.1),
+                      color: '#9e9e9e',
+                      fontWeight: 'bold'
+                    }}
+                  />
+                </TableCell>
+                <TableCell align="center">
                   <Typography variant="body1" fontWeight="bold" color="primary">
                     {dept.total_projects || 0}
                   </Typography>
@@ -283,6 +296,7 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
               <TableCell align="center">{totals.stalled}</TableCell>
               <TableCell align="center">{totals.notStarted}</TableCell>
               <TableCell align="center">{totals.underProcurement}</TableCell>
+              <TableCell align="center">{totals.other}</TableCell>
               <TableCell align="center">
                 <Typography variant="body1" fontWeight="bold" color="primary">
                   {totals.total}

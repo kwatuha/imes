@@ -209,15 +209,52 @@ const variantToCanonical = (() => {
     return map;
 })();
 
-const parseDateToYMD = (value) => {
-    if (!value) return null;
+// Helper function to validate and fix invalid dates
+// Returns: { year, month, day, corrected, originalDay }
+const validateAndFixDate = (year, month, day) => {
+    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    
+    // Check for leap year (February can have 29 days)
+    if (month === 2 && ((year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0))) {
+        daysInMonth[1] = 29;
+    }
+    
+    const maxDays = daysInMonth[month - 1];
+    const originalDay = day;
+    if (day > maxDays) {
+        // Fix invalid dates: e.g., June 31 -> June 30, February 30 -> February 28/29
+        const fixedDay = maxDays;
+        console.warn(`Fixed invalid date: ${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} -> ${year}-${String(month).padStart(2, '0')}-${String(fixedDay).padStart(2, '0')}`);
+        return { year, month, day: fixedDay, corrected: true, originalDay };
+    }
+    
+    return { year, month, day, corrected: false, originalDay };
+};
+
+// Enhanced parseDateToYMD that tracks corrections
+// Returns: { date: string, corrected: boolean, originalValue: string, correctionMessage: string } or null
+const parseDateToYMD = (value, trackCorrections = false) => {
+    if (!value) return trackCorrections ? null : null;
+    const originalValue = String(value);
+    
     if (value instanceof Date && !isNaN(value.getTime())) {
         const yyyy = value.getFullYear();
-        const mm = String(value.getMonth() + 1).padStart(2, '0');
-        const dd = String(value.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
+        const mm = value.getMonth() + 1;
+        const dd = value.getDate();
+        const fixed = validateAndFixDate(yyyy, mm, dd);
+        const dateStr = `${fixed.year}-${String(fixed.month).padStart(2, '0')}-${String(fixed.day).padStart(2, '0')}`;
+        
+        if (trackCorrections && fixed.corrected) {
+            return {
+                date: dateStr,
+                corrected: true,
+                originalValue: originalValue,
+                correctionMessage: `Date corrected from ${yyyy}-${String(mm).padStart(2, '0')}-${String(fixed.originalDay).padStart(2, '0')} to ${dateStr} (invalid day for month)`
+            };
+        }
+        return trackCorrections ? { date: dateStr, corrected: false, originalValue: originalValue } : dateStr;
     }
-    if (typeof value !== 'string') return value;
+    if (typeof value !== 'string') return trackCorrections ? value : value;
     const s = value.trim();
     
     // Fix common typos in month names (e.g., "0ct" -> "Oct", "0CT" -> "OCT")
@@ -238,9 +275,18 @@ const parseDateToYMD = (value) => {
         const monthName = m[2].toLowerCase();
         const year = parseInt(m[3], 10);
         if (monthNames[monthName] && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-            const mm = String(monthNames[monthName]).padStart(2, '0');
-            const dd = String(day).padStart(2, '0');
-            return `${year}-${mm}-${dd}`;
+            const month = monthNames[monthName];
+            const fixed = validateAndFixDate(year, month, day);
+            const dateStr = `${fixed.year}-${String(fixed.month).padStart(2, '0')}-${String(fixed.day).padStart(2, '0')}`;
+            if (trackCorrections && fixed.corrected) {
+                return {
+                    date: dateStr,
+                    corrected: true,
+                    originalValue: originalValue,
+                    correctionMessage: `Date corrected from ${year}-${String(month).padStart(2, '0')}-${String(fixed.originalDay).padStart(2, '0')} to ${dateStr} (invalid day for month)`
+                };
+            }
+            return trackCorrections ? { date: dateStr, corrected: false, originalValue: originalValue } : dateStr;
         }
     }
     
@@ -251,9 +297,18 @@ const parseDateToYMD = (value) => {
         const day = parseInt(m[2], 10);
         const year = parseInt(m[3], 10);
         if (monthNames[monthName] && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-            const mm = String(monthNames[monthName]).padStart(2, '0');
-            const dd = String(day).padStart(2, '0');
-            return `${year}-${mm}-${dd}`;
+            const month = monthNames[monthName];
+            const fixed = validateAndFixDate(year, month, day);
+            const dateStr = `${fixed.year}-${String(fixed.month).padStart(2, '0')}-${String(fixed.day).padStart(2, '0')}`;
+            if (trackCorrections && fixed.corrected) {
+                return {
+                    date: dateStr,
+                    corrected: true,
+                    originalValue: originalValue,
+                    correctionMessage: `Date corrected from ${year}-${String(month).padStart(2, '0')}-${String(fixed.originalDay).padStart(2, '0')} to ${dateStr} (invalid day for month)`
+                };
+            }
+            return trackCorrections ? { date: dateStr, corrected: false, originalValue: originalValue } : dateStr;
         }
     }
     
@@ -263,50 +318,102 @@ const parseDateToYMD = (value) => {
     m = norm.match(/^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/);
     if (m) {
         const yyyy = parseInt(m[1], 10);
-        const mm = String(parseInt(m[2], 10)).padStart(2, '0');
-        const dd = String(parseInt(m[3], 10)).padStart(2, '0');
-        if (yyyy >= 1900 && yyyy <= 2100 && parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
-            return `${yyyy}-${mm}-${dd}`;
+        const mm = parseInt(m[2], 10);
+        const dd = parseInt(m[3], 10);
+        if (yyyy >= 1900 && yyyy <= 2100 && mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+            const fixed = validateAndFixDate(yyyy, mm, dd);
+            const dateStr = `${fixed.year}-${String(fixed.month).padStart(2, '0')}-${String(fixed.day).padStart(2, '0')}`;
+            if (trackCorrections && fixed.corrected) {
+                return {
+                    date: dateStr,
+                    corrected: true,
+                    originalValue: originalValue,
+                    correctionMessage: `Date corrected from ${yyyy}-${String(mm).padStart(2, '0')}-${String(fixed.originalDay).padStart(2, '0')} to ${dateStr} (invalid day for month)`
+                };
+            }
+            return trackCorrections ? { date: dateStr, corrected: false, originalValue: originalValue } : dateStr;
         }
     }
-    // Try DD-MM-YYYY
+    // Try DD-MM-YYYY or MM-DD-YYYY (need to detect which format)
+    // Common patterns: MM/DD/YYYY (US) or DD/MM/YYYY (European)
+    // Since we see "06/31/2025", this is likely MM/DD/YYYY format
     m = norm.match(/^\s*(\d{1,2})-(\d{1,2})-(\d{4})\s*$/);
     if (m) {
-        const dd = String(parseInt(m[1], 10)).padStart(2, '0');
-        const mm = String(parseInt(m[2], 10)).padStart(2, '0');
+        const first = parseInt(m[1], 10);
+        const second = parseInt(m[2], 10);
         const yyyy = parseInt(m[3], 10);
-        if (yyyy >= 1900 && yyyy <= 2100 && parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
-            return `${yyyy}-${mm}-${dd}`;
-        }
-    }
-    // Try MM-DD-YYYY
-    m = norm.match(/^\s*(\d{1,2})-(\d{1,2})-(\d{4})\s*$/);
-    if (m) {
-        const mm = String(parseInt(m[1], 10)).padStart(2, '0');
-        const dd = String(parseInt(m[2], 10)).padStart(2, '0');
-        const yyyy = parseInt(m[3], 10);
-        if (yyyy >= 1900 && yyyy <= 2100 && parseInt(mm) >= 1 && parseInt(mm) <= 12 && parseInt(dd) >= 1 && parseInt(dd) <= 31) {
-            return `${yyyy}-${mm}-${dd}`;
+        
+        if (yyyy >= 1900 && yyyy <= 2100) {
+            let mm, dd;
+            // Heuristic: If first number > 12, it's likely DD-MM-YYYY format
+            if (first > 12 && second <= 12) {
+                // DD-MM-YYYY format
+                dd = first;
+                mm = second;
+            } else if (first <= 12 && second <= 31) {
+                // MM-DD-YYYY format (US format - more common in Excel)
+                mm = first;
+                dd = second;
+            } else {
+                // Try DD-MM-YYYY as fallback
+                dd = first;
+                mm = second;
+            }
+            
+            if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+                const fixed = validateAndFixDate(yyyy, mm, dd);
+                const dateStr = `${fixed.year}-${String(fixed.month).padStart(2, '0')}-${String(fixed.day).padStart(2, '0')}`;
+                if (trackCorrections && fixed.corrected) {
+                    return {
+                        date: dateStr,
+                        corrected: true,
+                        originalValue: originalValue,
+                        correctionMessage: `Date corrected from ${yyyy}-${String(mm).padStart(2, '0')}-${String(fixed.originalDay).padStart(2, '0')} to ${dateStr} (invalid day for month)`
+                    };
+                }
+                return trackCorrections ? { date: dateStr, corrected: false, originalValue: originalValue } : dateStr;
+            }
         }
     }
     
     // If all parsing fails, return null instead of the original string to avoid database errors
     console.warn(`Could not parse date: "${s}"`);
-    return null;
+    return trackCorrections ? null : null;
 };
 
-const mapRowUsingHeaderMap = (headers, row) => {
+const mapRowUsingHeaderMap = (headers, row, trackCorrections = false) => {
     const obj = {};
+    const corrections = [];
+    
     for (let i = 0; i < headers.length; i++) {
         const rawHeader = headers[i];
         const normalized = normalizeHeader(rawHeader);
         const canonical = variantToCanonical[normalized] || rawHeader; // keep unknowns
         let value = row[i];
+        
         // Normalize dates (Excel Date objects or strings) to YYYY-MM-DD
         if (canonical === 'StartDate' || canonical === 'EndDate' || /date/i.test(String(canonical))) {
-            value = parseDateToYMD(value);
+            const dateResult = parseDateToYMD(value, trackCorrections);
+            if (trackCorrections && dateResult && dateResult.corrected) {
+                corrections.push({
+                    field: canonical,
+                    originalValue: dateResult.originalValue,
+                    correctedValue: dateResult.date,
+                    message: dateResult.correctionMessage
+                });
+                value = dateResult.date;
+            } else if (trackCorrections && dateResult && dateResult.date) {
+                value = dateResult.date;
+            } else if (!trackCorrections) {
+                value = dateResult;
+            }
         }
+        
         obj[canonical] = value === '' ? null : value;
+    }
+    
+    if (trackCorrections) {
+        return { row: obj, corrections };
     }
     return obj;
 };
@@ -331,7 +438,14 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
         }
 
         const headers = rawData[0];
-        const dataRows = rawData.slice(1);
+        // Filter out completely empty rows to avoid processing millions of empty rows
+        const dataRows = rawData.slice(1).filter(row => {
+            if (!row || !Array.isArray(row)) return false;
+            // Check if row has any non-empty cells
+            return row.some(cell => {
+                return cell !== undefined && cell !== null && cell !== '';
+            });
+        });
 
         // Build unrecognized headers list
         const normalizedKnown = new Set(Object.keys(variantToCanonical));
@@ -347,18 +461,36 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
             }
         });
 
-        const fullData = dataRows.map(r => mapRowUsingHeaderMap(headers, r));
+        // Track corrections during preview
+        const allCorrections = [];
+        const fullDataWithCorrections = dataRows.map(r => {
+            const result = mapRowUsingHeaderMap(headers, r, true);
+            if (result.corrections && result.corrections.length > 0) {
+                allCorrections.push(...result.corrections.map(c => ({
+                    ...c,
+                    row: dataRows.indexOf(r) + 2 // Excel row number (1-indexed header + row index)
+                })));
+            }
+            return result.row;
+        }).filter(row => {
+            // Skip rows where project name is empty, null, or has less than 3 characters
+            const projectName = (row.projectName || row.Project_Name || row['Project Name'] || '').toString().trim();
+            return projectName && projectName.length >= 3;
+        });
+        
+        const fullData = fullDataWithCorrections;
         const previewLimit = 10;
         const previewData = fullData.slice(0, previewLimit);
 
         fs.unlink(filePath, () => {});
         return res.status(200).json({
             success: true,
-            message: `File parsed successfully. Review ${previewData.length} of ${fullData.length} rows.`,
+            message: `File parsed successfully. Review ${previewData.length} of ${fullData.length} rows.${allCorrections.length > 0 ? ` ${allCorrections.length} data correction(s) applied.` : ''}`,
             previewData,
             headers,
             fullData,
-            unrecognizedHeaders
+            unrecognizedHeaders,
+            corrections: allCorrections.length > 0 ? allCorrections : undefined
         });
     } catch (err) {
         fs.unlink(filePath, () => {});
@@ -393,6 +525,16 @@ router.post('/check-metadata-mapping', async (req, res) => {
         return normalized;
     };
 
+    // Normalize alias for matching: remove &, commas, and spaces, then lowercase
+    // This allows "WECV&NR", "WECVNR", "WE,CV,NR" to all match
+    const normalizeAlias = (v) => {
+        if (typeof v !== 'string') return v;
+        return normalizeStr(v)
+            .replace(/[&,]/g, '')  // Remove ampersands and commas
+            .replace(/\s+/g, '')   // Remove all spaces
+            .toLowerCase();         // Lowercase for case-insensitive matching
+    };
+
     let connection;
     const mappingSummary = {
         departments: { existing: [], new: [], unmatched: [] },
@@ -415,6 +557,12 @@ router.post('/check-metadata-mapping', async (req, res) => {
         const uniqueFinancialYears = new Set();
 
         dataToImport.forEach((row, index) => {
+            // Skip rows where project name is empty, null, or has less than 3 characters
+            const projectName = (row.projectName || row.Project_Name || row['Project Name'] || '').toString().trim();
+            if (!projectName || projectName.length < 3) {
+                return; // Skip this row
+            }
+            
             const dept = normalizeStr(row.department || row.Department);
             const directorate = normalizeStr(row.directorate || row.Directorate);
             const ward = normalizeStr(row.ward || row.Ward || row['Ward Name']);
@@ -441,26 +589,45 @@ router.post('/check-metadata-mapping', async (req, res) => {
             const aliasMap = new Map(); // Map alias -> name for tracking
             
             allDepts.forEach(d => {
-                if (d.name) existingNames.add(normalizeStr(d.name));
+                if (d.name) existingNames.add(normalizeStr(d.name).toLowerCase()); // Store lowercase for case-insensitive matching
                 if (d.alias) {
-                    // Handle comma-separated aliases - split and add each part
-                    const aliases = d.alias.split(',').map(a => normalizeStr(a));
+                    // Store normalized alias (without &, commas, spaces) for flexible matching
+                    const normalizedAlias = normalizeAlias(d.alias);
+                    existingAliases.add(normalizedAlias);
+                    aliasMap.set(normalizedAlias, d.name);
+                    
+                    // Also store split parts (for backwards compatibility)
+                    const aliases = d.alias.split(',').map(a => normalizeStr(a).toLowerCase());
                     aliases.forEach(a => {
                         existingAliases.add(a);
                         aliasMap.set(a, d.name);
                     });
-                    // Also check if the full alias string matches
-                    const fullAlias = normalizeStr(d.alias);
+                    
+                    // Also store full alias string (normalized)
+                    const fullAlias = normalizeStr(d.alias).toLowerCase();
                     existingAliases.add(fullAlias);
                     aliasMap.set(fullAlias, d.name);
                 }
             });
             
             deptList.forEach(dept => {
-                const normalizedDept = normalizeStr(dept);
-                if (existingNames.has(normalizedDept) || existingAliases.has(normalizedDept)) {
+                const normalizedDept = normalizeStr(dept).toLowerCase(); // Case-insensitive matching
+                const normalizedDeptAlias = normalizeAlias(dept); // Alias-style normalization (no &, commas, spaces)
+                let found = false;
+                
+                // Check against existing names (case-insensitive) - direct Set lookup
+                if (existingNames.has(normalizedDept)) {
                     mappingSummary.departments.existing.push(dept);
-                } else {
+                    found = true;
+                }
+                
+                // Check against aliases (case-insensitive) - try both normalizations
+                if (!found && (existingAliases.has(normalizedDept) || existingAliases.has(normalizedDeptAlias))) {
+                    mappingSummary.departments.existing.push(dept);
+                    found = true;
+                }
+                
+                if (!found) {
                     mappingSummary.departments.new.push(dept);
                 }
             });
@@ -478,22 +645,40 @@ router.post('/check-metadata-mapping', async (req, res) => {
             const existingAliases = new Set();
             
             allSections.forEach(d => {
-                if (d.name) existingNames.add(normalizeStr(d.name));
+                if (d.name) existingNames.add(normalizeStr(d.name).toLowerCase()); // Store lowercase for case-insensitive matching
                 if (d.alias) {
-                    // Handle comma-separated aliases - split and add each part
-                    const aliases = d.alias.split(',').map(a => normalizeStr(a));
+                    // Store normalized alias (without &, commas, spaces) for flexible matching
+                    const normalizedAlias = normalizeAlias(d.alias);
+                    existingAliases.add(normalizedAlias);
+                    
+                    // Also store split parts (for backwards compatibility)
+                    const aliases = d.alias.split(',').map(a => normalizeStr(a).toLowerCase());
                     aliases.forEach(a => existingAliases.add(a));
-                    // Also check if the full alias string matches
-                    const fullAlias = normalizeStr(d.alias);
+                    
+                    // Also store full alias string (normalized)
+                    const fullAlias = normalizeStr(d.alias).toLowerCase();
                     existingAliases.add(fullAlias);
                 }
             });
             
             dirList.forEach(dir => {
-                const normalizedDir = normalizeStr(dir);
-                if (existingNames.has(normalizedDir) || existingAliases.has(normalizedDir)) {
+                const normalizedDir = normalizeStr(dir).toLowerCase(); // Case-insensitive matching
+                const normalizedDirAlias = normalizeAlias(dir); // Alias-style normalization (no &, commas, spaces)
+                let found = false;
+                
+                // Check against existing names (case-insensitive) - direct Set lookup
+                if (existingNames.has(normalizedDir)) {
                     mappingSummary.directorates.existing.push(dir);
-                } else {
+                    found = true;
+                }
+                
+                // Check against aliases (case-insensitive) - try both normalizations
+                if (!found && (existingAliases.has(normalizedDir) || existingAliases.has(normalizedDirAlias))) {
+                    mappingSummary.directorates.existing.push(dir);
+                    found = true;
+                }
+                
+                if (!found) {
                     mappingSummary.directorates.new.push(dir);
                 }
             });
@@ -534,28 +719,31 @@ router.post('/check-metadata-mapping', async (req, res) => {
             });
             
             wardList.forEach(ward => {
-                const normalizedWard = normalizeStr(ward).toLowerCase();
+                // Strip "Ward" suffix if present (case-insensitive)
+                let wardName = normalizeStr(ward).toLowerCase();
+                wardName = wardName.replace(/\s+ward\s*$/i, '').trim();
+                
                 let found = false;
                 
                 // Try exact match first
-                if (wardNameMap.has(normalizedWard)) {
+                if (wardNameMap.has(wardName)) {
                     mappingSummary.wards.existing.push(ward);
                     found = true;
                 } else {
                     // Try with space converted to slash (for compound names like "Masogo Nyangoma" -> "Masogo/Nyangoma")
-                    const withSlash = normalizedWard.replace(/\s+/g, '/');
+                    const withSlash = wardName.replace(/\s+/g, '/');
                     if (wardNameMap.has(withSlash)) {
                         mappingSummary.wards.existing.push(ward);
                         found = true;
                     } else {
                         // Try with slash converted to space (for cases like "KISUMU/CENTRAL" -> "KISUMU CENTRAL")
-                        const withSpace = normalizedWard.replace(/\//g, ' ');
+                        const withSpace = wardName.replace(/\//g, ' ');
                         if (wardNameMap.has(withSpace)) {
                             mappingSummary.wards.existing.push(ward);
                             found = true;
                         } else {
                             // Try order-independent matching (e.g., "Nyangoma Masogo" matches "Masogo/Nyangoma")
-                            const words = normalizedWard.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                            const words = wardName.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
                             if (words && wardWordSetMap.has(words)) {
                                 mappingSummary.wards.existing.push(ward);
                                 found = true;
@@ -605,28 +793,33 @@ router.post('/check-metadata-mapping', async (req, res) => {
             });
             
             subcountyList.forEach(subcounty => {
-                const normalizedSubcounty = normalizeStr(subcounty).toLowerCase();
+                // Strip "SC" or "Subcounty" or "Sub County" suffix if present (case-insensitive)
+                let subcountyName = normalizeStr(subcounty).toLowerCase();
+                subcountyName = subcountyName.replace(/\s+sc\s*$/i, '').trim();
+                subcountyName = subcountyName.replace(/\s+subcounty\s*$/i, '').trim();
+                subcountyName = subcountyName.replace(/\s+sub\s+county\s*$/i, '').trim();
+                
                 let found = false;
                 
                 // Try exact match first
-                if (subcountyNameMap.has(normalizedSubcounty)) {
+                if (subcountyNameMap.has(subcountyName)) {
                     mappingSummary.subcounties.existing.push(subcounty);
                     found = true;
                 } else {
                     // Try with space converted to slash (for compound names)
-                    const withSlash = normalizedSubcounty.replace(/\s+/g, '/');
+                    const withSlash = subcountyName.replace(/\s+/g, '/');
                     if (subcountyNameMap.has(withSlash)) {
                         mappingSummary.subcounties.existing.push(subcounty);
                         found = true;
                     } else {
                         // Try with slash converted to space
-                        const withSpace = normalizedSubcounty.replace(/\//g, ' ');
+                        const withSpace = subcountyName.replace(/\//g, ' ');
                         if (subcountyNameMap.has(withSpace)) {
                             mappingSummary.subcounties.existing.push(subcounty);
                             found = true;
                         } else {
                             // Try order-independent matching (e.g., "Nyangoma Masogo" matches "Masogo/Nyangoma")
-                            const words = normalizedSubcounty.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
+                            const words = subcountyName.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
                             if (words && subcountyWordSetMap.has(words)) {
                                 mappingSummary.subcounties.existing.push(subcounty);
                                 found = true;
@@ -650,28 +843,63 @@ router.post('/check-metadata-mapping', async (req, res) => {
             );
             
             // Normalize financial year name: strip FY prefix, normalize separators to slash, lowercase
-            const normalizeFinancialYear = (name) => {
-                if (!name) return '';
+            // Also handles concatenated years like "20232024" -> "2023/2024"
+            const normalizeFinancialYear = (name, trackCorrections = false) => {
+                if (!name) return trackCorrections ? { normalized: '', corrected: false, originalValue: '' } : '';
+                
+                const originalValue = String(name).trim();
+                
                 // Convert to string if not already, and normalize
-                const normalizedStr = normalizeStr(name);
-                if (typeof normalizedStr !== 'string') {
-                    // If normalizeStr returned non-string, convert to string first
-                    const strValue = String(name || '').trim();
-                    if (!strValue) return '';
-                    let normalized = strValue.toLowerCase();
-                    normalized = normalized.replace(/^fy\s*/i, '');
-                    normalized = normalized.replace(/[\s\-]/g, '/');
-                    normalized = normalized.replace(/\/+/g, '/');
-                    return normalized.trim();
+                let strValue = '';
+                if (typeof name === 'string') {
+                    strValue = name.trim();
+                } else {
+                    strValue = String(name || '').trim();
                 }
-                let normalized = normalizedStr.toLowerCase();
+                
+                if (!strValue) return trackCorrections ? { normalized: '', corrected: false, originalValue: originalValue } : '';
+                
+                let normalized = strValue.toLowerCase();
+                let wasCorrected = false;
+                
+                // Check for concatenated years like "20232024" (8 digits) or "2023-2024" (without separator)
+                // Pattern: 4 digits followed by 4 digits (e.g., "20232024")
+                const concatenatedMatch = normalized.match(/^(\d{4})(\d{4})$/);
+                if (concatenatedMatch) {
+                    const year1 = concatenatedMatch[1];
+                    const year2 = concatenatedMatch[2];
+                    // Validate years are reasonable (1900-2100 range and consecutive)
+                    const y1 = parseInt(year1, 10);
+                    const y2 = parseInt(year2, 10);
+                    if (y1 >= 1900 && y1 <= 2100 && y2 >= 1900 && y2 <= 2100 && y2 === y1 + 1) {
+                        normalized = `${year1}/${year2}`;
+                        wasCorrected = true;
+                    }
+                }
+                
                 // Remove FY or fy prefix (with optional space)
                 normalized = normalized.replace(/^fy\s*/i, '');
                 // Normalize all separators (space, dash) to slash
                 normalized = normalized.replace(/[\s\-]/g, '/');
                 // Remove any extra slashes
                 normalized = normalized.replace(/\/+/g, '/');
-                return normalized.trim();
+                const finalNormalized = normalized.trim();
+                
+                if (trackCorrections && wasCorrected) {
+                    return {
+                        normalized: finalNormalized,
+                        corrected: true,
+                        originalValue: originalValue,
+                        correctionMessage: `Financial year corrected from "${originalValue}" to "${finalNormalized}" (concatenated years split)`
+                    };
+                }
+                
+                return trackCorrections ? {
+                    normalized: finalNormalized,
+                    corrected: false,
+                    originalValue: originalValue,
+                    correctionMessage: null
+                } : finalNormalized;
             };
             
             // Create a map: normalized year (e.g., "2014/2015") -> actual database name (e.g., "FY2014/2015")
@@ -703,6 +931,12 @@ router.post('/check-metadata-mapping', async (req, res) => {
 
         // Identify rows with unmatched metadata (for warnings)
         dataToImport.forEach((row, index) => {
+            // Skip rows where project name is empty, null, or has less than 3 characters
+            const projectName = (row.projectName || row.Project_Name || row['Project Name'] || '').toString().trim();
+            if (!projectName || projectName.length < 3) {
+                return; // Skip this row
+            }
+            
             const dept = normalizeStr(row.department || row.Department);
             const ward = normalizeStr(row.ward || row.Ward || row['Ward Name']);
             const subcounty = normalizeStr(row['sub-county'] || row.SubCounty || row['Sub County'] || row.Subcounty);
@@ -786,12 +1020,23 @@ router.post('/confirm-import-data', async (req, res) => {
         return normalized;
     };
 
+    // Normalize alias for matching: remove &, commas, and spaces, then lowercase
+    // This allows "WECV&NR", "WECVNR", "WE,CV,NR" to all match
+    const normalizeAlias = (v) => {
+        if (typeof v !== 'string') return v;
+        return normalizeStr(v)
+            .replace(/[&,]/g, '')  // Remove ampersands and commas
+            .replace(/\s+/g, '')   // Remove all spaces
+            .toLowerCase();         // Lowercase for case-insensitive matching
+    };
+
     let connection;
     const summary = { 
         projectsCreated: 0, 
         projectsUpdated: 0, 
         linksCreated: 0, 
         errors: [],
+        dataCorrections: [], // Track date and financial year corrections
         skippedMetadata: {
             departments: [],
             directorates: [],
@@ -810,11 +1055,18 @@ router.post('/confirm-import-data', async (req, res) => {
             try {
                 const projectName = normalizeStr(row.projectName || row.Project_Name || row['Project Name']);
                 const projectRef = normalizeStr(row.ProjectRefNum || row.Project_Ref_Num || row['Project Ref Num']);
+                
+                // Skip rows where project name is empty, null, or has less than 3 characters
+                const projectNameStr = (projectName || '').toString().trim();
+                if (!projectNameStr || projectNameStr.length < 3) {
+                    continue; // Skip this row
+                }
+                
                 if (!projectName && !projectRef) {
                     throw new Error('Missing projectName and ProjectRefNum');
                 }
 
-                // Resolve departmentId by name or alias (DO NOT create if missing)
+                // Resolve departmentId by name or alias (DO NOT create if missing) - case-insensitive
                 const departmentName = normalizeStr(row.department || row.Department);
                 let departmentId = null;
                 if (departmentName) {
@@ -823,25 +1075,30 @@ router.post('/confirm-import-data', async (req, res) => {
                         `SELECT departmentId, name, alias FROM kemri_departments 
                          WHERE (voided IS NULL OR voided = 0)`
                     );
+                    const normalizedDeptName = departmentName.toLowerCase(); // Case-insensitive matching
                     let found = false;
                     for (const dept of allDepts) {
-                        // Check name
-                        if (dept.name && normalizeStr(dept.name) === departmentName) {
+                        // Check name (case-insensitive)
+                        if (dept.name && normalizeStr(dept.name).toLowerCase() === normalizedDeptName) {
                             departmentId = dept.departmentId;
                             found = true;
                             break;
                         }
-                        // Check alias - both full alias and split parts
+                        // Check alias - both full alias and split parts (case-insensitive)
+                        // Also check with alias normalization (ignoring &, commas, spaces)
                         if (dept.alias) {
-                            const fullAlias = normalizeStr(dept.alias);
-                            if (fullAlias === departmentName) {
+                            const fullAlias = normalizeStr(dept.alias).toLowerCase();
+                            const normalizedAlias = normalizeAlias(dept.alias);
+                            const normalizedDeptAlias = normalizeAlias(departmentName);
+                            
+                            if (fullAlias === normalizedDeptName || normalizedAlias === normalizedDeptAlias) {
                                 departmentId = dept.departmentId;
                                 found = true;
                                 break;
                             }
-                            // Check split aliases
-                            const aliases = dept.alias.split(',').map(a => normalizeStr(a));
-                            if (aliases.includes(departmentName)) {
+                            // Check split aliases (case-insensitive)
+                            const aliases = dept.alias.split(',').map(a => normalizeStr(a).toLowerCase());
+                            if (aliases.includes(normalizedDeptName)) {
                                 departmentId = dept.departmentId;
                                 found = true;
                                 break;
@@ -856,7 +1113,7 @@ router.post('/confirm-import-data', async (req, res) => {
                     }
                 }
 
-                // Resolve sectionId (directorate) by name or alias (DO NOT create if missing)
+                // Resolve sectionId (directorate) by name or alias (DO NOT create if missing) - case-insensitive
                 const directorateName = normalizeStr(row.directorate || row.Directorate);
                 let sectionId = null;
                 if (directorateName) {
@@ -865,23 +1122,28 @@ router.post('/confirm-import-data', async (req, res) => {
                         `SELECT sectionId, name, alias, departmentId FROM kemri_sections 
                          WHERE (voided IS NULL OR voided = 0)`
                     );
+                    const normalizedDirName = directorateName.toLowerCase(); // Case-insensitive matching
                     let matchingSections = [];
                     
                     for (const section of allSections) {
                         let matches = false;
-                        // Check name
-                        if (section.name && normalizeStr(section.name) === directorateName) {
+                        // Check name (case-insensitive)
+                        if (section.name && normalizeStr(section.name).toLowerCase() === normalizedDirName) {
                             matches = true;
                         }
-                        // Check alias - both full alias and split parts
+                        // Check alias - both full alias and split parts (case-insensitive)
+                        // Also check with alias normalization (ignoring &, commas, spaces)
                         if (!matches && section.alias) {
-                            const fullAlias = normalizeStr(section.alias);
-                            if (fullAlias === directorateName) {
+                            const fullAlias = normalizeStr(section.alias).toLowerCase();
+                            const normalizedAlias = normalizeAlias(section.alias);
+                            const normalizedDirAlias = normalizeAlias(directorateName);
+                            
+                            if (fullAlias === normalizedDirName || normalizedAlias === normalizedDirAlias) {
                                 matches = true;
                             } else {
-                                // Check split aliases
-                                const aliases = section.alias.split(',').map(a => normalizeStr(a));
-                                if (aliases.includes(directorateName)) {
+                                // Check split aliases (case-insensitive)
+                                const aliases = section.alias.split(',').map(a => normalizeStr(a).toLowerCase());
+                                if (aliases.includes(normalizedDirName)) {
                                     matches = true;
                                 }
                             }
@@ -918,20 +1180,72 @@ router.post('/confirm-import-data', async (req, res) => {
                 const finYearName = normalizeStr(row.financialYear || row.FinancialYear || row['Financial Year'] || row.ADP || row.Year);
                 let finYearId = null;
                 if (finYearName) {
-                    // Normalize financial year name: strip FY prefix, normalize separators
-                    const normalizeFinancialYear = (name) => {
-                        if (!name) return '';
-                        let normalized = normalizeStr(name).toLowerCase();
+                    // Normalize financial year name: strip FY prefix, normalize separators, handle concatenated years
+                    const normalizeFinancialYear = (name, trackCorrections = false) => {
+                        if (!name) return trackCorrections ? { normalized: '', corrected: false, originalValue: '' } : '';
+                        
+                        const originalValue = String(name).trim();
+                        let strValue = '';
+                        if (typeof name === 'string') {
+                            strValue = name.trim();
+                        } else {
+                            strValue = String(name || '').trim();
+                        }
+                        
+                        if (!strValue) return trackCorrections ? { normalized: '', corrected: false, originalValue: originalValue } : '';
+                        
+                        let normalized = normalizeStr(strValue).toLowerCase();
+                        let wasCorrected = false;
+                        
+                        // Check for concatenated years like "20232024" (8 digits)
+                        const concatenatedMatch = normalized.match(/^(\d{4})(\d{4})$/);
+                        if (concatenatedMatch) {
+                            const year1 = concatenatedMatch[1];
+                            const year2 = concatenatedMatch[2];
+                            const y1 = parseInt(year1, 10);
+                            const y2 = parseInt(year2, 10);
+                            if (y1 >= 1900 && y1 <= 2100 && y2 >= 1900 && y2 <= 2100 && y2 === y1 + 1) {
+                                normalized = `${year1}/${year2}`;
+                                wasCorrected = true;
+                            }
+                        }
+                        
                         // Remove FY or fy prefix (with optional space)
                         normalized = normalized.replace(/^fy\s*/i, '');
                         // Normalize all separators (space, dash) to slash
                         normalized = normalized.replace(/[\s\-]/g, '/');
                         // Remove any extra slashes
                         normalized = normalized.replace(/\/+/g, '/');
-                        return normalized.trim();
+                        const finalNormalized = normalized.trim();
+                        
+                        if (trackCorrections && wasCorrected) {
+                            return {
+                                normalized: finalNormalized,
+                                corrected: true,
+                                originalValue: originalValue,
+                                correctionMessage: `Financial year corrected from "${originalValue}" to "${finalNormalized}" (concatenated years split)`
+                            };
+                        }
+                        
+                        return trackCorrections ? {
+                            normalized: finalNormalized,
+                            corrected: false,
+                            originalValue: originalValue
+                        } : finalNormalized;
                     };
                     
-                    const normalizedFYName = normalizeFinancialYear(finYearName);
+                    const fyResult = normalizeFinancialYear(finYearName, true);
+                    const normalizedFYName = fyResult.normalized || fyResult;
+                    
+                    if (fyResult.corrected) {
+                        summary.dataCorrections.push({
+                            row: i + 2,
+                            field: 'financialYear',
+                            originalValue: fyResult.originalValue,
+                            correctedValue: normalizedFYName,
+                            message: fyResult.correctionMessage
+                        });
+                    }
                     
                     // Fetch all financial years and match using normalized names
                     const [allFYs] = await connection.query(
@@ -941,7 +1255,7 @@ router.post('/confirm-import-data', async (req, res) => {
                     let fyRows = [];
                     for (const fy of allFYs) {
                         if (fy.finYearName) {
-                            const dbNormalized = normalizeFinancialYear(fy.finYearName);
+                            const dbNormalized = normalizeFinancialYear(fy.finYearName, false);
                             if (dbNormalized === normalizedFYName) {
                                 fyRows = [{ finYearId: fy.finYearId }];
                                 break;
@@ -961,25 +1275,34 @@ router.post('/confirm-import-data', async (req, res) => {
 
                 // Prepare project payload
                 const toMoney = (v) => (v != null ? Number(String(v).replace(/,/g, '')) : null);
-                // Ensure dates are in YYYY-MM-DD format
-                const normalizeDate = (dateValue) => {
-                    if (!dateValue) return null;
+                // Ensure dates are in YYYY-MM-DD format - track corrections
+                const normalizeDate = (dateValue, fieldName) => {
+                    if (!dateValue) return { date: null, corrected: false };
                     try {
                         // If already in YYYY-MM-DD format, return as-is
                         if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
-                            return dateValue.split(' ')[0]; // Take only date part if there's time
+                            return { date: dateValue.split(' ')[0], corrected: false }; // Take only date part if there's time
                         }
                         // Try to parse if it's a date string or object
-                        const parsed = parseDateToYMD(dateValue);
+                        const parsed = parseDateToYMD(dateValue, true);
                         // Validate the parsed date is in correct format
-                        if (parsed && typeof parsed === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
-                            return parsed;
+                        if (parsed && parsed.date && typeof parsed.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) {
+                            if (parsed.corrected) {
+                                summary.dataCorrections.push({
+                                    row: i + 2,
+                                    field: fieldName,
+                                    originalValue: parsed.originalValue,
+                                    correctedValue: parsed.date,
+                                    message: parsed.correctionMessage
+                                });
+                            }
+                            return { date: parsed.date, corrected: parsed.corrected };
                         }
                         // If parsing failed or returned invalid format, return null
-                        return null;
+                        return { date: null, corrected: false };
                     } catch (dateErr) {
                         console.warn(`Date parsing error for value "${dateValue}":`, dateErr.message);
-                        return null;
+                        return { date: null, corrected: false };
                     }
                 };
                 const projectPayload = {
@@ -989,8 +1312,8 @@ router.post('/confirm-import-data', async (req, res) => {
                     status: normalizeStr(row.Status) || null,
                     costOfProject: toMoney(row.budget),
                     paidOut: toMoney(row.amountPaid),
-                    startDate: normalizeDate(row.StartDate),
-                    endDate: normalizeDate(row.EndDate),
+                    startDate: normalizeDate(row.StartDate, 'StartDate').date,
+                    endDate: normalizeDate(row.EndDate, 'EndDate').date,
                     directorate: normalizeStr(row.directorate || row.Directorate) || null,
                     sectionId: sectionId, // Store sectionId when directorate is resolved
                     departmentId: departmentId,
@@ -1025,8 +1348,14 @@ router.post('/confirm-import-data', async (req, res) => {
                 // Link Subcounty (DO NOT create if missing) - case-insensitive matching with flexible space/slash/word-order handling
                 const subCountyName = normalizeStr(row['sub-county'] || row.SubCounty || row['Sub County'] || row.Subcounty);
                 if (subCountyName) {
+                    // Strip "SC" or "Subcounty" or "Sub County" suffix if present (case-insensitive)
+                    let cleanedSubCountyName = normalizeStr(subCountyName).toLowerCase();
+                    cleanedSubCountyName = cleanedSubCountyName.replace(/\s+sc\s*$/i, '').trim();
+                    cleanedSubCountyName = cleanedSubCountyName.replace(/\s+subcounty\s*$/i, '').trim();
+                    cleanedSubCountyName = cleanedSubCountyName.replace(/\s+sub\s+county\s*$/i, '').trim();
+                    
                     // Use case-insensitive matching with normalized spaces around slashes and apostrophes
-                    const normalizedSubCountyName = normalizeStr(subCountyName).toLowerCase();
+                    const normalizedSubCountyName = cleanedSubCountyName;
                     // Split into words and create sorted word set for order-independent matching
                     const inputWords = normalizedSubCountyName.split(/[\s\/]+/).filter(w => w.length > 0).sort();
                     const inputWordSet = inputWords.join(' ');
@@ -1074,8 +1403,12 @@ router.post('/confirm-import-data', async (req, res) => {
                 // Link Ward (DO NOT create if missing) - case-insensitive matching with flexible space/slash/word-order handling
                 const wardName = normalizeStr(row.ward || row.Ward || row['Ward Name']);
                 if (wardName) {
+                    // Strip "Ward" suffix if present (case-insensitive)
+                    let cleanedWardName = normalizeStr(wardName).toLowerCase();
+                    cleanedWardName = cleanedWardName.replace(/\s+ward\s*$/i, '').trim();
+                    
                     // Use case-insensitive matching with normalized spaces around slashes and apostrophes
-                    const normalizedWardName = normalizeStr(wardName).toLowerCase();
+                    const normalizedWardName = cleanedWardName;
                     // Split into words and create sorted word set for order-independent matching
                     const inputWords = normalizedWardName.split(/[\s\/]+/).filter(w => w.length > 0).sort();
                     const inputWordSet = inputWords.join(' ');

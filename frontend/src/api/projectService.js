@@ -391,6 +391,20 @@ const projectService = {
     },
     
   },
+  
+  // Comprehensive Project Import
+  comprehensiveProjects: {
+    previewComprehensiveImport: async (formData) => {
+      const response = await axiosInstance.post('/comprehensive-projects/preview', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    },
+    confirmComprehensiveImport: async (importData) => {
+      const response = await axiosInstance.post('/comprehensive-projects/confirm-import', importData);
+      return response.data;
+    },
+  },
 };
 
 export default projectService;

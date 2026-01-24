@@ -23,7 +23,11 @@ import {
     TrendingUp,
     Schedule,
     CheckCircle,
-    Warning
+    Warning,
+    Construction,
+    HourglassEmpty,
+    ShoppingCart,
+    MoreHoriz
 } from '@mui/icons-material';
 import ProjectDetailTable from '../tables/ProjectDetailTable';
 import { transformOverviewData } from '../tables/TableConfigs';
@@ -126,13 +130,49 @@ const DepartmentProjectsModal = ({ open, onClose, departmentData }) => {
         return colors[status] || '#757575';
     };
 
+    // Helper function to normalize status for matching (case-insensitive, handles variations)
+    const normalizeStatusForMatching = (status) => {
+        if (!status || typeof status !== 'string') return '';
+        const normalized = status.toLowerCase().trim();
+        
+        // Handle variations
+        if (normalized.includes('ongoing') || normalized.includes('on-going') || normalized.includes('in progress')) {
+            return 'ongoing';
+        }
+        if (normalized.includes('procurement') || normalized.includes('under procurement')) {
+            return 'under procurement';
+        }
+        if (normalized.includes('not started') || normalized.includes('notstarted')) {
+            return 'not started';
+        }
+        if (normalized.includes('completed')) {
+            return 'completed';
+        }
+        if (normalized.includes('stalled')) {
+            return 'stalled';
+        }
+        
+        return normalized;
+    };
+
+    // Check if status matches a main category
+    const isMainCategoryStatus = (status) => {
+        const categories = ['Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement'];
+        const normalizedStatus = normalizeStatusForMatching(status);
+        const normalizedCategories = categories.map(c => normalizeStatusForMatching(c));
+        return normalizedCategories.includes(normalizedStatus);
+    };
+
     const calculateDepartmentStats = () => {
         if (!projects.length) return null;
         
         const totalProjects = projects.length;
-        const completedProjects = projects.filter(p => p.status === 'Completed').length;
-        const inProgressProjects = projects.filter(p => p.status === 'In Progress').length;
-        const atRiskProjects = projects.filter(p => p.status === 'At Risk').length;
+        const completedProjects = projects.filter(p => normalizeStatusForMatching(p.status) === 'completed').length;
+        const ongoingProjects = projects.filter(p => normalizeStatusForMatching(p.status) === 'ongoing').length;
+        const stalledProjects = projects.filter(p => normalizeStatusForMatching(p.status) === 'stalled').length;
+        const notStartedProjects = projects.filter(p => normalizeStatusForMatching(p.status) === 'not started').length;
+        const underProcurementProjects = projects.filter(p => normalizeStatusForMatching(p.status) === 'under procurement').length;
+        const otherProjects = projects.filter(p => !isMainCategoryStatus(p.status)).length;
         const totalBudget = projects.reduce((sum, p) => {
             const budget = parseFloat(p.allocatedBudget) || 0;
             console.log('Project budget:', p.projectName, 'allocatedBudget:', p.allocatedBudget, 'parsed:', budget);
@@ -150,8 +190,11 @@ const DepartmentProjectsModal = ({ open, onClose, departmentData }) => {
         return {
             totalProjects,
             completedProjects,
-            inProgressProjects,
-            atRiskProjects,
+            ongoingProjects,
+            stalledProjects,
+            notStartedProjects,
+            underProcurementProjects,
+            otherProjects,
             totalBudget,
             totalPaid,
             avgProgress: Math.round(avgProgress)
@@ -243,12 +286,48 @@ const DepartmentProjectsModal = ({ open, onClose, departmentData }) => {
                                         borderRadius: '12px'
                                     }}>
                                         <CardContent sx={{ textAlign: 'center' }}>
-                                            <TrendingUp sx={{ fontSize: '2rem', mb: 1 }} />
+                                            <Construction sx={{ fontSize: '2rem', mb: 1 }} />
                                             <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                                                {stats.inProgressProjects}
+                                                {stats.ongoingProjects}
                                             </Typography>
                                             <Typography variant="body2">
-                                                In Progress
+                                                Ongoing
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                
+                                <Grid item xs={12} md={3}>
+                                    <Card sx={{ 
+                                        background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
+                                        color: 'white',
+                                        borderRadius: '12px'
+                                    }}>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <HourglassEmpty sx={{ fontSize: '2rem', mb: 1 }} />
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                                                {stats.notStartedProjects}
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                Not Started
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                
+                                <Grid item xs={12} md={3}>
+                                    <Card sx={{ 
+                                        background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                                        color: 'white',
+                                        borderRadius: '12px'
+                                    }}>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <ShoppingCart sx={{ fontSize: '2rem', mb: 1 }} />
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                                                {stats.underProcurementProjects}
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                Under Procurement
                                             </Typography>
                                         </CardContent>
                                     </Card>
@@ -263,10 +342,28 @@ const DepartmentProjectsModal = ({ open, onClose, departmentData }) => {
                                         <CardContent sx={{ textAlign: 'center' }}>
                                             <Warning sx={{ fontSize: '2rem', mb: 1 }} />
                                             <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                                                {stats.atRiskProjects}
+                                                {stats.stalledProjects}
                                             </Typography>
                                             <Typography variant="body2">
-                                                At Risk
+                                                Stalled
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                
+                                <Grid item xs={12} md={3}>
+                                    <Card sx={{ 
+                                        background: 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)',
+                                        color: 'white',
+                                        borderRadius: '12px'
+                                    }}>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <MoreHoriz sx={{ fontSize: '2rem', mb: 1 }} />
+                                            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                                                {stats.otherProjects}
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                Other
                                             </Typography>
                                         </CardContent>
                                     </Card>

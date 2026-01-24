@@ -13,10 +13,10 @@ router.get('/', async (req, res) => {
     const { projectId } = req.params;
     try {
         const [rows] = await pool.query(
-            `SELECT c.contractorId, c.companyName, c.email, c.phone
+            `SELECT c.contractorId, c.companyName, c.contactPerson, c.email, c.phone
              FROM kemri_contractors c
              JOIN kemri_project_contractor_assignments pca ON c.contractorId = pca.contractorId
-             WHERE pca.projectId = ?`,
+             WHERE pca.projectId = ? AND (pca.voided IS NULL OR pca.voided = 0) AND (c.voided IS NULL OR c.voided = 0)`,
             [projectId]
         );
         res.status(200).json(rows);

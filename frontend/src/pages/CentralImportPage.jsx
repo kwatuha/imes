@@ -74,6 +74,16 @@ const IMPORT_TYPES = [
     endpoint: '/participants/import-data',
     templateEndpoint: '/participants/template',
     color: 'warning'
+  },
+  {
+    id: 'comprehensive-projects',
+    name: 'Comprehensive Project Details',
+    description: 'Import complete project data including strategic plans, programs, sub-programs, workplans, activities, milestones, and budgets',
+    icon: <BusinessIcon />,
+    privilege: 'project.create',
+    endpoint: '/comprehensive-projects/preview',
+    templateEndpoint: '/comprehensive-projects/template',
+    color: 'info'
   }
 ];
 
@@ -215,6 +225,9 @@ function CentralImportPage() {
         case 'participants':
           response = await apiService.participants.previewParticipantImport(formData);
           break;
+        case 'comprehensive-projects':
+          response = await apiService.comprehensiveProjects.previewComprehensiveImport(formData);
+          break;
         default:
           throw new Error('Unknown import type');
       }
@@ -295,6 +308,9 @@ function CentralImportPage() {
         case 'participants':
           response = await apiService.participants.confirmParticipantImport({ dataToImport: fullParsedData });
           break;
+        case 'comprehensive-projects':
+          response = await apiService.comprehensiveProjects.confirmComprehensiveImport({ dataToImport: fullParsedData });
+          break;
         default:
           throw new Error('Unknown import type');
       }
@@ -320,6 +336,9 @@ function CentralImportPage() {
             break;
           case 'participants':
             navigate('/participants');
+            break;
+          case 'comprehensive-projects':
+            navigate('/projects');
             break;
           default:
             navigate('/dashboard');

@@ -19,49 +19,49 @@ export const overviewTableColumns = [
     {
         id: 'rowNumber',
         label: '#',
-        minWidth: 60,
+        minWidth: 45,
         type: 'number'
     },
     {
         id: 'department',
         label: 'Department',
-        minWidth: 200,
+        minWidth: 160,
         type: 'text'
     },
     {
         id: 'departmentAlias',
-        label: 'Department Alias',
-        minWidth: 150,
+        label: 'Alias',
+        minWidth: 110,
         type: 'text'
     },
     {
         id: 'percentCompleted',
         label: 'Progress',
-        minWidth: 120,
+        minWidth: 110,
         type: 'progress'
     },
     {
         id: 'healthScore',
-        label: 'Health Score',
-        minWidth: 100,
+        label: 'Health',
+        minWidth: 75,
         type: 'number'
     },
     {
         id: 'numProjects',
         label: 'Projects',
-        minWidth: 100,
+        minWidth: 75,
         type: 'number'
     },
     {
         id: 'budgetUtilization',
-        label: 'Budget Used %',
-        minWidth: 120,
+        label: 'Budget %',
+        minWidth: 100,
         type: 'progress'
     },
     {
         id: 'riskLevel',
-        label: 'Risk Level',
-        minWidth: 100,
+        label: 'Risk',
+        minWidth: 75,
         type: 'risk'
     }
 ];
@@ -179,14 +179,14 @@ export const transformOverviewData = (projectData) => {
     return projectData.map((project, index) => {
         const allocatedBudget = parseFloat(project.allocatedBudget) || 0;
         const amountPaid = parseFloat(project.amountPaid) || 0;
-        const budgetUtilization = allocatedBudget > 0 ? Math.round((amountPaid / allocatedBudget) * 100) : 0;
+        const budgetUtilization = allocatedBudget > 0 ? Math.round((amountPaid / allocatedBudget) * 10000) / 100 : 0;
         
         return {
             id: project.id,
             rowNumber: index + 1,
             department: project.department || project.departmentName,
             departmentAlias: project.departmentAlias,
-            percentCompleted: project.percentCompleted || 0,
+            percentCompleted: Math.round((parseFloat(project.percentCompleted) || 0) * 100) / 100,
             healthScore: project.healthScore || 0,
             numProjects: project.numProjects || 0,
             budgetUtilization: budgetUtilization,
@@ -202,7 +202,7 @@ export const transformFinancialData = (projectData) => {
         const amountPaid = parseFloat(project.amountPaid || project.paidOut || 0);
         const allocatedBudget = parseFloat(project.allocatedBudget || project.costOfProject || 0);
         
-        const absorptionRate = contractSum > 0 ? Math.round((amountPaid / contractSum) * 100 * 100) / 100 : 0;
+        const absorptionRate = contractSum > 0 ? Math.round((amountPaid / contractSum) * 10000) / 100 : 0;
         
         return {
             id: project.id || project.departmentId || `dept-${index}`,
@@ -224,12 +224,12 @@ export const transformAnalyticsData = (departmentData) => {
         rowNumber: index + 1,
         department: dept.department || dept.departmentName,
         numProjects: dept.numProjects || 0,
-        percentCompleted: dept.percentCompleted || 0,
+        percentCompleted: Math.round((parseFloat(dept.percentCompleted) || 0) * 100) / 100,
         allocatedBudget: dept.allocatedBudget || 0,
         contractSum: dept.contractSum || 0,
         amountPaid: dept.amountPaid || 0,
         riskLevel: calculateRiskLevel(dept),
-        onTimeDelivery: dept.onTimeDelivery || 0
+        onTimeDelivery: Math.round((parseFloat(dept.onTimeDelivery) || 0) * 100) / 100
     }));
 };
 

@@ -72,21 +72,21 @@ function MainLayoutContent() {
           zIndex: 1000,
         }}
       >
-        <Toolbar sx={{ p: 0 }}>
+        <Toolbar sx={{ p: 0, minHeight: '48px !important', height: '48px' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
             <IconButton
               color="inherit"
               aria-label="open drawer"
               edge="start"
               onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
+              sx={{ mr: 1.5, display: { sm: 'none' }, p: 1 }}
             >
-              <MenuIcon />
+              <MenuIcon fontSize="small" />
             </IconButton>
             
-            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: '200px' }}>
-              <img src={logo} alt="E-CIMES Logo" style={{ height: '40px', marginRight: '10px' }} />
-              <Typography variant="h6" noWrap component="div" sx={{ color: 'white', fontWeight: 'bold' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
+              <img src={logo} alt="E-CIMES Logo" style={{ height: '32px', marginRight: '8px' }} />
+              <Typography variant="h6" noWrap component="div" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1rem' }}>
                 E-CIMES
               </Typography>
             </Box>
@@ -97,16 +97,20 @@ function MainLayoutContent() {
               variant="contained"
               color="secondary"
               onClick={handleLogout}
+              size="small"
               sx={{
-                ml: 2, 
+                ml: 1.5, 
                 backgroundColor: '#dc2626',
                 '&:hover': { backgroundColor: '#b91c1c' },
                 color: 'white', 
                 fontWeight: 'semibold', 
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                borderRadius: '6px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                 transition: 'background-color 0.2s ease-in-out',
-                minWidth: '80px'
+                minWidth: '70px',
+                py: 0.5,
+                px: 1.5,
+                fontSize: '0.875rem'
               }}
             >
               Logout
@@ -125,23 +129,31 @@ function MainLayoutContent() {
           component="main"
           sx={{
             flexGrow: 1, 
-            p: { xs: 1, sm: 1.5, md: 2 }, 
-            mt: '64px',
+            p: 0,
+            mt: '48px',
             // Do not shift on hover; only shift when pinned open
             width: { sm: `calc(100% - ${isSidebarPinnedOpen ? expandedSidebarWidth : collapsedSidebarWidth}px)` },
             ml: { sm: `${isSidebarPinnedOpen ? expandedSidebarWidth : collapsedSidebarWidth}px` },
-            minHeight: 'calc(100vh - 64px)',
+            minHeight: 'calc(100vh - 48px)',
             backgroundColor: theme.palette.mode === 'dark' 
               ? theme.palette.background.default
               : '#ffffff',
             borderLeft: { sm: `none` },
             position: 'relative',
             zIndex: 1,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {/* Ribbon-style top menu (experimental) */}
           <RibbonMenu isAdmin={user?.roleName === 'admin'} />
-          <Outlet />
+          <Box sx={{ 
+            flex: 1,
+            p: { xs: 0.75, sm: 1, md: 1.25 },
+            overflow: 'auto'
+          }}>
+            <Outlet />
+          </Box>
         </Box>
       </Box>
       

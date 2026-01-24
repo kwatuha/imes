@@ -1,6 +1,5 @@
 import axios from 'axios';
 import axiosInstance from './axiosInstance';
-
 import authService from './authService';
 import userService from './userService';
 import projectService from './projectService';
@@ -16,7 +15,47 @@ import paymentService from './paymentService';
 import projectWorkFlowService from './projectWorkFlowService';
 import approvalService from './approvalService';
 import contractorService from './contractorService'; 
-import reportsService from './reportsService'; // 👈 Import the new service
+import reportsService from './reportsService';
+
+// Public API service (no authentication required)
+const publicApiService = {
+  getStatsOverview: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/public/stats/overview', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch public stats overview:", error);
+      throw error;
+    }
+  },
+  getProjects: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/public/projects', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch public projects:", error);
+      throw error;
+    }
+  },
+  getSubCountyStats: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/public/stats/by-subcounty', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch sub-county stats:", error);
+      throw error;
+    }
+  },
+  getDepartmentStats: async (filters = {}) => {
+    try {
+      const response = await axiosInstance.get('/public/stats/by-department', { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch department stats:", error);
+      throw error;
+    }
+  },
+}; // 👈 Import the new service
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 export const FILE_SERVER_BASE_URL = import.meta.env.VITE_FILE_SERVER_BASE_URL || '/api';
@@ -38,6 +77,7 @@ const apiService = {
   approval: approvalService,
   contractors: contractorService,
   reports: reportsService, // 👈 Mount the reportsService here
+  public: publicApiService, // 👈 Mount the publicApiService here
 };
 
 export { axiosInstance };

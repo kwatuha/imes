@@ -61,9 +61,22 @@ import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../api/axiosInstance';
 import FeedbackAnalytics from '../components/feedback/FeedbackAnalytics';
 import FeedbackModerationPage from './FeedbackModerationPage';
+import { Navigate } from 'react-router-dom';
+import { ROUTES } from '../configs/appConfig';
 
 const FeedbackManagementPage = () => {
-  const { user } = useAuth();
+  // useAuth() will throw if not within AuthProvider
+  // This component should always be rendered within MainLayout which is within AuthProvider
+  const { user, loading: authLoading } = useAuth();
+  
+  // Show loading while auth is being determined
+  if (authLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
   const [activeTab, setActiveTab] = useState(0);
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -18,10 +18,13 @@ import {
     Tabs,
     Tab,
     Container,
-    Button
+    Button,
+    IconButton,
+    Tooltip,
+    Stack
 } from '@mui/material';
 import { tokens } from '../pages/dashboard/theme';
-import { TrendingUp, Assessment, PieChart, BarChart, Timeline, Business, AttachMoney, CheckCircle, Warning, Speed, TrendingDown, Schedule, FilterList, ShowChart, Analytics } from '@mui/icons-material';
+import { TrendingUp, Assessment, PieChart, BarChart, Timeline, Business, AttachMoney, CheckCircle, Warning, Speed, TrendingDown, Schedule, FilterList, ShowChart, Analytics, GetApp, PictureAsPdf, Print, Refresh, FileDownload } from '@mui/icons-material';
 
 // Import your chart components and new filter component
 import CircularChart from './charts/CircularChart';
@@ -30,6 +33,7 @@ import BudgetAllocationChart from './charts/BudgetAllocationChart';
 import ProjectStatusDistributionChart from './charts/ProjectStatusDistributionChart';
 import DashboardFilters from './DashboardFilters';
 import { getProjectStatusBackgroundColor } from '../utils/projectStatusColors';
+import { groupStatusesByNormalized, normalizeProjectStatus } from '../utils/projectStatusNormalizer';
 import projectService from '../api/projectService';
 import reportsService from '../api/reportsService';
 import ProjectDetailTable from './tables/ProjectDetailTable';
@@ -75,7 +79,8 @@ const ReportingView = () => {
         projectStatus: '',
         section: '',
         subCounty: '',
-        ward: ''
+        ward: '',
+        globalSearch: ''
     });
     const [activeTab, setActiveTab] = useState(0);
     const [modalOpen, setModalOpen] = useState(false);
@@ -87,11 +92,17 @@ const ReportingView = () => {
     const fetchProjectStatusData = async (filters) => {
         try {
             const response = await projectService.analytics.getProjectStatusCounts();
-            return response.map(item => ({
-                name: item.status,
-                value: item.count,
-                color: getProjectStatusBackgroundColor(item.status)
+            console.log('ReportingView - Raw status data from API:', response);
+            // Group statuses by normalized categories
+            const grouped = groupStatusesByNormalized(response, 'status', 'count');
+            console.log('ReportingView - Normalized grouped status data:', grouped);
+            const result = grouped.map(item => ({
+                name: item.name,
+                value: item.value,
+                color: getProjectStatusBackgroundColor(item.name)
             }));
+            console.log('ReportingView - Final status data for chart:', result);
+            return result;
         } catch (error) {
             console.error('Error fetching project status data:', error);
             return [];
@@ -134,6 +145,7 @@ const ReportingView = () => {
             return response.map(dept => ({
                 department: dept.departmentAlias || dept.departmentName, // Use alias for display, fallback to name
                 departmentName: dept.departmentName, // Keep full name for tooltips
+                departmentAlias: dept.departmentAlias, // Keep alias for filtering
                 percentCompleted: dept.percentCompleted || 0,
                 percentBudgetContracted: dept.percentBudgetContracted || 0,
                 percentContractSumPaid: dept.percentContractSumPaid || 0,
@@ -181,7 +193,9 @@ const ReportingView = () => {
     const fetchStatusDistributionData = async (filters) => {
         try {
             const response = await reportsService.getProjectStatusSummary(filters);
-            return response.map(item => ({
+            // Group statuses by normalized categories
+            const grouped = groupStatusesByNormalized(response, 'name', 'value');
+            return grouped.map(item => ({
                 name: item.name,
                 value: item.value,
                 color: getProjectStatusBackgroundColor(item.name),
@@ -234,40 +248,151 @@ const ReportingView = () => {
                 })
                 : projectStatusData;
             
+            // Filter by department - check both department (alias) and departmentName (full name)
             let filteredProjectProgress = filters.department 
-                ? projectProgressData.filter(item => item.department === filters.department) 
+                ? projectProgressData.filter(item => 
+                    item.department === filters.department || 
+                    item.departmentName === filters.department ||
+                    item.departmentAlias === filters.department
+                ) 
                 : projectProgressData;
+            
+            // Apply global search filter if provided
+            // Check if search term matches any normalized status
+            const normalizedStatuses = ['Completed', 'Ongoing', 'Not started', 'Stalled', 'Under Procurement', 'Suspended', 'Other'];
+            let detectedStatus = null;
+            if (filters.globalSearch && !filters.projectStatus && !filters.status) {
+                // Only detect status from global search if no explicit status filter is set
+                const searchTerm = filters.globalSearch.toLowerCase().trim();
+                
+                // Check if search term matches any normalized status (case-insensitive)
+                for (const status of normalizedStatuses) {
+                    if (status.toLowerCase() === searchTerm || 
+                        status.toLowerCase().includes(searchTerm) ||
+                        searchTerm.includes(status.toLowerCase())) {
+                        detectedStatus = status;
+                        break;
+                    }
+                }
+            }
+            
+            // Apply global search to department data
+            if (filters.globalSearch) {
+                const searchTerm = filters.globalSearch.toLowerCase().trim();
+                filteredProjectProgress = filteredProjectProgress.filter(item => {
+                    const departmentMatch = (item.department || '').toLowerCase().includes(searchTerm) ||
+                                          (item.departmentName || '').toLowerCase().includes(searchTerm) ||
+                                          (item.departmentAlias || '').toLowerCase().includes(searchTerm);
+                    const projectCountMatch = (item.numProjects || 0).toString().includes(searchTerm);
+                    return departmentMatch || projectCountMatch;
+                });
+            }
+            
+            console.log('ReportingView - Department filter debug:', {
+                filterValue: filters.department,
+                globalSearch: filters.globalSearch,
+                detectedStatus: detectedStatus,
+                totalData: projectProgressData.length,
+                filteredData: filteredProjectProgress.length,
+                availableDepartments: projectProgressData.map(d => ({ 
+                    department: d.department, 
+                    departmentName: d.departmentName,
+                    departmentAlias: d.departmentAlias 
+                }))
+            });
             
             let filteredProjectTypes = filters.projectType 
                 ? projectTypesData.filter(item => item.name === filters.projectType) 
                 : projectTypesData;
             
-            let filteredBudgetAllocation = filters.projectStatus || filters.status
-                ? budgetAllocationData.filter(item => {
-                    if (filters.projectStatus) return item.name === filters.projectStatus;
-                    if (filters.status) return item.name === filters.status;
-                    return true;
-                })
+            // Apply status filter (explicit filter takes precedence over global search detected status)
+            const statusFilterValue = filters.projectStatus || filters.status || detectedStatus;
+            let filteredBudgetAllocation = statusFilterValue
+                ? budgetAllocationData.filter(item => item.name === statusFilterValue)
                 : budgetAllocationData;
             
-            let filteredStatusDistribution = filters.projectStatus || filters.status
-                ? statusDistributionData.filter(item => {
-                    if (filters.projectStatus) return item.name === filters.projectStatus;
-                    if (filters.status) return item.name === filters.status;
-                    return true;
-                })
+            let filteredStatusDistribution = statusFilterValue
+                ? statusDistributionData.filter(item => item.name === statusFilterValue)
                 : statusDistributionData;
+            
+            // Apply status filter to project status data (explicit filter takes precedence)
+            if (statusFilterValue) {
+                filteredProjectStatus = filteredProjectStatus.filter(item => item.name === statusFilterValue);
+            }
 
-            // Ensure all data has correct colors
-            filteredProjectStatus = filteredProjectStatus.map(item => ({
-                ...item,
+            // Ensure all data has correct colors and verify normalization
+            filteredProjectStatus = filteredProjectStatus.map(item => {
+                // Double-check that status is normalized (should only be one of the 7 categories)
+                const validStatuses = ['Completed', 'Ongoing', 'Not started', 'Stalled', 'Under Procurement', 'Suspended', 'Other'];
+                const isNormalized = validStatuses.includes(item.name);
+                if (!isNormalized) {
+                    console.warn(`ReportingView - Status "${item.name}" is not normalized! Normalizing now...`);
+                    const normalized = normalizeProjectStatus(item.name);
+                    console.log(`ReportingView - Normalized "${item.name}" to "${normalized}"`);
+                    return {
+                        ...item,
+                        name: normalized,
+                        color: getProjectStatusBackgroundColor(normalized)
+                    };
+                }
+                return {
+                    ...item,
+                    color: getProjectStatusBackgroundColor(item.name)
+                };
+            });
+            
+            // Final verification: group again to ensure no duplicates
+            const finalGrouped = groupStatusesByNormalized(
+                filteredProjectStatus.map(item => ({ status: item.name, count: item.value })),
+                'status',
+                'count'
+            );
+            filteredProjectStatus = finalGrouped.map(item => ({
+                name: item.name,
+                value: item.value,
                 color: getProjectStatusBackgroundColor(item.name)
             }));
+            console.log('ReportingView - Final verified normalized status data:', filteredProjectStatus);
 
-            filteredBudgetAllocation = filteredBudgetAllocation.map(item => ({
-                ...item,
-                color: getProjectStatusBackgroundColor(item.name)
-            }));
+            // Ensure budget allocation data is normalized and has correct colors
+            filteredBudgetAllocation = filteredBudgetAllocation.map(item => {
+                // Double-check that status is normalized (should only be one of the 7 categories)
+                const validStatuses = ['Completed', 'Ongoing', 'Not started', 'Stalled', 'Under Procurement', 'Suspended', 'Other'];
+                const isNormalized = validStatuses.includes(item.name);
+                if (!isNormalized) {
+                    console.warn(`ReportingView - Budget allocation status "${item.name}" is not normalized! Normalizing now...`);
+                    const normalized = normalizeProjectStatus(item.name);
+                    console.log(`ReportingView - Normalized "${item.name}" to "${normalized}"`);
+                    return {
+                        ...item,
+                        name: normalized,
+                        color: getProjectStatusBackgroundColor(normalized)
+                    };
+                }
+                return {
+                    ...item,
+                    color: getProjectStatusBackgroundColor(item.name)
+                };
+            });
+            
+            // Final verification: group again to ensure no duplicates
+            const budgetGrouped = {};
+            filteredBudgetAllocation.forEach(item => {
+                if (!budgetGrouped[item.name]) {
+                    budgetGrouped[item.name] = {
+                        name: item.name,
+                        contracted: 0,
+                        paid: 0,
+                        count: 0,
+                        color: item.color
+                    };
+                }
+                budgetGrouped[item.name].contracted += item.contracted || 0;
+                budgetGrouped[item.name].paid += item.paid || 0;
+                budgetGrouped[item.name].count += item.count || 0;
+            });
+            filteredBudgetAllocation = Object.values(budgetGrouped);
+            console.log('ReportingView - Final verified normalized budget allocation data:', filteredBudgetAllocation);
 
             filteredStatusDistribution = filteredStatusDistribution.map(item => ({
                 ...item,
@@ -318,7 +443,8 @@ const ReportingView = () => {
             projectStatus: '',
             section: '',
             subCounty: '',
-            ward: ''
+            ward: '',
+            globalSearch: ''
         });
     };
 
@@ -344,6 +470,150 @@ const ReportingView = () => {
     const handleCloseYearModal = () => {
         setYearModalOpen(false);
         setSelectedYear(null);
+    };
+
+    // Export functions
+    const getCurrentTableData = () => {
+        if (activeTab === 0) {
+            return transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
+                id: dept.departmentId || dept.department,
+                department: dept.departmentName || dept.department,
+                departmentAlias: dept.departmentAlias || dept.department,
+                percentCompleted: Math.round((parseFloat(dept.percentCompleted) || 0) * 100) / 100,
+                healthScore: dept.healthScore || 0,
+                numProjects: dept.numProjects || 0,
+                allocatedBudget: dept.allocatedBudget || 0,
+                amountPaid: dept.amountPaid || 0
+            })));
+        } else if (activeTab === 1) {
+            return dashboardData.projectProgress.map((dept, index) => ({ 
+                id: dept.departmentId || dept.department || `dept-${index}`,
+                rowNumber: index + 1,
+                department: dept.departmentName || dept.department,
+                departmentAlias: dept.departmentAlias || dept.department,
+                allocatedBudget: parseFloat(dept.allocatedBudget) || 0,
+                contractSum: parseFloat(dept.contractSum) || 0,
+                amountPaid: parseFloat(dept.amountPaid) || 0,
+                absorptionRate: Math.round((parseFloat(dept.percentAbsorptionRate) || 0) * 100) / 100,
+                remainingBudget: (parseFloat(dept.allocatedBudget) || 0) - (parseFloat(dept.amountPaid) || 0)
+            }));
+        } else if (activeTab === 2) {
+            return transformAnalyticsData(dashboardData.projectProgress);
+        } else if (activeTab === 3) {
+            return trendsData.projectPerformance.map((year, index) => ({
+                id: year.year,
+                rowNumber: index + 1,
+                year: year.year,
+                totalProjects: year.totalProjects,
+                completedProjects: year.completedProjects,
+                completionRate: year.completionRate + '%',
+                avgDuration: Math.round(year.avgDuration) + ' days',
+                growthRate: year.growthRate + '%',
+                totalBudget: 'KSh ' + (trendsData.financialTrends[index]?.totalBudget ? 
+                    (parseFloat(trendsData.financialTrends[index].totalBudget) / 1000000).toFixed(1) + 'M' : '0M'),
+                absorptionRate: trendsData.financialTrends[index]?.absorptionRate ? 
+                    parseFloat(trendsData.financialTrends[index].absorptionRate).toFixed(1) + '%' : '0%'
+            }));
+        }
+        return [];
+    };
+
+    const getCurrentTableColumns = () => {
+        if (activeTab === 0) return overviewTableColumns;
+        if (activeTab === 1) return financialTableColumns;
+        if (activeTab === 2) return analyticsTableColumns;
+        if (activeTab === 3) return [
+            { id: 'rowNumber', label: '#' },
+            { id: 'year', label: 'Year' },
+            { id: 'totalProjects', label: 'Total Projects' },
+            { id: 'completedProjects', label: 'Completed' },
+            { id: 'completionRate', label: 'Completion Rate' },
+            { id: 'avgDuration', label: 'Avg Duration' },
+            { id: 'growthRate', label: 'Growth Rate' },
+            { id: 'totalBudget', label: 'Total Budget' },
+            { id: 'absorptionRate', label: 'Absorption Rate' }
+        ];
+        return [];
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            const data = getCurrentTableData();
+            const columns = getCurrentTableColumns();
+            
+            if (data.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const dataToExport = data.map(item => {
+                const row = {};
+                columns.forEach(col => {
+                    row[col.label] = item[col.id] !== undefined ? item[col.id] : '';
+                });
+                return row;
+            });
+
+            // Dynamic import for xlsx
+            const XLSX = await import('xlsx');
+            // Create workbook and worksheet
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            
+            // Generate filename based on active tab
+            const tabNames = ['Overview', 'Financial', 'Analytics', 'Yearly Trends'];
+            const filename = `Project_Dashboard_${tabNames[activeTab]}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            
+            XLSX.writeFile(workbook, filename);
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            alert('Failed to export to Excel. Please try again.');
+        }
+    };
+
+    const handleExportPDF = () => {
+        try {
+            const data = getCurrentTableData();
+            const columns = getCurrentTableColumns();
+            
+            if (data.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            // Dynamic import for jsPDF
+            import('jspdf').then(({ default: jsPDF }) => {
+                import('jspdf-autotable').then(() => {
+                    const doc = new jsPDF();
+                    const headers = columns.map(col => col.label);
+                    const tableData = data.map(item => 
+                        columns.map(col => {
+                            const value = item[col.id];
+                            return value !== undefined && value !== null ? String(value) : '';
+                        })
+                    );
+
+                    doc.autoTable({
+                        head: [headers],
+                        body: tableData,
+                        styles: { fontSize: 8, cellPadding: 3 },
+                        headStyles: { fillColor: [25, 118, 210], textColor: 255, fontStyle: 'bold' }
+                    });
+
+                    const tabNames = ['Overview', 'Financial', 'Analytics', 'Yearly Trends'];
+                    const filename = `Project_Dashboard_${tabNames[activeTab]}_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(filename);
+                });
+            });
+        } catch (error) {
+            console.error('Error exporting to PDF:', error);
+            alert('Failed to export to PDF. Please try again.');
+        }
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     const renderNoDataCard = (title) => (
@@ -390,19 +660,19 @@ const ReportingView = () => {
     // KPI Cards Component
     const KPICard = ({ title, value, icon, color, subtitle, progress }) => (
         <Card sx={{ 
-            height: '110px',
-            borderRadius: '12px',
+            height: '75px',
+            borderRadius: '6px',
             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
             border: '1px solid rgba(255,255,255,0.2)',
             backdropFilter: 'blur(10px)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             position: 'relative',
             overflow: 'hidden',
             '&:hover': {
-                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                transform: 'translateY(-4px) scale(1.02)',
-                border: `1px solid ${color}20`
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                border: `1px solid ${color}40`,
+                transform: 'translateY(-2px)'
             },
             '&::before': {
                 content: '""',
@@ -410,44 +680,57 @@ const ReportingView = () => {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: '3px',
-                background: color,
-                borderRadius: '12px 12px 0 0'
+                height: '2px',
+                background: `linear-gradient(90deg, ${color}, ${color}dd)`,
+                borderRadius: '6px 6px 0 0'
             }
         }}>
-            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+            <CardContent sx={{ p: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.25 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.75)', fontSize: '0.65rem' }}>
                         {title}
                     </Typography>
-                    <Box sx={{ color: color, fontSize: '1.2rem' }}>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: `${color}15`,
+                        color: color,
+                        '& svg': {
+                            fontSize: '0.9rem'
+                        }
+                    }}>
                         {icon}
                     </Box>
                 </Box>
                 <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.9)', mb: 0, fontSize: '1.1rem', lineHeight: 1.2 }}>
                         {value}
                     </Typography>
                     {subtitle && (
-                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: '0.6rem', display: 'block', mt: 0.25 }}>
                             {subtitle}
                         </Typography>
                     )}
                     {progress !== undefined && (
-                        <LinearProgress 
-                            variant="determinate" 
-                            value={progress} 
-                            sx={{ 
-                                mt: 1, 
-                                height: 4, 
-                                borderRadius: 2,
-                                backgroundColor: 'rgba(0,0,0,0.1)',
-                                '& .MuiLinearProgress-bar': {
-                                    backgroundColor: color,
-                                    borderRadius: 2
-                                }
-                            }} 
-                        />
+                        <Box sx={{ 
+                            mt: 0.5, 
+                            height: 3, 
+                            borderRadius: 1.5,
+                            backgroundColor: 'rgba(0,0,0,0.08)',
+                            overflow: 'hidden'
+                        }}>
+                            <Box sx={{ 
+                                height: '100%', 
+                                width: `${Math.min(progress, 100)}%`, 
+                                backgroundColor: color,
+                                borderRadius: 1.5,
+                                transition: 'width 0.3s ease'
+                            }} />
+                        </Box>
                     )}
                 </Box>
             </CardContent>
@@ -455,10 +738,11 @@ const ReportingView = () => {
     );
 
     // Calculate KPIs from dashboard data
-    const totalProjects = dashboardData.projectStatus.reduce((sum, item) => sum + item.value, 0);
+    // Calculate totalProjects from filtered department data to reflect filters/search
+    const totalProjects = dashboardData.projectProgress.reduce((sum, dept) => sum + (dept.numProjects || 0), 0);
     const completedProjects = dashboardData.projectStatus.find(item => item.name === 'Completed')?.value || 0;
-    const inProgressProjects = dashboardData.projectStatus.find(item => item.name === 'In Progress')?.value || 0;
-    const atRiskProjects = dashboardData.projectStatus.find(item => item.name === 'At Risk')?.value || 0;
+    const inProgressProjects = dashboardData.projectStatus.find(item => item.name === 'Ongoing')?.value || 0;
+    const atRiskProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
     const completionRate = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
     const totalBudget = dashboardData.budgetAllocation.reduce((sum, item) => sum + item.value, 0);
     const budgetFormatted = totalBudget >= 1000000 ? `${(totalBudget / 1000000).toFixed(1)}M` : `${(totalBudget / 1000).toFixed(0)}K`;
@@ -503,7 +787,7 @@ const ReportingView = () => {
         averageProgress: averageProgress
     });
     const totalDepartments = dashboardData.projectProgress.length;
-    const delayedProjects = dashboardData.projectStatus.find(item => item.name === 'Delayed')?.value || 0;
+    const delayedProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
     const stalledProjects = dashboardData.projectStatus.find(item => item.name === 'Stalled')?.value || 0;
     const healthScore = totalProjects > 0 ? Math.round(((completedProjects + inProgressProjects) / totalProjects) * 100) : 0;
 
@@ -634,58 +918,69 @@ const ReportingView = () => {
 
     return (
         <Box sx={{ 
-            p: { xs: 2, sm: 3 }, 
+            p: { xs: 0.75, sm: 1 }, 
             maxWidth: '100%', 
             overflowX: 'hidden',
             background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
             minHeight: '100vh'
         }}>
-            {/* Header Section */}
+            {/* Header Section with Inline Filters */}
             <Fade in timeout={800}>
-                <Box sx={{ mb: 4, textAlign: 'center' }}>
-                    <Typography 
-                        variant="h4" 
-                        component="h1" 
-                        sx={{ 
-                            fontWeight: 'bold',
-                            background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            mb: 1.5,
-                            letterSpacing: '0.3px'
-                        }}
-                    >
-                Project Overview Dashboard
-            </Typography>
-                    <Typography 
-                        variant="subtitle1" 
-                        color="text.secondary" 
-                        sx={{ 
-                            fontWeight: 400,
-                            opacity: 0.8,
-                            letterSpacing: '0.2px'
-                        }}
-                    >
-                        Comprehensive project analytics and insights
-                    </Typography>
+                <Box sx={{ 
+                    mb: 1, 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    justifyContent: 'space-between',
+                    gap: 1.5,
+                    flexWrap: { xs: 'wrap', md: 'nowrap' }
+                }}>
+                    {/* Title Section - Left */}
+                    <Box sx={{ flex: { xs: '1 1 100%', md: '0 0 auto' }, minWidth: 0 }}>
+                        <Typography 
+                            variant="h6" 
+                            component="h1" 
+                            sx={{ 
+                                fontWeight: 600,
+                                color: 'text.primary',
+                                mb: 0,
+                                fontSize: '1.125rem',
+                                lineHeight: 1.2
+                            }}
+                        >
+                            Project Overview Dashboard
+                        </Typography>
+                        <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ 
+                                fontSize: '0.7rem',
+                                mt: 0.25,
+                                display: 'block'
+                            }}
+                        >
+                            Comprehensive project analytics and insights
+                        </Typography>
+                    </Box>
+
+                    {/* Filters Section - Right */}
+                    <Box sx={{ 
+                        flex: { xs: '1 1 100%', md: '0 0 auto' },
+                        minWidth: { xs: '100%', sm: '300px', md: '400px' },
+                        maxWidth: { xs: '100%', md: '600px' }
+                    }}>
+                        <DashboardFilters 
+                            filters={filters} 
+                            onFilterChange={handleFilterChange}
+                            onClearFilters={handleClearFilters}
+                            onRefresh={handleRefresh}
+                            isLoading={isLoading}
+                        />
+                    </Box>
                 </Box>
             </Fade>
 
-            <Slide direction="up" in timeout={1000}>
-                <Box>
-                    <DashboardFilters 
-                        filters={filters} 
-                        onFilterChange={handleFilterChange}
-                        onClearFilters={handleClearFilters}
-                        onRefresh={handleRefresh}
-                        isLoading={isLoading}
-                    />
-                </Box>
-            </Slide>
-
             {/* Tabbed Dashboard Interface */}
-            <Box sx={{ mt: 3 }}>
+            <Box sx={{ mt: 0 }}>
                 <Tabs 
                     value={activeTab} 
                     onChange={handleTabChange}
@@ -694,11 +989,13 @@ const ReportingView = () => {
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         borderRadius: '12px 12px 0 0',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        minHeight: '40px',
                         '& .MuiTab-root': {
                             textTransform: 'none',
                             fontWeight: '600',
-                            fontSize: '0.95rem',
-                            minHeight: '56px',
+                            fontSize: '0.875rem',
+                            minHeight: '40px',
+                            py: 0.5,
                             color: 'text.secondary',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -731,57 +1028,57 @@ const ReportingView = () => {
                 >
                     <Tab 
                         label="Overview" 
-                        icon={<Assessment sx={{ fontSize: '1.2rem' }} />} 
+                        icon={<Assessment sx={{ fontSize: '1rem' }} />} 
                         iconPosition="start"
                         sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
+                            gap: 0.75,
+                            px: 1.5,
                             '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
+                                marginRight: '6px !important'
                             }
                         }}
                     />
                     <Tab 
                         label="Financial" 
-                        icon={<AttachMoney sx={{ fontSize: '1.2rem' }} />} 
+                        icon={<AttachMoney sx={{ fontSize: '1rem' }} />} 
                         iconPosition="start"
                         sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
+                            gap: 0.75,
+                            px: 1.5,
                             '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
+                                marginRight: '6px !important'
                             }
                         }}
                     />
                     <Tab 
                         label="Analytics" 
-                        icon={<TrendingUp sx={{ fontSize: '1.2rem' }} />} 
+                        icon={<TrendingUp sx={{ fontSize: '1rem' }} />} 
                         iconPosition="start"
                         sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
+                            gap: 0.75,
+                            px: 1.5,
                             '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
+                                marginRight: '6px !important'
                             }
                         }}
                     />
                     <Tab 
                         label="Yearly Trends" 
-                        icon={<ShowChart sx={{ fontSize: '1.2rem' }} />} 
+                        icon={<ShowChart sx={{ fontSize: '1rem' }} />} 
                         iconPosition="start"
                         sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: 1.5,
-                            px: 2,
+                            gap: 0.75,
+                            px: 1.5,
                             '& .MuiTab-iconWrapper': {
-                                marginRight: '8px !important'
+                                marginRight: '6px !important'
                             }
                         }}
                     />
@@ -796,19 +1093,19 @@ const ReportingView = () => {
                     border: '1px solid rgba(0,0,0,0.05)',
                     borderTop: 'none',
                     overflow: 'hidden',
-                    p: 3
+                    p: 1
                 }}>
                     <>
                     {activeTab === 0 && (
-                        <Grid container spacing={2}>
+                        <Grid container spacing={1}>
                             {/* Overview Tab - Key Metrics Only */}
                             
                             {/* Project Status Summary */}
                             <Grid item xs={12} md={6}>
                                 <Fade in timeout={1200}>
                                 <Card sx={{ 
-                                    height: '350px',
-                                    borderRadius: '12px',
+                                    height: '280px',
+                                    borderRadius: '8px',
                                     background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                     boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                     border: '1px solid rgba(255,255,255,0.2)',
@@ -830,23 +1127,23 @@ const ReportingView = () => {
                                         right: 0,
                                         height: '3px',
                                         background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                        borderRadius: '12px 12px 0 0'
+                                        borderRadius: '8px 8px 0 0'
                                     }
                                 }}>
                                     <CardHeader
                                         title={
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <PieChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                <PieChart sx={{ color: 'primary.main', fontSize: '0.875rem' }} />
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
                                                     Project Status Overview
                                                 </Typography>
                                             </Box>
                                         }
-                                        sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                        sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                     />
-                                    <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0 }}>
                                         <Box sx={{ 
-                                            height: '320px', 
+                                            height: '250px', 
                                             minWidth: { xs: '280px', sm: '300px' },
                                             overflow: 'visible'
                                         }}>
@@ -871,31 +1168,31 @@ const ReportingView = () => {
                                 <Box sx={{ 
                                     display: 'flex', 
                                     flexDirection: 'column', 
-                                    gap: 1.2, 
-                                    height: '370px',
+                                    gap: 0.5, 
+                                    height: '240px',
                                     justifyContent: 'flex-start'
                                 }}>
+                                    <KPICard
+                                        title="Number of Projects"
+                                        value={totalProjects}
+                                        icon={<Assessment />}
+                                        color="#1976d2"
+                                        subtitle="Total projects across all departments"
+                                    />
                                     <KPICard
                                         title="Total Departments"
                                         value={dashboardData.projectProgress.length}
                                         icon={<Business />}
-                                        color="#1976d2"
+                                        color="#4caf50"
                                         subtitle="Departments with active projects"
                                     />
                                     <KPICard
                                         title="Budget Utilization"
                                         value={`${financialSummary.absorptionRate.toFixed(2)}%`}
                                         icon={<AttachMoney />}
-                                        color="#4caf50"
+                                        color="#ff9800"
                                         subtitle="Total budget utilized"
                                         progress={financialSummary.absorptionRate}
-                                    />
-                                    <KPICard
-                                        title="Avg Projects/Dept"
-                                        value={Math.round(totalProjects / dashboardData.projectProgress.length)}
-                                        icon={<TrendingUp />}
-                                        color="#ff9800"
-                                        subtitle="Projects per department"
                                     />
                                 </Box>
                             </Fade>
@@ -905,17 +1202,17 @@ const ReportingView = () => {
                         <Grid item xs={12} md={6}>
                             <Fade in timeout={1600}>
                                 <Card sx={{ 
-                                    height: '350px',
-                                    borderRadius: '12px',
+                                    height: '240px',
+                                    borderRadius: '6px',
                                     background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                    boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
                                     border: '1px solid rgba(255,255,255,0.2)',
                                     backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                     position: 'relative',
                                     overflow: 'hidden',
                                     '&:hover': {
-                                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                                         border: '1px solid rgba(33, 150, 243, 0.2)'
                                     },
                                     '&::before': {
@@ -924,88 +1221,88 @@ const ReportingView = () => {
                                         top: 0,
                                         left: 0,
                                         right: 0,
-                                        height: '3px',
-                                        background: 'linear-gradient(90deg, #2196f3, #42a5f5, #64b5f6)',
-                                        borderRadius: '12px 12px 0 0'
+                                        height: '2px',
+                                        background: 'linear-gradient(90deg, #2196f3, #42a5f5)',
+                                        borderRadius: '6px 6px 0 0'
                                     }
                                 }}>
                                     <CardHeader
                                         title={
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Speed sx={{ color: 'info.main', fontSize: '1.2rem' }} />
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                <Speed sx={{ color: 'info.main', fontSize: '0.9rem' }} />
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.75rem' }}>
                                                     Performance Metrics
                                                 </Typography>
                                             </Box>
                                         }
-                                        sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                        sx={{ pb: 0.15, px: 0.75, pt: 0.5 }}
                                     />
-                                    <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0 }}>
+                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                                             {/* Completion Rate */}
-                                            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px' }}>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50', mb: 0.5 }}>
+                                            <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: '6px' }}>
+                                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#2e7d32', mb: 0.25, fontSize: '1rem' }}>
                                                     {completionRate}%
                                                 </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', display: 'block', mb: 0.5, fontWeight: 500 }}>
                                                     Completion Rate
                                                 </Typography>
                                                 <LinearProgress 
                                                     variant="determinate" 
                                                     value={completionRate} 
                                                     sx={{ 
-                                                        height: 4, 
-                                                        borderRadius: 2,
-                                                        backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                                                        height: 3, 
+                                                        borderRadius: 1.5,
+                                                        backgroundColor: 'rgba(76, 175, 80, 0.15)',
                                                         '& .MuiLinearProgress-bar': {
                                                             backgroundColor: '#4caf50',
-                                                            borderRadius: 2
+                                                            borderRadius: 1.5
                                                         }
                                                     }} 
                                                 />
                                             </Box>
 
                                             {/* Health Score */}
-                                            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(33, 150, 243, 0.1)', borderRadius: '8px' }}>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3', mb: 0.5 }}>
+                                            <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(33, 150, 243, 0.08)', borderRadius: '6px' }}>
+                                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 0.25, fontSize: '1rem' }}>
                                                     {healthScore}%
                                                 </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', display: 'block', mb: 0.5, fontWeight: 500 }}>
                                                     Health Score
                                                 </Typography>
                                                 <LinearProgress 
                                                     variant="determinate" 
                                                     value={healthScore} 
                                                     sx={{ 
-                                                        height: 4, 
-                                                        borderRadius: 2,
-                                                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                                                        height: 3, 
+                                                        borderRadius: 1.5,
+                                                        backgroundColor: 'rgba(33, 150, 243, 0.15)',
                                                         '& .MuiLinearProgress-bar': {
                                                             backgroundColor: '#2196f3',
-                                                            borderRadius: 2
+                                                            borderRadius: 1.5
                                                         }
                                                     }} 
                                                 />
                                             </Box>
 
                                             {/* Average Progress */}
-                                            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px' }}>
-                                                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800', mb: 0.5 }}>
+                                            <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: '6px' }}>
+                                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.25, fontSize: '1rem' }}>
                                                     {averageProgress}%
                                                 </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', display: 'block', mb: 0.5, fontWeight: 500 }}>
                                                     Average Progress
                                                 </Typography>
                                                 <LinearProgress 
                                                     variant="determinate" 
                                                     value={averageProgress} 
                                                     sx={{ 
-                                                        height: 4, 
-                                                        borderRadius: 2,
-                                                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                                                        height: 3, 
+                                                        borderRadius: 1.5,
+                                                        backgroundColor: 'rgba(255, 152, 0, 0.15)',
                                                         '& .MuiLinearProgress-bar': {
                                                             backgroundColor: '#ff9800',
-                                                            borderRadius: 2
+                                                            borderRadius: 1.5
                                                         }
                                                     }} 
                                                 />
@@ -1020,17 +1317,17 @@ const ReportingView = () => {
                         <Grid item xs={12} md={6}>
                             <Fade in timeout={1800}>
                                 <Card sx={{ 
-                                    height: '350px',
-                                    borderRadius: '12px',
+                                    height: '240px',
+                                    borderRadius: '6px',
                                     background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                    boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
                                     border: '1px solid rgba(255,255,255,0.2)',
                                     backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                     position: 'relative',
                                     overflow: 'hidden',
                                     '&:hover': {
-                                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                                         border: '1px solid rgba(255, 152, 0, 0.2)'
                                     },
                                     '&::before': {
@@ -1039,46 +1336,46 @@ const ReportingView = () => {
                                         top: 0,
                                         left: 0,
                                         right: 0,
-                                        height: '3px',
-                                        background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                        borderRadius: '12px 12px 0 0'
+                                        height: '2px',
+                                        background: 'linear-gradient(90deg, #ff9800, #ffb74d)',
+                                        borderRadius: '6px 6px 0 0'
                                     }
                                 }}>
                                     <CardHeader
                                         title={
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <TrendingDown sx={{ color: 'warning.main', fontSize: '1.2rem' }} />
-                                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                <TrendingDown sx={{ color: 'warning.main', fontSize: '0.9rem' }} />
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.75rem' }}>
                                                     Issues Summary
                                                 </Typography>
                                             </Box>
                                         }
-                                        sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                        sx={{ pb: 0.15, px: 0.75, pt: 0.5 }}
                                     />
-                                    <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
-                                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
-                                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(244, 67, 54, 0.1)', borderRadius: '8px' }}>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#f44336', mb: 0.5 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0 }}>
+                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1 }}>
+                                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.75 }}>
+                                                <Box sx={{ textAlign: 'center', p: 1.25, bgcolor: 'rgba(244, 67, 54, 0.08)', borderRadius: '6px' }}>
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#c62828', mb: 0.25, fontSize: '1.1rem' }}>
                                                         {delayedProjects}
                                                     </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 500 }}>
                                                         Delayed
                                                     </Typography>
                                                 </Box>
-                                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px' }}>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800', mb: 0.5 }}>
+                                                <Box sx={{ textAlign: 'center', p: 1.25, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: '6px' }}>
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.25, fontSize: '1.1rem' }}>
                                                         {stalledProjects}
                                                     </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 500 }}>
                                                         Stalled
                                                     </Typography>
                                                 </Box>
-                                                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'rgba(233, 30, 99, 0.1)', borderRadius: '8px' }}>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#e91e63', mb: 0.5 }}>
+                                                <Box sx={{ textAlign: 'center', p: 1.25, bgcolor: 'rgba(233, 30, 99, 0.08)', borderRadius: '6px' }}>
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#c2185b', mb: 0.25, fontSize: '1.1rem' }}>
                                                         {atRiskProjects}
                                                     </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 500 }}>
                                                         At Risk
                                                     </Typography>
                                                 </Box>
@@ -1089,15 +1386,163 @@ const ReportingView = () => {
                             </Fade>
                         </Grid>
                         
+                        {/* Visual Separator */}
+                        <Grid item xs={12}>
+                            <Box sx={{ 
+                                mt: 2.5, 
+                                mb: 1.5,
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2
+                            }}>
+                                <Divider 
+                                    sx={{ 
+                                        flex: 1,
+                                        borderWidth: 2,
+                                        borderColor: 'primary.main',
+                                        opacity: 0.3,
+                                        '&::before, &::after': {
+                                            borderWidth: 2
+                                        }
+                                    }} 
+                                />
+                                <Box sx={{
+                                    px: 2,
+                                    py: 0.75,
+                                    backgroundColor: 'primary.main',
+                                    borderRadius: '20px',
+                                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+                                }}>
+                                    <Typography 
+                                        variant="subtitle2" 
+                                        sx={{ 
+                                            fontWeight: 700,
+                                            color: 'white',
+                                            fontSize: '0.8125rem',
+                                            letterSpacing: '0.5px',
+                                            textTransform: 'uppercase'
+                                        }}
+                                    >
+                                        Detailed View
+                                    </Typography>
+                                </Box>
+                                <Divider 
+                                    sx={{ 
+                                        flex: 1,
+                                        borderWidth: 2,
+                                        borderColor: 'primary.main',
+                                        opacity: 0.3,
+                                        '&::before, &::after': {
+                                            borderWidth: 2
+                                        }
+                                    }} 
+                                />
+                                {/* Action Buttons */}
+                                <Stack direction="row" spacing={0.5} sx={{ ml: 1 }}>
+                                    <Tooltip title="Export to Excel">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleExportExcel}
+                                            sx={{
+                                                color: '#2e7d32',
+                                                backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                                                border: '1px solid rgba(46, 125, 50, 0.2)',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(46, 125, 50, 0.15)',
+                                                    border: '1px solid rgba(46, 125, 50, 0.3)',
+                                                    transform: 'translateY(-1px)'
+                                                },
+                                                width: '32px',
+                                                height: '32px'
+                                            }}
+                                        >
+                                            <FileDownload sx={{ fontSize: '0.9rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Export to PDF">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleExportPDF}
+                                            sx={{
+                                                color: '#d32f2f',
+                                                backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                                                border: '1px solid rgba(211, 47, 47, 0.2)',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(211, 47, 47, 0.15)',
+                                                    border: '1px solid rgba(211, 47, 47, 0.3)',
+                                                    transform: 'translateY(-1px)'
+                                                },
+                                                width: '32px',
+                                                height: '32px'
+                                            }}
+                                        >
+                                            <PictureAsPdf sx={{ fontSize: '0.9rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Print">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handlePrint}
+                                            sx={{
+                                                color: '#1976d2',
+                                                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                                border: '1px solid rgba(25, 118, 210, 0.2)',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(25, 118, 210, 0.15)',
+                                                    border: '1px solid rgba(25, 118, 210, 0.3)',
+                                                    transform: 'translateY(-1px)'
+                                                },
+                                                width: '32px',
+                                                height: '32px'
+                                            }}
+                                        >
+                                            <Print sx={{ fontSize: '0.9rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Refresh Data">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleRefresh}
+                                            disabled={isLoading}
+                                            sx={{
+                                                color: '#ff9800',
+                                                backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                                border: '1px solid rgba(255, 152, 0, 0.2)',
+                                                '&:hover': {
+                                                    backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                                                    border: '1px solid rgba(255, 152, 0, 0.3)',
+                                                    transform: 'translateY(-1px)'
+                                                },
+                                                '&:disabled': {
+                                                    opacity: 0.5
+                                                },
+                                                width: '32px',
+                                                height: '32px'
+                                            }}
+                                        >
+                                            <Refresh sx={{ fontSize: '0.9rem' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Stack>
+                            </Box>
+                        </Grid>
+
                         {/* Overview Detail Table */}
                         <Grid item xs={12}>
-                            <Box sx={{ mt: 3 }}>
+                            <Box sx={{ 
+                                mt: 0,
+                                pt: 2,
+                                backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(25, 118, 210, 0.1)'
+                            }}>
                                 <ProjectDetailTable
                                     data={transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
                                         id: dept.departmentId || dept.department,
                                         department: dept.departmentName || dept.department,
                                         departmentAlias: dept.departmentAlias || dept.department,
-                                        percentCompleted: dept.percentCompleted || 0,
+                                        percentCompleted: Math.round((parseFloat(dept.percentCompleted) || 0) * 100) / 100,
                                         healthScore: dept.healthScore || 0,
                                         numProjects: dept.numProjects || 0,
                                         allocatedBudget: dept.allocatedBudget || 0,
@@ -1113,7 +1558,7 @@ const ReportingView = () => {
                     )}
 
                     {activeTab === 1 && (
-                        <Grid container spacing={2}>
+                        <Grid container spacing={1}>
                             {/* Financial Tab Content */}
                             
                             {/* Financial Summary Cards */}
@@ -1156,8 +1601,8 @@ const ReportingView = () => {
                             <Grid item xs={12} md={8}>
                                 <Fade in timeout={1600}>
                                     <Card sx={{ 
-                                        height: '380px',
-                                        borderRadius: '12px',
+                                        height: '340px',
+                                        borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                         border: '1px solid rgba(255,255,255,0.2)',
@@ -1177,22 +1622,22 @@ const ReportingView = () => {
                                             right: 0,
                                             height: '3px',
                                             background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                            borderRadius: '12px 12px 0 0'
+                                            borderRadius: '8px 8px 0 0'
                                         }
                                     }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <BarChart sx={{ color: 'warning.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                    <BarChart sx={{ color: 'warning.main', fontSize: '1rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
                                                         Budget Allocation by Status
                                                     </Typography>
                                                 </Box>
                                             }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '300px', minWidth: '500px' }}>
+                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                            <Box sx={{ height: '280px', minWidth: '500px' }}>
                                                 {dashboardData.budgetAllocation.length > 0 ? (
                                                     <BudgetAllocationChart
                                                         title=""
@@ -1210,8 +1655,8 @@ const ReportingView = () => {
                             <Grid item xs={12} md={4}>
                                 <Fade in timeout={1800}>
                                     <Card sx={{ 
-                                        height: '380px',
-                                        borderRadius: '12px',
+                                        height: '340px',
+                                        borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                         border: '1px solid rgba(255,255,255,0.2)',
@@ -1231,22 +1676,22 @@ const ReportingView = () => {
                                             right: 0,
                                             height: '3px',
                                             background: 'linear-gradient(90deg, #f44336, #e57373, #ef5350)',
-                                            borderRadius: '12px 12px 0 0'
+                                            borderRadius: '8px 8px 0 0'
                                         }
                                     }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
                                                         Budget Performance by Department
                                                     </Typography>
                                                 </Box>
                                             }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '300px', minWidth: '300px' }}>
+                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                            <Box sx={{ height: '280px', minWidth: '300px' }}>
                                                 {dashboardData.projectProgress.length > 0 ? (
                                                     <BudgetAllocationChart
                                                         title=""
@@ -1267,9 +1712,157 @@ const ReportingView = () => {
                                 </Fade>
                             </Grid>
                             
+                            {/* Visual Separator */}
+                            <Grid item xs={12}>
+                                <Box sx={{ 
+                                    mt: 2.5, 
+                                    mb: 1.5,
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 2
+                                }}>
+                                    <Divider 
+                                        sx={{ 
+                                            flex: 1,
+                                            borderWidth: 2,
+                                            borderColor: 'success.main',
+                                            opacity: 0.3,
+                                            '&::before, &::after': {
+                                                borderWidth: 2
+                                            }
+                                        }} 
+                                    />
+                                    <Box sx={{
+                                        px: 2,
+                                        py: 0.75,
+                                        backgroundColor: 'success.main',
+                                        borderRadius: '20px',
+                                        boxShadow: '0 2px 8px rgba(76, 175, 80, 0.2)'
+                                    }}>
+                                        <Typography 
+                                            variant="subtitle2" 
+                                            sx={{ 
+                                                fontWeight: 700,
+                                                color: 'white',
+                                                fontSize: '0.8125rem',
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase'
+                                            }}
+                                        >
+                                            Detailed View
+                                        </Typography>
+                                    </Box>
+                                    <Divider 
+                                        sx={{ 
+                                            flex: 1,
+                                            borderWidth: 2,
+                                            borderColor: 'success.main',
+                                            opacity: 0.3,
+                                            '&::before, &::after': {
+                                                borderWidth: 2
+                                            }
+                                        }} 
+                                    />
+                                    {/* Action Buttons */}
+                                    <Stack direction="row" spacing={0.5} sx={{ ml: 1 }}>
+                                        <Tooltip title="Export to Excel">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleExportExcel}
+                                                sx={{
+                                                    color: '#2e7d32',
+                                                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                                                    border: '1px solid rgba(46, 125, 50, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(46, 125, 50, 0.15)',
+                                                        border: '1px solid rgba(46, 125, 50, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <FileDownload sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Export to PDF">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleExportPDF}
+                                                sx={{
+                                                    color: '#d32f2f',
+                                                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                                                    border: '1px solid rgba(211, 47, 47, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(211, 47, 47, 0.15)',
+                                                        border: '1px solid rgba(211, 47, 47, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <PictureAsPdf sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Print">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handlePrint}
+                                                sx={{
+                                                    color: '#1976d2',
+                                                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                                    border: '1px solid rgba(25, 118, 210, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(25, 118, 210, 0.15)',
+                                                        border: '1px solid rgba(25, 118, 210, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <Print sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Refresh Data">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleRefresh}
+                                                disabled={isLoading}
+                                                sx={{
+                                                    color: '#ff9800',
+                                                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                                    border: '1px solid rgba(255, 152, 0, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                                                        border: '1px solid rgba(255, 152, 0, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    '&:disabled': {
+                                                        opacity: 0.5
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <Refresh sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Stack>
+                                </Box>
+                            </Grid>
+
                             {/* Financial Detail Table */}
                             <Grid item xs={12}>
-                                <Box sx={{ mt: 3 }}>
+                                <Box sx={{ 
+                                    mt: 0,
+                                    pt: 2,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(76, 175, 80, 0.1)'
+                                }}>
                                     <ProjectDetailTable
                                         data={dashboardData.projectProgress.map((dept, index) => ({ 
                                             id: dept.departmentId || dept.department || `dept-${index}`,
@@ -1279,7 +1872,7 @@ const ReportingView = () => {
                                             allocatedBudget: parseFloat(dept.allocatedBudget) || 0,
                                             contractSum: parseFloat(dept.contractSum) || 0,
                                             amountPaid: parseFloat(dept.amountPaid) || 0,
-                                            absorptionRate: parseFloat(dept.percentAbsorptionRate) || 0,
+                                            absorptionRate: Math.round((parseFloat(dept.percentAbsorptionRate) || 0) * 100) / 100,
                                             remainingBudget: (parseFloat(dept.allocatedBudget) || 0) - (parseFloat(dept.amountPaid) || 0)
                                         }))}
                                         columns={financialTableColumns}
@@ -1538,9 +2131,157 @@ const ReportingView = () => {
                     </Fade>
                 </Grid>
                 
+                {/* Visual Separator */}
+                <Grid item xs={12}>
+                    <Box sx={{ 
+                        mt: 2.5, 
+                        mb: 1.5,
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2
+                    }}>
+                        <Divider 
+                            sx={{ 
+                                flex: 1,
+                                borderWidth: 2,
+                                borderColor: 'info.main',
+                                opacity: 0.3,
+                                '&::before, &::after': {
+                                    borderWidth: 2
+                                }
+                            }} 
+                        />
+                        <Box sx={{
+                            px: 2,
+                            py: 0.75,
+                            backgroundColor: 'info.main',
+                            borderRadius: '20px',
+                            boxShadow: '0 2px 8px rgba(33, 150, 243, 0.2)'
+                        }}>
+                            <Typography 
+                                variant="subtitle2" 
+                                sx={{ 
+                                    fontWeight: 700,
+                                    color: 'white',
+                                    fontSize: '0.8125rem',
+                                    letterSpacing: '0.5px',
+                                    textTransform: 'uppercase'
+                                }}
+                            >
+                                Detailed View
+                            </Typography>
+                        </Box>
+                        <Divider 
+                            sx={{ 
+                                flex: 1,
+                                borderWidth: 2,
+                                borderColor: 'info.main',
+                                opacity: 0.3,
+                                '&::before, &::after': {
+                                    borderWidth: 2
+                                }
+                            }} 
+                        />
+                        {/* Action Buttons */}
+                        <Stack direction="row" spacing={0.5} sx={{ ml: 1 }}>
+                            <Tooltip title="Export to Excel">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleExportExcel}
+                                    sx={{
+                                        color: '#2e7d32',
+                                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                                        border: '1px solid rgba(46, 125, 50, 0.2)',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(46, 125, 50, 0.15)',
+                                            border: '1px solid rgba(46, 125, 50, 0.3)',
+                                            transform: 'translateY(-1px)'
+                                        },
+                                        width: '32px',
+                                        height: '32px'
+                                    }}
+                                >
+                                    <FileDownload sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Export to PDF">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleExportPDF}
+                                    sx={{
+                                        color: '#d32f2f',
+                                        backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                                        border: '1px solid rgba(211, 47, 47, 0.2)',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(211, 47, 47, 0.15)',
+                                            border: '1px solid rgba(211, 47, 47, 0.3)',
+                                            transform: 'translateY(-1px)'
+                                        },
+                                        width: '32px',
+                                        height: '32px'
+                                    }}
+                                >
+                                    <PictureAsPdf sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Print">
+                                <IconButton
+                                    size="small"
+                                    onClick={handlePrint}
+                                    sx={{
+                                        color: '#1976d2',
+                                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                        border: '1px solid rgba(25, 118, 210, 0.2)',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(25, 118, 210, 0.15)',
+                                            border: '1px solid rgba(25, 118, 210, 0.3)',
+                                            transform: 'translateY(-1px)'
+                                        },
+                                        width: '32px',
+                                        height: '32px'
+                                    }}
+                                >
+                                    <Print sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Refresh Data">
+                                <IconButton
+                                    size="small"
+                                    onClick={handleRefresh}
+                                    disabled={isLoading}
+                                    sx={{
+                                        color: '#ff9800',
+                                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                        border: '1px solid rgba(255, 152, 0, 0.2)',
+                                        '&:hover': {
+                                            backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                                            border: '1px solid rgba(255, 152, 0, 0.3)',
+                                            transform: 'translateY(-1px)'
+                                        },
+                                        '&:disabled': {
+                                            opacity: 0.5
+                                        },
+                                        width: '32px',
+                                        height: '32px'
+                                    }}
+                                >
+                                    <Refresh sx={{ fontSize: '0.9rem' }} />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                    </Box>
+                </Grid>
+
                 {/* Analytics Detail Table */}
                 <Grid item xs={12}>
-                    <Box sx={{ mt: 3 }}>
+                    <Box sx={{ 
+                        mt: 0,
+                        pt: 2,
+                        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(33, 150, 243, 0.1)'
+                    }}>
                         <ProjectDetailTable
                             data={transformAnalyticsData(dashboardData.projectProgress)}
                             columns={analyticsTableColumns}
@@ -1553,15 +2294,15 @@ const ReportingView = () => {
                     )}
 
                     {activeTab === 3 && (
-                        <Grid container spacing={2}>
+                        <Grid container spacing={1}>
                             {/* Annual Trends Tab Content */}
                             
                             {/* Project Performance Overview */}
                             <Grid item xs={12}>
                                 <Fade in timeout={2000}>
                                     <Card sx={{ 
-                                        height: '500px',
-                                        borderRadius: '12px',
+                                        height: '400px',
+                                        borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                         border: '1px solid rgba(255,255,255,0.2)',
@@ -1581,22 +2322,22 @@ const ReportingView = () => {
                                             right: 0,
                                             height: '3px',
                                             background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                            borderRadius: '12px 12px 0 0'
+                                            borderRadius: '8px 8px 0 0'
                                         }
                                     }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <ShowChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                    <ShowChart sx={{ color: 'primary.main', fontSize: '1rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
                                                         Project Performance Trends ({trendsData.yearRange.start}-{trendsData.yearRange.end})
                                                     </Typography>
                                                 </Box>
                                             }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '420px', minWidth: '900px' }}>
+                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                            <Box sx={{ height: '340px', minWidth: '900px' }}>
                                                 {trendsData.projectPerformance.length > 0 ? (
                                                     <LineBarComboChart
                                                         title=""
@@ -1620,8 +2361,8 @@ const ReportingView = () => {
                             <Grid item xs={12} md={8}>
                                 <Fade in timeout={2200}>
                                     <Card sx={{ 
-                                        height: '500px',
-                                        borderRadius: '12px',
+                                        height: '400px',
+                                        borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                         border: '1px solid rgba(255,255,255,0.2)',
@@ -1641,22 +2382,22 @@ const ReportingView = () => {
                                             right: 0,
                                             height: '3px',
                                             background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                            borderRadius: '12px 12px 0 0'
+                                            borderRadius: '8px 8px 0 0'
                                         }
                                     }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
-                                                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
                                                         Financial Performance Trends
                                                     </Typography>
                                                 </Box>
                                             }
-                                            sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                            <Box sx={{ height: '420px', minWidth: '700px' }}>
+                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                            <Box sx={{ height: '340px', minWidth: '700px' }}>
                                                 {trendsData.financialTrends.length > 0 ? (
                                                     <LineBarComboChart
                                                         title=""
@@ -1682,14 +2423,14 @@ const ReportingView = () => {
                                     <Box sx={{ 
                                         display: 'flex', 
                                         flexDirection: 'column', 
-                                        gap: 1.5, 
+                                        gap: 1, 
                                         height: '400px',
                                         justifyContent: 'space-between'
                                     }}>
                                         {/* Total Projects Over Time */}
                                         <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
+                                            height: '100px',
+                                            borderRadius: '8px',
                                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                             border: '1px solid rgba(255,255,255,0.2)',
@@ -1709,21 +2450,21 @@ const ReportingView = () => {
                                                 right: 0,
                                                 height: '3px',
                                                 background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                                borderRadius: '12px 12px 0 0'
+                                                borderRadius: '8px 8px 0 0'
                                             }
                                         }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                            <CardContent sx={{ p: 1.25, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.7rem' }}>
                                                         Total Projects
                                                     </Typography>
-                                                    <Business sx={{ color: '#1976d2', fontSize: '1.2rem' }} />
+                                                    <Business sx={{ color: '#1976d2', fontSize: '1rem' }} />
                                                 </Box>
                                                 <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.25, fontSize: '1.25rem' }}>
                                                         {trendsData.projectPerformance.reduce((sum, item) => sum + (item.totalProjects || 0), 0)}
                                                     </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                                         Over 5 years
                                                     </Typography>
                                                 </Box>
@@ -1732,8 +2473,8 @@ const ReportingView = () => {
 
                                         {/* Average Completion Rate */}
                                         <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
+                                            height: '100px',
+                                            borderRadius: '8px',
                                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                             border: '1px solid rgba(255,255,255,0.2)',
@@ -1753,24 +2494,24 @@ const ReportingView = () => {
                                                 right: 0,
                                                 height: '3px',
                                                 background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                                borderRadius: '12px 12px 0 0'
+                                                borderRadius: '8px 8px 0 0'
                                             }
                                         }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                            <CardContent sx={{ p: 1.25, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.7rem' }}>
                                                         Avg Completion Rate
                                                     </Typography>
-                                                    <CheckCircle sx={{ color: '#4caf50', fontSize: '1.2rem' }} />
+                                                    <CheckCircle sx={{ color: '#4caf50', fontSize: '1rem' }} />
                                                 </Box>
                                                 <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.25, fontSize: '1.25rem' }}>
                                                         {trendsData.projectPerformance.length > 0 ? 
                                                             (trendsData.projectPerformance.reduce((sum, item) => sum + parseFloat(item.completionRate || 0), 0) / trendsData.projectPerformance.length).toFixed(1) + '%' 
                                                             : '0%'
                                                         }
                                                     </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                                         Over 5 years
                                                     </Typography>
                                                 </Box>
@@ -1779,8 +2520,8 @@ const ReportingView = () => {
 
                                         {/* Total Budget Over Time */}
                                         <Card sx={{ 
-                                            height: '120px',
-                                            borderRadius: '12px',
+                                            height: '100px',
+                                            borderRadius: '8px',
                                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                             border: '1px solid rgba(255,255,255,0.2)',
@@ -1800,21 +2541,21 @@ const ReportingView = () => {
                                                 right: 0,
                                                 height: '3px',
                                                 background: 'linear-gradient(90deg, #ff9800, #ffb74d, #ffcc80)',
-                                                borderRadius: '12px 12px 0 0'
+                                                borderRadius: '8px 8px 0 0'
                                             }
                                         }}>
-                                            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                            <CardContent sx={{ p: 1.25, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.7rem' }}>
                                                         Total Budget
                                                     </Typography>
-                                                    <AttachMoney sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
+                                                    <AttachMoney sx={{ color: '#ff9800', fontSize: '1rem' }} />
                                                 </Box>
                                                 <Box>
-                                                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.25, fontSize: '1.25rem' }}>
                                                         KSh {(trendsData.financialTrends.reduce((sum, item) => sum + (item.totalBudget || 0), 0) / 1000000).toFixed(1)}M
                                                     </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                                         Over 5 years
                                                     </Typography>
                                                 </Box>
@@ -1824,9 +2565,157 @@ const ReportingView = () => {
                                 </Fade>
                             </Grid>
 
+                            {/* Visual Separator */}
+                            <Grid item xs={12}>
+                                <Box sx={{ 
+                                    mt: 1.5, 
+                                    mb: 1,
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 2
+                                }}>
+                                    <Divider 
+                                        sx={{ 
+                                            flex: 1,
+                                            borderWidth: 2,
+                                            borderColor: 'primary.main',
+                                            opacity: 0.3,
+                                            '&::before, &::after': {
+                                                borderWidth: 2
+                                            }
+                                        }} 
+                                    />
+                                    <Box sx={{
+                                        px: 2,
+                                        py: 0.75,
+                                        backgroundColor: 'primary.main',
+                                        borderRadius: '20px',
+                                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+                                    }}>
+                                        <Typography 
+                                            variant="subtitle2" 
+                                            sx={{ 
+                                                fontWeight: 700,
+                                                color: 'white',
+                                                fontSize: '0.8125rem',
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase'
+                                            }}
+                                        >
+                                            Detailed View
+                                        </Typography>
+                                    </Box>
+                                    <Divider 
+                                        sx={{ 
+                                            flex: 1,
+                                            borderWidth: 2,
+                                            borderColor: 'primary.main',
+                                            opacity: 0.3,
+                                            '&::before, &::after': {
+                                                borderWidth: 2
+                                            }
+                                        }} 
+                                    />
+                                    {/* Action Buttons */}
+                                    <Stack direction="row" spacing={0.5} sx={{ ml: 1 }}>
+                                        <Tooltip title="Export to Excel">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleExportExcel}
+                                                sx={{
+                                                    color: '#2e7d32',
+                                                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                                                    border: '1px solid rgba(46, 125, 50, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(46, 125, 50, 0.15)',
+                                                        border: '1px solid rgba(46, 125, 50, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <FileDownload sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Export to PDF">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleExportPDF}
+                                                sx={{
+                                                    color: '#d32f2f',
+                                                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                                                    border: '1px solid rgba(211, 47, 47, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(211, 47, 47, 0.15)',
+                                                        border: '1px solid rgba(211, 47, 47, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <PictureAsPdf sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Print">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handlePrint}
+                                                sx={{
+                                                    color: '#1976d2',
+                                                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                                    border: '1px solid rgba(25, 118, 210, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(25, 118, 210, 0.15)',
+                                                        border: '1px solid rgba(25, 118, 210, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <Print sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Refresh Data">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleRefresh}
+                                                disabled={isLoading}
+                                                sx={{
+                                                    color: '#ff9800',
+                                                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                                    border: '1px solid rgba(255, 152, 0, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                                                        border: '1px solid rgba(255, 152, 0, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    '&:disabled': {
+                                                        opacity: 0.5
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <Refresh sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Stack>
+                                </Box>
+                            </Grid>
+
                             {/* Yearly Trends Detail Report */}
                             <Grid item xs={12}>
-                                <Box sx={{ mt: 3 }}>
+                                <Box sx={{ 
+                                    mt: 0,
+                                    pt: 1.5,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(25, 118, 210, 0.1)'
+                                }}>
                                     <ProjectDetailTable
                                         data={trendsData.projectPerformance.map((year, index) => ({
                                             id: year.year,

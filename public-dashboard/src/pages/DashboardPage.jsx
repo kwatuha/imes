@@ -33,7 +33,8 @@ import {
   Star,
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
-  Timeline
+  Timeline,
+  MoreHoriz
 } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -203,12 +204,20 @@ const DashboardPage = () => {
       onClick: () => handleStatClick('status', 'Ongoing', 'Ongoing Projects')
     },
     {
-      title: 'Phased Projects',
-      count: stats?.phased_projects || 0,
-      budget: stats?.phased_budget || 0,
+      title: 'Stalled Projects',
+      count: stats?.stalled_projects || 0,
+      budget: stats?.stalled_budget || 0,
+      color: '#f44336',
+      icon: Warning,
+      onClick: () => handleStatClick('status', 'Stalled', 'Stalled Projects')
+    },
+    {
+      title: 'Not Started Projects',
+      count: stats?.not_started_projects || 0,
+      budget: stats?.not_started_budget || 0,
       color: '#ff9800',
-      icon: Assessment,
-      onClick: () => handleStatClick('status', 'Phase', 'Phased Projects')
+      icon: Schedule,
+      onClick: () => handleStatClick('status', 'Not Started', 'Not Started Projects')
     },
     {
       title: 'Under Procurement',
@@ -217,6 +226,14 @@ const DashboardPage = () => {
       color: '#9c27b0',
       icon: Assessment,
       onClick: () => handleStatClick('status', 'Under Procurement', 'Under Procurement')
+    },
+    {
+      title: 'Other Projects',
+      count: stats?.other_projects || 0,
+      budget: stats?.other_budget || 0,
+      color: '#9e9e9e',
+      icon: MoreHoriz,
+      onClick: () => handleStatClick('status', 'Other', 'Other Projects')
     }
   ];
 

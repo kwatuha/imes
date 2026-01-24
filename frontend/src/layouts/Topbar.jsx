@@ -54,33 +54,33 @@ const Topbar = () => {
       display="flex" 
       justifyContent="space-between" 
       alignItems="center"
-      width="100%"
+      flex={1}
       sx={{ 
-        backgroundColor: theme.palette.primary.main,
         color: 'white',
-        px: 3,
-        py: 1,
-        minHeight: '64px'
+        px: 2,
+        py: 0.5,
       }}
     >
       {/* PAGE TITLE SECTION */}
       <Box display="flex" alignItems="center" flexGrow={1}>
         <Typography 
-          variant="h5" 
+          variant="h6" 
           fontWeight="bold" 
           sx={{ 
             color: 'white',
-            mr: 2
+            mr: 1.5,
+            fontSize: '1rem'
           }}
         >
           {pageTitle}
         </Typography>
         {pageSubtitle && (
           <Typography 
-            variant="body2" 
+            variant="caption" 
             sx={{ 
               color: 'rgba(255, 255, 255, 0.8)',
-              ml: 1
+              ml: 0.75,
+              fontSize: '0.75rem'
             }}
           >
             {pageSubtitle}

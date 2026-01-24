@@ -124,10 +124,14 @@ const PublicApprovalManagementPage = () => {
 
   // Filter and search states
   const [globalSearch, setGlobalSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [approvalStatusFilter, setApprovalStatusFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  
+  // Bulk selection state
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   
   // Metadata for filters
   const [departments, setDepartments] = useState([]);
@@ -685,12 +689,98 @@ const PublicApprovalManagementPage = () => {
           : 'rejected';
       setSuccess(`${selectedItem.type} ${actionText} successfully!`);
       handleCloseApprovalDialog();
-      fetchAllData();
+      // Refresh data but preserve filters (filters are in state, so they persist)
+      await fetchAllData();
     } catch (err) {
       console.error('Error updating approval:', err);
       setError(err.response?.data?.error || 'Failed to update approval status.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Bulk approval handler
+  const handleBulkApprove = async (action) => {
+    if (selectedRows.length === 0) {
+      setError(`Please select at least one item to ${action === 'approve' ? 'approve' : 'revoke'}`);
+      return;
+    }
+
+    // Filter selected rows to only include items that can be processed
+    const itemsToProcess = filterData.filter(item => {
+      if (selectedRows.includes(item.id)) {
+        if (action === 'approve') {
+          // Only approve items that are not already approved
+          return !(item.approved_for_public === 1 || item.approved_for_public === true);
+        } else if (action === 'revoke') {
+          // Only revoke items that are approved
+          return (item.approved_for_public === 1 || item.approved_for_public === true);
+        }
+        return true;
+      }
+      return false;
+    });
+
+    if (itemsToProcess.length === 0) {
+      const actionText = action === 'approve' ? 'approval' : 'revocation';
+      const statusText = action === 'approve' ? 'approved' : 'not approved';
+      setError(`No items available for ${actionText}. Selected items may already be ${statusText}.`);
+      return;
+    }
+
+    setBulkActionLoading(true);
+    setError(null);
+
+    try {
+      // Get the type based on active tab
+      const itemType = getTypeFromActiveTab();
+      const promises = itemsToProcess.map(item => {
+        const endpoint = getEndpointForType(itemType);
+        const approvalEndpoint = endpoint === '/citizen-proposals' 
+          ? `/citizen-proposals/${item.id}/approval`
+          : endpoint === '/projects'
+          ? `/projects/${item.id}/approval`
+          : `${endpoint}/${item.id}/approval`;
+        
+        const requestData = {
+          approved_for_public: action === 'approve',
+          approval_notes: `Bulk ${action === 'approve' ? 'approved' : 'revoked'} by ${user?.username || user?.email || 'admin'}`,
+          approved_by: user?.userId,
+          approved_at: new Date().toISOString(),
+          revision_requested: false
+        };
+
+        return axiosInstance.put(approvalEndpoint, requestData);
+      });
+
+      await Promise.all(promises);
+      const actionText = action === 'approve' ? 'approved' : 'revoked';
+      setSuccess(`${itemsToProcess.length} item(s) ${actionText} successfully!`);
+      setSelectedRows([]); // Clear selection
+      // Refresh data but preserve filters (filters are in state, so they persist)
+      await fetchAllData();
+    } catch (err) {
+      console.error('Error in bulk approval:', err);
+      const actionText = action === 'approve' ? 'approve' : 'revoke';
+      setError(err.response?.data?.error || `Failed to ${actionText} items. Some items may have been processed.`);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // Helper to get type from active tab
+  const getTypeFromActiveTab = () => {
+    switch (activeTab) {
+      case 0:
+        return 'project';
+      case 1:
+        return 'county_project';
+      case 2:
+        return 'citizen_proposal';
+      case 3:
+        return 'announcement';
+      default:
+        return 'project';
     }
   };
 
@@ -715,46 +805,189 @@ const PublicApprovalManagementPage = () => {
     const needsRevision = item.revision_requested === 1 || item.revision_requested === true;
     
     if (isApproved) {
-      return <Chip label="Approved" color="success" size="small" icon={<CheckCircleIcon />} />;
+      return (
+        <Chip 
+          label="Approved" 
+          color="success" 
+          size="small" 
+          icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
+          sx={{ 
+            height: 22, 
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            '& .MuiChip-icon': { fontSize: 14 }
+          }} 
+        />
+      );
     }
     if (needsRevision) {
-      return <Chip label="Revision Requested" color="warning" size="small" icon={<CancelIcon />} />;
+      return (
+        <Chip 
+          label="Revision" 
+          color="warning" 
+          size="small" 
+          icon={<CancelIcon sx={{ fontSize: 14 }} />}
+          sx={{ 
+            height: 22, 
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            '& .MuiChip-icon': { fontSize: 14 }
+          }} 
+        />
+      );
     }
-    return <Chip label="Pending" color="info" size="small" icon={<CancelIcon />} />;
+    return (
+      <Chip 
+        label="Pending" 
+        color="default" 
+        size="small" 
+        sx={{ 
+          height: 22, 
+          fontSize: '0.7rem',
+          fontWeight: 500,
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'
+        }} 
+      />
+    );
+  };
+
+  // Helper to get status chip color
+  const getStatusChip = (status) => {
+    if (!status) return null;
+    const statusLower = status.toLowerCase();
+    let color = 'default';
+    if (statusLower.includes('completed') || statusLower.includes('complete')) {
+      color = 'success';
+    } else if (statusLower.includes('ongoing') || statusLower.includes('progress')) {
+      color = 'primary';
+    } else if (statusLower.includes('stalled') || statusLower.includes('delayed')) {
+      color = 'error';
+    } else if (statusLower.includes('not started') || statusLower.includes('pending')) {
+      color = 'warning';
+    }
+    return (
+      <Chip 
+        label={status} 
+        color={color} 
+        size="small" 
+        sx={{ 
+          height: 22, 
+          fontSize: '0.7rem',
+          fontWeight: 500,
+          '& .MuiChip-label': { px: 1 }
+        }} 
+      />
+    );
   };
 
   // Projects columns (for Projects Gallery)
   const projectsColumns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'projectName', headerName: 'Project Name', flex: 1, minWidth: 200 },
-    { field: 'categoryName', headerName: 'Category', width: 150 },
-    { field: 'status', headerName: 'Status', width: 120 },
-    { field: 'departmentName', headerName: 'Department', width: 150 },
+    { 
+      field: 'id', 
+      headerName: 'ID', 
+      width: 70,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'projectName', 
+      headerName: 'Project Name', 
+      flex: 2, 
+      minWidth: 300,
+      renderCell: (params) => (
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            fontSize: '0.9rem',
+            fontWeight: 500,
+            color: 'text.primary',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: 1.4
+          }}
+        >
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'categoryName', 
+      headerName: 'Category', 
+      width: 130,
+      renderCell: (params) => (
+        <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {params.value || '-'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 140,
+      renderCell: (params) => getStatusChip(params.value)
+    },
+    { 
+      field: 'departmentName', 
+      headerName: 'Department', 
+      width: 160,
+      renderCell: (params) => (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            fontSize: '0.8rem', 
+            color: 'text.secondary',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+          title={params.value}
+        >
+          {params.value || '-'}
+        </Typography>
+      )
+    },
     {
       field: 'approved_for_public',
-      headerName: 'Public Status',
-      width: 150,
+      headerName: 'Public',
+      width: 120,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => getApprovalStatusChip(params.row)
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 300,
+      width: 200,
       sortable: false,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const isApproved = params.row.approved_for_public === 1 || params.row.approved_for_public === true;
         const needsRevision = params.row.revision_requested === 1 || params.row.revision_requested === true;
         return (
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={0.25} sx={{ justifyContent: 'center' }}>
             {!isApproved && (
               <>
-                <Tooltip title="Approve for Public">
+                <Tooltip title="Approve">
                   <IconButton
                     color="success"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'approve', 'project')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <CheckCircleIcon />
+                    <CheckCircleIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Request Revision">
@@ -762,59 +995,107 @@ const PublicApprovalManagementPage = () => {
                     color="warning"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'request_revision', 'project')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <EditIcon />
+                    <EditIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
               </>
             )}
             {isApproved && (
-              <Tooltip title="Revoke Approval">
+              <Tooltip title="Revoke">
                 <IconButton
                   color="error"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'reject', 'project')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <CancelIcon />
+                  <CancelIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
             {needsRevision && (
-              <Tooltip title="View Revision Notes">
+              <Tooltip title="Revision Notes">
                 <IconButton
                   color="info"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'view_revision', 'project')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <InfoIcon />
+                  <InfoIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title="Manage Photos">
+            <Tooltip title="Photos">
               <IconButton
                 color="primary"
                 size="small"
                 onClick={() => handleOpenPhotoModal(params.row)}
+                sx={{ 
+                  p: 0.5,
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
               >
-                <PhotoLibraryIcon />
+                <PhotoLibraryIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Update Progress">
+            <Tooltip title="Progress">
               <IconButton
                 color="secondary"
                 size="small"
                 onClick={() => handleOpenProgressModal(params.row)}
+                sx={{ 
+                  p: 0.5,
+                  '&:hover': {
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
               >
-                <TrendingUpIcon />
+                <TrendingUpIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
-            <Tooltip title="View Project Details">
+            <Tooltip title="View">
               <IconButton
                 color="info"
                 size="small"
                 onClick={() => navigate(`/projects/${params.row.id}`)}
+                sx={{ 
+                  p: 0.5,
+                  '&:hover': {
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
               >
-                <VisibilityIcon />
+                <VisibilityIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -825,35 +1106,92 @@ const PublicApprovalManagementPage = () => {
 
   // County Projects columns
   const countyProjectsColumns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'title', headerName: 'Title', flex: 1, minWidth: 200 },
-    { field: 'category', headerName: 'Category', width: 150 },
-    { field: 'status', headerName: 'Status', width: 120 },
+    { 
+      field: 'id', 
+      headerName: 'ID', 
+      width: 70,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'title', 
+      headerName: 'Title', 
+      flex: 2, 
+      minWidth: 300,
+      renderCell: (params) => (
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            fontSize: '0.9rem',
+            fontWeight: 500,
+            color: 'text.primary',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: 1.4
+          }}
+        >
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'category', 
+      headerName: 'Category', 
+      width: 130,
+      renderCell: (params) => (
+        <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {params.value || '-'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 140,
+      renderCell: (params) => getStatusChip(params.value)
+    },
     {
       field: 'approved_for_public',
-      headerName: 'Public Status',
-      width: 150,
+      headerName: 'Public',
+      width: 120,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => getApprovalStatusChip(params.row)
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 160,
       sortable: false,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const isApproved = params.row.approved_for_public === 1 || params.row.approved_for_public === true;
         const needsRevision = params.row.revision_requested === 1 || params.row.revision_requested === true;
         return (
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={0.25} sx={{ justifyContent: 'center' }}>
             {!isApproved && (
               <>
-                <Tooltip title="Approve for Public">
+                <Tooltip title="Approve">
                   <IconButton
                     color="success"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'approve', 'county_project')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <CheckCircleIcon />
+                    <CheckCircleIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Request Revision">
@@ -861,31 +1199,55 @@ const PublicApprovalManagementPage = () => {
                     color="warning"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'request_revision', 'county_project')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <EditIcon />
+                    <EditIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
               </>
             )}
             {isApproved && (
-              <Tooltip title="Revoke Approval">
+              <Tooltip title="Revoke">
                 <IconButton
                   color="error"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'reject', 'county_project')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <CancelIcon />
+                  <CancelIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
             {needsRevision && (
-              <Tooltip title="View Revision Notes">
+              <Tooltip title="Revision Notes">
                 <IconButton
                   color="info"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'view_revision', 'county_project')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <InfoIcon />
+                  <InfoIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
@@ -897,36 +1259,102 @@ const PublicApprovalManagementPage = () => {
 
   // Citizen Proposals columns
   const citizenProposalsColumns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'title', headerName: 'Title', flex: 1, minWidth: 200 },
-    { field: 'category', headerName: 'Category', width: 150 },
-    { field: 'proposer_name', headerName: 'Proposer', width: 150 },
-    { field: 'status', headerName: 'Status', width: 120 },
+    { 
+      field: 'id', 
+      headerName: 'ID', 
+      width: 70,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'title', 
+      headerName: 'Title', 
+      flex: 2, 
+      minWidth: 300,
+      renderCell: (params) => (
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            fontSize: '0.9rem',
+            fontWeight: 500,
+            color: 'text.primary',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: 1.4
+          }}
+        >
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'category', 
+      headerName: 'Category', 
+      width: 130,
+      renderCell: (params) => (
+        <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {params.value || '-'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'proposer_name', 
+      headerName: 'Proposer', 
+      width: 140,
+      renderCell: (params) => (
+        <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {params.value || '-'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 140,
+      renderCell: (params) => getStatusChip(params.value)
+    },
     {
       field: 'approved_for_public',
-      headerName: 'Public Status',
-      width: 150,
+      headerName: 'Public',
+      width: 120,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => getApprovalStatusChip(params.row)
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 160,
       sortable: false,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const isApproved = params.row.approved_for_public === 1 || params.row.approved_for_public === true;
         const needsRevision = params.row.revision_requested === 1 || params.row.revision_requested === true;
         return (
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={0.25} sx={{ justifyContent: 'center' }}>
             {!isApproved && (
               <>
-                <Tooltip title="Approve for Public">
+                <Tooltip title="Approve">
                   <IconButton
                     color="success"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'approve', 'citizen_proposal')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <CheckCircleIcon />
+                    <CheckCircleIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Request Revision">
@@ -934,31 +1362,55 @@ const PublicApprovalManagementPage = () => {
                     color="warning"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'request_revision', 'citizen_proposal')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <EditIcon />
+                    <EditIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
               </>
             )}
             {isApproved && (
-              <Tooltip title="Revoke Approval">
+              <Tooltip title="Revoke">
                 <IconButton
                   color="error"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'reject', 'citizen_proposal')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <CancelIcon />
+                  <CancelIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
             {needsRevision && (
-              <Tooltip title="View Revision Notes">
+              <Tooltip title="Revision Notes">
                 <IconButton
                   color="info"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'view_revision', 'citizen_proposal')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <InfoIcon />
+                  <InfoIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
@@ -970,36 +1422,102 @@ const PublicApprovalManagementPage = () => {
 
   // Announcements columns
   const announcementsColumns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'title', headerName: 'Title', flex: 1, minWidth: 200 },
-    { field: 'category', headerName: 'Category', width: 150 },
-    { field: 'date', headerName: 'Date', width: 120 },
-    { field: 'status', headerName: 'Status', width: 120 },
+    { 
+      field: 'id', 
+      headerName: 'ID', 
+      width: 70,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'title', 
+      headerName: 'Title', 
+      flex: 2, 
+      minWidth: 300,
+      renderCell: (params) => (
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            fontSize: '0.9rem',
+            fontWeight: 500,
+            color: 'text.primary',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+            lineHeight: 1.4
+          }}
+        >
+          {params.value}
+        </Typography>
+      )
+    },
+    { 
+      field: 'category', 
+      headerName: 'Category', 
+      width: 130,
+      renderCell: (params) => (
+        <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {params.value || '-'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'date', 
+      headerName: 'Date', 
+      width: 110,
+      renderCell: (params) => (
+        <Typography variant="caption" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {params.value ? new Date(params.value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+        </Typography>
+      )
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 140,
+      renderCell: (params) => getStatusChip(params.value)
+    },
     {
       field: 'approved_for_public',
-      headerName: 'Public Status',
-      width: 150,
+      headerName: 'Public',
+      width: 120,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => getApprovalStatusChip(params.row)
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 160,
       sortable: false,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const isApproved = params.row.approved_for_public === 1 || params.row.approved_for_public === true;
         const needsRevision = params.row.revision_requested === 1 || params.row.revision_requested === true;
         return (
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={0.25} sx={{ justifyContent: 'center' }}>
             {!isApproved && (
               <>
-                <Tooltip title="Approve for Public">
+                <Tooltip title="Approve">
                   <IconButton
                     color="success"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'approve', 'announcement')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <CheckCircleIcon />
+                    <CheckCircleIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Request Revision">
@@ -1007,31 +1525,55 @@ const PublicApprovalManagementPage = () => {
                     color="warning"
                     size="small"
                     onClick={() => handleOpenApprovalDialog(params.row, 'request_revision', 'announcement')}
+                    sx={{ 
+                      p: 0.5,
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        transform: 'scale(1.1)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
-                    <EditIcon />
+                    <EditIcon sx={{ fontSize: 18 }} />
                   </IconButton>
                 </Tooltip>
               </>
             )}
             {isApproved && (
-              <Tooltip title="Revoke Approval">
+              <Tooltip title="Revoke">
                 <IconButton
                   color="error"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'reject', 'announcement')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <CancelIcon />
+                  <CancelIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
             {needsRevision && (
-              <Tooltip title="View Revision Notes">
+              <Tooltip title="Revision Notes">
                 <IconButton
                   color="info"
                   size="small"
                   onClick={() => handleOpenApprovalDialog(params.row, 'view_revision', 'announcement')}
+                  sx={{ 
+                    p: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                      transform: 'scale(1.1)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  <InfoIcon />
+                  <InfoIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
@@ -1081,12 +1623,12 @@ const PublicApprovalManagementPage = () => {
     }
 
     // Apply status filter
-    if (statusFilter !== 'all') {
+    if (statusFilter) {
       data = data.filter(item => item.status === statusFilter);
     }
 
     // Apply approval status filter
-    if (approvalStatusFilter !== 'all') {
+    if (approvalStatusFilter) {
       if (approvalStatusFilter === 'approved') {
         data = data.filter(item => item.approved_for_public === 1 || item.approved_for_public === true);
       } else if (approvalStatusFilter === 'pending') {
@@ -1100,7 +1642,7 @@ const PublicApprovalManagementPage = () => {
     }
 
     // Apply department filter
-    if (departmentFilter !== 'all') {
+    if (departmentFilter) {
       data = data.filter(item => {
         const deptName = item.departmentName || item.department || '';
         return deptName === departmentFilter;
@@ -1108,7 +1650,7 @@ const PublicApprovalManagementPage = () => {
     }
 
     // Apply category filter
-    if (categoryFilter !== 'all') {
+    if (categoryFilter) {
       data = data.filter(item => {
         const catName = item.categoryName || item.category || '';
         return catName === categoryFilter;
@@ -1137,14 +1679,14 @@ const PublicApprovalManagementPage = () => {
 
   const currentData = getCurrentData();
 
-  const hasActiveFilters = globalSearch.trim() || statusFilter !== 'all' || approvalStatusFilter !== 'all' || departmentFilter !== 'all' || categoryFilter !== 'all';
+  const hasActiveFilters = globalSearch.trim() || statusFilter || approvalStatusFilter || departmentFilter || categoryFilter;
 
   const handleClearFilters = () => {
     setGlobalSearch('');
-    setStatusFilter('all');
-    setApprovalStatusFilter('all');
-    setDepartmentFilter('all');
-    setCategoryFilter('all');
+    setStatusFilter('');
+    setApprovalStatusFilter('');
+    setDepartmentFilter('');
+    setCategoryFilter('');
   };
 
   if (!hasPrivilege('public_content.approve') && user?.roleName !== 'admin') {
@@ -1156,140 +1698,169 @@ const PublicApprovalManagementPage = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PublicIcon sx={{ fontSize: 32 }} />
+    <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
+      <Box sx={{ mb: 1.5 }}>
+        <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          <PublicIcon sx={{ fontSize: 24 }} />
           Public Content Approval
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="caption" color="text.secondary">
           Review and approve content for public viewing on the public-facing website
         </Typography>
       </Box>
 
       {error && (
-        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 1.5, py: 0.5 }}>
           {error}
         </Alert>
       )}
 
       {success && (
-        <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>
+        <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 1.5, py: 0.5 }}>
           {success}
         </Alert>
       )}
 
-      <Paper sx={{ width: '100%' }}>
+      <Paper 
+        sx={{ 
+          width: '100%',
+          boxShadow: theme.palette.mode === 'dark' 
+            ? '0 2px 8px rgba(0,0,0,0.3)' 
+            : '0 2px 8px rgba(0,0,0,0.08)',
+          borderRadius: 2,
+          overflow: 'hidden'
+        }}
+      >
         <Tabs
           value={activeTab}
-          onChange={(e, newValue) => setActiveTab(newValue)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          onChange={(e, newValue) => {
+            setActiveTab(newValue);
+            // Clear selection when switching tabs
+            setSelectedRows([]);
+          }}
+          sx={{ 
+            borderBottom: 1, 
+            borderColor: 'divider', 
+            minHeight: 40,
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#fafafa',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              minHeight: 40,
+              '&.Mui-selected': {
+                color: theme.palette.primary.main,
+                fontWeight: 600,
+              }
+            }
+          }}
+          variant="scrollable"
+          scrollButtons="auto"
         >
-          <Tab label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span>Projects (Gallery)</span>
-              <Chip 
-                label={activeTab === 0 && hasActiveFilters ? filterData.length : projects.length} 
-                size="small" 
-                color={activeTab === 0 && hasActiveFilters ? "primary" : "default"}
-                sx={{ height: '20px', fontSize: '0.7rem' }}
-              />
-            </Box>
-          } />
-          <Tab label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span>County Projects</span>
-              <Chip 
-                label={activeTab === 1 && hasActiveFilters ? filterData.length : countyProjects.length} 
-                size="small" 
-                color={activeTab === 1 && hasActiveFilters ? "primary" : "default"}
-                sx={{ height: '20px', fontSize: '0.7rem' }}
-              />
-            </Box>
-          } />
-          <Tab label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span>Citizen Proposals</span>
-              <Chip 
-                label={activeTab === 2 && hasActiveFilters ? filterData.length : citizenProposals.length} 
-                size="small" 
-                color={activeTab === 2 && hasActiveFilters ? "primary" : "default"}
-                sx={{ height: '20px', fontSize: '0.7rem' }}
-              />
-            </Box>
-          } />
-          <Tab label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span>Announcements</span>
-              <Chip 
-                label={activeTab === 3 && hasActiveFilters ? filterData.length : announcements.length} 
-                size="small" 
-                color={activeTab === 3 && hasActiveFilters ? "primary" : "default"}
-                sx={{ height: '20px', fontSize: '0.7rem' }}
-              />
-            </Box>
-          } />
           <Tab 
             label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <GavelIcon sx={{ fontSize: '1rem' }} />
-                Feedback Moderation
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <span style={{ fontSize: '0.875rem' }}>Projects</span>
+                <Chip 
+                  label={activeTab === 0 && hasActiveFilters ? filterData.length : projects.length} 
+                  size="small" 
+                  color={activeTab === 0 && hasActiveFilters ? "primary" : "default"}
+                  sx={{ height: '18px', fontSize: '0.65rem', minWidth: '24px' }}
+                />
+              </Box>
+            }
+            sx={{ minHeight: 40, py: 1 }}
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <span style={{ fontSize: '0.875rem' }}>County</span>
+                <Chip 
+                  label={activeTab === 1 && hasActiveFilters ? filterData.length : countyProjects.length} 
+                  size="small" 
+                  color={activeTab === 1 && hasActiveFilters ? "primary" : "default"}
+                  sx={{ height: '18px', fontSize: '0.65rem', minWidth: '24px' }}
+                />
+              </Box>
+            }
+            sx={{ minHeight: 40, py: 1 }}
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <span style={{ fontSize: '0.875rem' }}>Proposals</span>
+                <Chip 
+                  label={activeTab === 2 && hasActiveFilters ? filterData.length : citizenProposals.length} 
+                  size="small" 
+                  color={activeTab === 2 && hasActiveFilters ? "primary" : "default"}
+                  sx={{ height: '18px', fontSize: '0.65rem', minWidth: '24px' }}
+                />
+              </Box>
+            }
+            sx={{ minHeight: 40, py: 1 }}
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <span style={{ fontSize: '0.875rem' }}>Announcements</span>
+                <Chip 
+                  label={activeTab === 3 && hasActiveFilters ? filterData.length : announcements.length} 
+                  size="small" 
+                  color={activeTab === 3 && hasActiveFilters ? "primary" : "default"}
+                  sx={{ height: '18px', fontSize: '0.65rem', minWidth: '24px' }}
+                />
+              </Box>
+            }
+            sx={{ minHeight: 40, py: 1 }}
+          />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <GavelIcon sx={{ fontSize: '0.875rem' }} />
+                <span style={{ fontSize: '0.875rem' }}>Feedback</span>
                 {moderationStats && (
                   <Chip 
                     label={moderationStats.statistics?.pending_count || 0} 
                     size="small" 
                     color="warning"
-                    sx={{ height: '20px', fontSize: '0.7rem' }}
+                    sx={{ height: '18px', fontSize: '0.65rem', minWidth: '24px' }}
                   />
                 )}
               </Box>
-            } 
+            }
+            sx={{ minHeight: 40, py: 1 }}
           />
         </Tabs>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 2 }}>
           {/* Global Search and Filters - Show for tabs 0-3 (DataGrid tabs) */}
           {activeTab !== 4 && (
             <Paper 
-              elevation={2} 
+              elevation={1}
               sx={{ 
-                p: 2, 
-                mb: 3, 
-                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-                borderRadius: 2
+                mb: 1.5, 
+                borderRadius: 2, 
+                p: 0.75
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <SearchIcon color="primary" />
-                <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-                  Search & Filter
-                </Typography>
-                {hasActiveFilters && (
-                  <Button
-                    size="small"
-                    startIcon={<ClearIcon />}
-                    onClick={handleClearFilters}
-                    variant="outlined"
-                    color="secondary"
-                  >
-                    Clear All
-                  </Button>
-                )}
-              </Box>
-              
-              <Grid container spacing={2}>
+              <Grid container spacing={0.75} alignItems="center">
                 {/* Global Search */}
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} sm={6} md={3}>
                   <TextField
                     fullWidth
                     size="small"
-                    placeholder={`Search ${currentData.title.toLowerCase()}...`}
+                    placeholder="Search projects..."
                     value={globalSearch}
                     onChange={(e) => setGlobalSearch(e.target.value)}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': { 
+                        height: '32px',
+                        fontSize: '0.8125rem'
+                      } 
+                    }}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <SearchIcon />
+                          <SearchIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                         </InputAdornment>
                       ),
                       endAdornment: globalSearch && (
@@ -1298,8 +1869,9 @@ const PublicApprovalManagementPage = () => {
                             size="small"
                             onClick={() => setGlobalSearch('')}
                             edge="end"
+                            sx={{ fontSize: 14 }}
                           >
-                            <CloseIcon fontSize="small" />
+                            <ClearIcon sx={{ fontSize: 14 }} />
                           </IconButton>
                         </InputAdornment>
                       ),
@@ -1308,105 +1880,213 @@ const PublicApprovalManagementPage = () => {
                 </Grid>
 
                 {/* Approval Status Filter */}
-                <Grid item xs={12} sm={6} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Approval Status</InputLabel>
+                <Grid item xs={6} sm={3} md={2}>
+                  <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel id="approval-status-label" sx={{ fontSize: '0.8125rem' }}>Approval</InputLabel>
                     <Select
+                      labelId="approval-status-label"
                       value={approvalStatusFilter}
                       onChange={(e) => setApprovalStatusFilter(e.target.value)}
-                      label="Approval Status"
+                      label="Approval"
+                      sx={{ 
+                        height: '32px', 
+                        fontSize: '0.8125rem',
+                        '& .MuiSelect-select': {
+                          py: 0.5
+                        }
+                      }}
                     >
-                      <MenuItem value="all">All Status</MenuItem>
-                      <MenuItem value="pending">Pending</MenuItem>
-                      <MenuItem value="approved">Approved</MenuItem>
-                      <MenuItem value="revision">Revision Requested</MenuItem>
+                      <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                      <MenuItem value="pending" sx={{ fontSize: '0.8125rem' }}>Pending</MenuItem>
+                      <MenuItem value="approved" sx={{ fontSize: '0.8125rem' }}>Approved</MenuItem>
+                      <MenuItem value="revision" sx={{ fontSize: '0.8125rem' }}>Revision</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
 
                 {/* Status Filter */}
-                {statuses.length > 0 && (
-                  <Grid item xs={12} sm={6} md={2}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        label="Status"
-                      >
-                        <MenuItem value="all">All Status</MenuItem>
-                        {statuses.map(status => (
-                          <MenuItem key={status} value={status}>{status}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
+                <Grid item xs={6} sm={3} md={2}>
+                  <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel id="status-label" sx={{ fontSize: '0.8125rem' }}>Status</InputLabel>
+                    <Select
+                      labelId="status-label"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      label="Status"
+                      sx={{ 
+                        height: '32px', 
+                        fontSize: '0.8125rem',
+                        '& .MuiSelect-select': {
+                          py: 0.5
+                        }
+                      }}
+                      disabled={statuses.length === 0}
+                    >
+                      <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                      {statuses.map(status => (
+                        <MenuItem key={status} value={status} sx={{ fontSize: '0.8125rem' }}>{status}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
                 {/* Department Filter */}
-                {departments.length > 0 && (
-                  <Grid item xs={12} sm={6} md={2}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Department</InputLabel>
-                      <Select
-                        value={departmentFilter}
-                        onChange={(e) => setDepartmentFilter(e.target.value)}
-                        label="Department"
-                      >
-                        <MenuItem value="all">All Departments</MenuItem>
-                        {departments.map(dept => (
-                          <MenuItem key={dept.departmentId || dept.id} value={dept.name || dept.departmentName}>
-                            {dept.name || dept.departmentName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
+                <Grid item xs={6} sm={3} md={2}>
+                  <FormControl fullWidth size="small" sx={{ minWidth: 140 }}>
+                    <InputLabel id="department-label" sx={{ fontSize: '0.8125rem' }}>Department</InputLabel>
+                    <Select
+                      labelId="department-label"
+                      value={departmentFilter}
+                      onChange={(e) => setDepartmentFilter(e.target.value)}
+                      label="Department"
+                      sx={{ 
+                        height: '32px', 
+                        fontSize: '0.8125rem',
+                        '& .MuiSelect-select': {
+                          py: 0.5
+                        }
+                      }}
+                      disabled={departments.length === 0}
+                    >
+                      <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                      {departments.map(dept => (
+                        <MenuItem key={dept.departmentId || dept.id} value={dept.name || dept.departmentName} sx={{ fontSize: '0.8125rem' }}>
+                          {dept.name || dept.departmentName}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
                 {/* Category Filter */}
-                {categories.length > 0 && (
-                  <Grid item xs={12} sm={6} md={2}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Category</InputLabel>
-                      <Select
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
-                        label="Category"
-                      >
-                        <MenuItem value="all">All Categories</MenuItem>
-                        {categories.map(cat => (
-                          <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
+                <Grid item xs={6} sm={3} md={2}>
+                  <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel id="category-label" sx={{ fontSize: '0.8125rem' }}>Category</InputLabel>
+                    <Select
+                      labelId="category-label"
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      label="Category"
+                      sx={{ 
+                        height: '32px', 
+                        fontSize: '0.8125rem',
+                        '& .MuiSelect-select': {
+                          py: 0.5
+                        }
+                      }}
+                      disabled={categories.length === 0}
+                    >
+                      <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                      {categories.map(cat => (
+                        <MenuItem key={cat} value={cat} sx={{ fontSize: '0.8125rem' }}>{cat}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Clear Filters Button */}
+                <Grid item xs={12} sm={6} md={1} sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+                  <IconButton
+                    onClick={handleClearFilters}
+                    disabled={!hasActiveFilters}
+                    size="small"
+                    sx={{
+                      backgroundColor: hasActiveFilters ? 'error.light' : 'grey.200',
+                      color: hasActiveFilters ? 'white' : 'grey.500',
+                      height: '32px',
+                      width: '32px',
+                      '&:hover': {
+                        backgroundColor: hasActiveFilters ? 'error.main' : 'grey.300'
+                      }
+                    }}
+                  >
+                    <ClearIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Grid>
               </Grid>
 
-              {/* Results count */}
+              {/* Active Filters & Results count */}
               {hasActiveFilters && (
-                <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ mt: 1.5, pt: 1, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 500, color: 'text.secondary', mr: 0.5 }}>
+                    Active:
+                  </Typography>
+                  {globalSearch && (
+                    <Chip
+                      label={`Search: "${globalSearch}"`}
+                      size="small"
+                      onDelete={() => setGlobalSearch('')}
+                      sx={{ 
+                        height: 24, 
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { fontSize: 14 }
+                      }}
+                    />
+                  )}
+                  {approvalStatusFilter && (
+                    <Chip
+                      label={`Approval: ${approvalStatusFilter}`}
+                      size="small"
+                      onDelete={() => setApprovalStatusFilter('')}
+                      sx={{ 
+                        height: 24, 
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { fontSize: 14 }
+                      }}
+                    />
+                  )}
+                  {statusFilter && (
+                    <Chip
+                      label={`Status: ${statusFilter}`}
+                      size="small"
+                      onDelete={() => setStatusFilter('')}
+                      sx={{ 
+                        height: 24, 
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { fontSize: 14 }
+                      }}
+                    />
+                  )}
+                  {departmentFilter && (
+                    <Chip
+                      label={`Dept: ${departmentFilter}`}
+                      size="small"
+                      onDelete={() => setDepartmentFilter('')}
+                      sx={{ 
+                        height: 24, 
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { fontSize: 14 }
+                      }}
+                    />
+                  )}
+                  {categoryFilter && (
+                    <Chip
+                      label={`Category: ${categoryFilter}`}
+                      size="small"
+                      onDelete={() => setCategoryFilter('')}
+                      sx={{ 
+                        height: 24, 
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { fontSize: 14 }
+                      }}
+                    />
+                  )}
                   <Chip
-                    label={`${filterData.length} result${filterData.length !== 1 ? 's' : ''} found`}
+                    label={`${filterData.length} result${filterData.length !== 1 ? 's' : ''}`}
                     color="primary"
                     size="small"
-                    icon={<SearchIcon />}
+                    sx={{ 
+                      height: 24, 
+                      fontSize: '0.7rem', 
+                      fontWeight: 600,
+                      ml: 'auto'
+                    }}
                   />
-                  {(() => {
-                    const totalCount = activeTab === 0 ? projects.length : 
-                                     activeTab === 1 ? countyProjects.length :
-                                     activeTab === 2 ? citizenProposals.length :
-                                     announcements.length;
-                    if (filterData.length < totalCount) {
-                      return (
-                        <Typography variant="caption" color="text.secondary">
-                          (filtered from {totalCount} total)
-                        </Typography>
-                      );
-                    }
-                    return null;
-                  })()}
                 </Box>
               )}
             </Paper>
@@ -1417,7 +2097,7 @@ const PublicApprovalManagementPage = () => {
             <Box>
               {/* Statistics Cards - Interactive */}
               {moderationStats && (
-                <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid container spacing={1.5} sx={{ mb: 2 }}>
                   <Grid item xs={12} sm={6} md={3}>
                     <Card 
                       onClick={() => handleModerationStatCardClick('pending', 'Awaiting Response')}
@@ -1427,21 +2107,18 @@ const PublicApprovalManagementPage = () => {
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          transform: 'translateY(-8px)',
-                          boxShadow: '0 12px 24px rgba(255, 152, 0, 0.4)'
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 8px 16px rgba(255, 152, 0, 0.4)'
                         }
                       }}
                     >
-                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                        <ScheduleIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
-                        <Typography variant="h5" fontWeight="bold">
+                      <CardContent sx={{ textAlign: 'center', py: 1, px: 1.5 }}>
+                        <ScheduleIcon sx={{ fontSize: '1.5rem', mb: 0.25 }} />
+                        <Typography variant="h6" fontWeight="bold">
                           {moderationStats.statistics.pending_count}
                         </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           Awaiting Response
-                        </Typography>
-                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-                          Click to view
                         </Typography>
                       </CardContent>
                     </Card>
@@ -1455,21 +2132,18 @@ const PublicApprovalManagementPage = () => {
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          transform: 'translateY(-8px)',
-                          boxShadow: '0 12px 24px rgba(76, 175, 80, 0.4)'
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 8px 16px rgba(76, 175, 80, 0.4)'
                         }
                       }}
                     >
-                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                        <CheckCircleIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
-                        <Typography variant="h5" fontWeight="bold">
+                      <CardContent sx={{ textAlign: 'center', py: 1, px: 1.5 }}>
+                        <CheckCircleIcon sx={{ fontSize: '1.5rem', mb: 0.25 }} />
+                        <Typography variant="h6" fontWeight="bold">
                           {moderationStats.statistics.approved_count}
                         </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           Approved
-                        </Typography>
-                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-                          Click to view
                         </Typography>
                       </CardContent>
                     </Card>
@@ -1483,21 +2157,18 @@ const PublicApprovalManagementPage = () => {
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          transform: 'translateY(-8px)',
-                          boxShadow: '0 12px 24px rgba(244, 67, 54, 0.4)'
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 8px 16px rgba(244, 67, 54, 0.4)'
                         }
                       }}
                     >
-                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                        <CancelIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
-                        <Typography variant="h5" fontWeight="bold">
+                      <CardContent sx={{ textAlign: 'center', py: 1, px: 1.5 }}>
+                        <CancelIcon sx={{ fontSize: '1.5rem', mb: 0.25 }} />
+                        <Typography variant="h6" fontWeight="bold">
                           {moderationStats.statistics.rejected_count}
                         </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           Rejected
-                        </Typography>
-                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-                          Click to view
                         </Typography>
                       </CardContent>
                     </Card>
@@ -1511,21 +2182,18 @@ const PublicApprovalManagementPage = () => {
                         cursor: 'pointer',
                         transition: 'all 0.3s ease',
                         '&:hover': {
-                          transform: 'translateY(-8px)',
-                          boxShadow: '0 12px 24px rgba(156, 39, 176, 0.4)'
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 8px 16px rgba(156, 39, 176, 0.4)'
                         }
                       }}
                     >
-                      <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                        <FlagIcon sx={{ fontSize: '2rem', mb: 0.5 }} />
-                        <Typography variant="h5" fontWeight="bold">
+                      <CardContent sx={{ textAlign: 'center', py: 1, px: 1.5 }}>
+                        <FlagIcon sx={{ fontSize: '1.5rem', mb: 0.25 }} />
+                        <Typography variant="h6" fontWeight="bold">
                           {moderationStats.statistics.flagged_count}
                         </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                           Flagged
-                        </Typography>
-                        <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-                          Click to view
                         </Typography>
                       </CardContent>
                     </Card>
@@ -1534,30 +2202,32 @@ const PublicApprovalManagementPage = () => {
               )}
 
               {/* Filters */}
-              <Paper sx={{ p: 2, mb: 2 }}>
-                <Grid container spacing={2} alignItems="center">
+              <Paper sx={{ p: 1.5, mb: 1.5 }}>
+                <Grid container spacing={1.5} alignItems="center">
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
+                      size="small"
                       placeholder="Search feedback..."
                       value={moderationSearch}
                       onChange={(e) => setModerationSearch(e.target.value)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <SearchIcon />
+                            <SearchIcon sx={{ fontSize: 18 }} />
                           </InputAdornment>
                         ),
                       }}
                     />
                   </Grid>
                   <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
-                      <InputLabel>Moderation Status</InputLabel>
+                    <FormControl fullWidth size="small">
+                      <InputLabel shrink={true}>Moderation Status</InputLabel>
                       <Select
                         value={moderationFilter}
                         onChange={(e) => setModerationFilter(e.target.value)}
                         label="Moderation Status"
+                        notched
                       >
                         <MenuItem value="all">All Status</MenuItem>
                         <MenuItem value="pending">Pending</MenuItem>
@@ -1572,15 +2242,15 @@ const PublicApprovalManagementPage = () => {
 
               {/* Feedback List */}
               {moderationLoading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-                  <CircularProgress />
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
+                  <CircularProgress size={24} />
                 </Box>
               ) : moderationFeedbacks.length === 0 ? (
-                <Paper sx={{ p: 4, textAlign: 'center' }}>
-                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                <Paper sx={{ p: 2, textAlign: 'center' }}>
+                  <Typography variant="body1" color="text.secondary" gutterBottom>
                     No feedback found
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary">
                     {moderationFilter !== 'all' 
                       ? `No feedback with moderation status "${moderationFilter}"` 
                       : 'No feedback items in the moderation queue'}
@@ -1595,51 +2265,52 @@ const PublicApprovalManagementPage = () => {
                         key={feedback.id}
                         expanded={expandedFeedbackId === feedback.id}
                         onChange={(e, isExpanded) => setExpandedFeedbackId(isExpanded ? feedback.id : null)}
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 1 }}
                       >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 18 }} />} sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}>
                           <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                              <Avatar sx={{ mr: 1.5, width: 32, height: 32 }}>
-                                <PersonIcon />
+                              <Avatar sx={{ mr: 1, width: 28, height: 28 }}>
+                                <PersonIcon sx={{ fontSize: 16 }} />
                               </Avatar>
                               <Box sx={{ flex: 1 }}>
-                                <Typography variant="subtitle1" component="div" fontWeight="bold">
+                                <Typography variant="body2" component="div" fontWeight="bold">
                                   {feedback.name || 'Anonymous'}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                                <Typography variant="caption" color="text.secondary">
                                   {feedback.subject || 'No Subject'}
                                 </Typography>
                               </Box>
                             </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               <Chip
                                 icon={statusInfo.icon}
                                 label={statusInfo.label}
                                 color={statusInfo.color}
                                 size="small"
+                                sx={{ height: 20, fontSize: '0.7rem' }}
                               />
                             </Box>
                           </Box>
                         </AccordionSummary>
-                        <AccordionDetails>
-                          <Typography variant="body2" sx={{ mb: 2 }}>
+                        <AccordionDetails sx={{ pt: 1, pb: 1.5 }}>
+                          <Typography variant="body2" sx={{ mb: 1.5, fontSize: '0.875rem' }}>
                             {feedback.message}
                           </Typography>
                           
                           {feedback.moderation_status === 'flagged' && (
-                            <Alert severity="warning" sx={{ mb: 1 }}>
-                              ⚠️ Flagged for Review: This feedback needs further review.
+                            <Alert severity="warning" sx={{ mb: 1, py: 0.5 }}>
+                              <Typography variant="caption">⚠️ Flagged for Review</Typography>
                             </Alert>
                           )}
                           
                           {feedback.moderation_status === 'rejected' && (
-                            <Alert severity="error" sx={{ mb: 1 }}>
-                              ❌ Permanently Rejected: This feedback was permanently rejected.
+                            <Alert severity="error" sx={{ mb: 1, py: 0.5 }}>
+                              <Typography variant="caption">❌ Permanently Rejected</Typography>
                             </Alert>
                           )}
 
-                          <Divider sx={{ my: 1.5 }} />
+                          <Divider sx={{ my: 1 }} />
 
                           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                             {feedback.moderation_status === 'pending' && (
@@ -1742,12 +2413,94 @@ const PublicApprovalManagementPage = () => {
           ) : (
             // Other tabs (DataGrid)
             <>
+              {/* Bulk Actions Toolbar */}
+              <Paper 
+                elevation={selectedRows.length > 0 ? 2 : 0}
+                sx={{ 
+                  p: 1, 
+                  mb: 1.5,
+                  backgroundColor: selectedRows.length > 0 
+                    ? (theme.palette.mode === 'dark' ? 'rgba(25, 118, 210, 0.15)' : 'rgba(25, 118, 210, 0.08)')
+                    : 'transparent',
+                  borderRadius: 1,
+                  border: selectedRows.length > 0 ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}`,
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {selectedRows.length > 0 ? (
+                      <>
+                        <CheckCircleIcon color="primary" sx={{ fontSize: 20 }} />
+                        <Typography variant="body2" fontWeight="bold" color="primary">
+                          {selectedRows.length} item{selectedRows.length !== 1 ? 's' : ''} selected
+                        </Typography>
+                      </>
+                    ) : (
+                      <>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                          Select items using checkboxes to perform bulk actions
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => {
+                            const allIds = filterData.map(item => item.id);
+                            setSelectedRows(allIds);
+                          }}
+                          sx={{ minWidth: 'auto', px: 1.5, fontSize: '0.75rem' }}
+                        >
+                          Select All ({filterData.length})
+                        </Button>
+                      </>
+                    )}
+                  </Box>
+                  {selectedRows.length > 0 && (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircleIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => handleBulkApprove('approve')}
+                        disabled={bulkActionLoading}
+                        size="small"
+                        sx={{ minWidth: 'auto', px: 1.5, fontWeight: 600 }}
+                      >
+                        {bulkActionLoading ? <CircularProgress size={14} /> : 'Approve Selected'}
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<CancelIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => handleBulkApprove('revoke')}
+                        disabled={bulkActionLoading}
+                        size="small"
+                        sx={{ minWidth: 'auto', px: 1.5, fontWeight: 600 }}
+                      >
+                        {bulkActionLoading ? <CircularProgress size={14} /> : 'Revoke Selected'}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        startIcon={<ClearIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => setSelectedRows([])}
+                        disabled={bulkActionLoading}
+                        size="small"
+                        sx={{ minWidth: 'auto', px: 1 }}
+                      >
+                        Clear
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              </Paper>
+
               {loading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-                  <CircularProgress />
+                <Box display="flex" justifyContent="center" alignItems="center" minHeight={300}>
+                  <CircularProgress size={24} />
                 </Box>
               ) : (
-                <Box sx={{ height: 600, width: '100%' }}>
+                <Box sx={{ height: 500, width: '100%' }}>
                   {Array.isArray(currentData.data) && currentData.data.length > 0 ? (
                     <DataGrid
                       rows={currentData.data}
@@ -1755,16 +2508,85 @@ const PublicApprovalManagementPage = () => {
                       getRowId={(row) => row.id}
                       pageSize={10}
                       rowsPerPageOptions={[10, 25, 50]}
-                      disableSelectionOnClick
+                      checkboxSelection
+                      onSelectionModelChange={(newSelection) => {
+                        setSelectedRows(newSelection);
+                      }}
+                      selectionModel={selectedRows}
+                      disableSelectionOnClick={false}
                       sx={{
+                        border: 'none',
                         '& .MuiDataGrid-cell': {
-                          borderBottom: 'none',
+                          borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+                          py: 1,
+                          fontSize: '0.875rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          '&[data-field="projectName"], &[data-field="title"]': {
+                            alignItems: 'flex-start',
+                            py: 1.5,
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                          }
                         },
+                        '& .MuiDataGrid-columnHeaders': {
+                          minHeight: '48px !important',
+                          maxHeight: '48px !important',
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : '#f5f7fa',
+                          borderBottom: `2px solid ${theme.palette.primary.main}`,
+                          '& .MuiDataGrid-columnHeaderTitle': {
+                            fontWeight: 600,
+                            fontSize: '0.85rem',
+                          }
+                        },
+                        '& .MuiDataGrid-columnHeader': {
+                          py: 1,
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          color: theme.palette.text.primary,
+                          '&:focus': {
+                            outline: 'none',
+                          },
+                          '&:focus-within': {
+                            outline: 'none',
+                          }
+                        },
+                        '& .MuiDataGrid-row': {
+                          minHeight: '48px !important',
+                          transition: 'background-color 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(25, 118, 210, 0.04)',
+                            cursor: 'pointer',
+                          },
+                          '&.Mui-selected': {
+                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(25, 118, 210, 0.25)' : 'rgba(25, 118, 210, 0.1)',
+                            '&:hover': {
+                              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(25, 118, 210, 0.3)' : 'rgba(25, 118, 210, 0.15)',
+                            },
+                          },
+                        },
+                        '& .MuiDataGrid-footerContainer': {
+                          borderTop: `2px solid ${theme.palette.divider}`,
+                          minHeight: '52px',
+                          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#fafafa',
+                        },
+                        '& .MuiDataGrid-checkboxInput': {
+                          color: theme.palette.primary.main,
+                          '&.Mui-checked': {
+                            color: theme.palette.primary.main,
+                          }
+                        },
+                        '& .MuiDataGrid-cell:focus': {
+                          outline: 'none',
+                        },
+                        '& .MuiDataGrid-cell:focus-within': {
+                          outline: 'none',
+                        }
                       }}
                     />
                   ) : (
                     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                      <Typography variant="body1" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary">
                         No {currentData.title.toLowerCase()} found
                       </Typography>
                     </Box>

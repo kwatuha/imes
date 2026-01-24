@@ -5,7 +5,7 @@ import {
     List, ListItem, ListItemText, IconButton,
     Stack, Chip, Snackbar, LinearProgress,
     Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme, Grid,
-    Divider, Tabs, Tab, Card, CardContent, CardMedia
+    Divider, Tabs, Tab, Card, CardContent, CardMedia, Link
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -206,6 +206,11 @@ function ProjectDetailsPage() {
     const [loadingMonitoring, setLoadingMonitoring] = useState(false);
     const [monitoringError, setMonitoringError] = useState(null);
     const [editingMonitoringRecord, setEditingMonitoringRecord] = useState(null);
+    
+    // NEW: State for Contractors
+    const [projectContractors, setProjectContractors] = useState([]);
+    const [loadingContractors, setLoadingContractors] = useState(false);
+    const [contractorsError, setContractorsError] = useState(null);
 
     // NEW: State for Tabs and Photos
     const [activeTab, setActiveTab] = useState(0);
@@ -328,6 +333,9 @@ function ProjectDetailsPage() {
 
             // NEW: Fetch monitoring records
             await fetchMonitoringRecords();
+            
+            // NEW: Fetch contractors
+            await fetchProjectContractors();
 
         } catch (err) {
             console.error('ProjectDetailsPage: Error fetching project details:', err);
@@ -376,12 +384,30 @@ function ProjectDetailsPage() {
             setLoadingPhotos(false);
         }
     }, [projectId, user]);
-
+    
+    // NEW: Function to fetch contractors for project
+    const fetchProjectContractors = useCallback(async () => {
+        setLoadingContractors(true);
+        setContractorsError(null);
+        
+        try {
+            const contractors = await apiService.projects.getContractors(projectId);
+            setProjectContractors(contractors || []);
+        } catch (err) {
+            console.error('Error fetching contractors:', err);
+            setContractorsError('Failed to load contractor information.');
+            setProjectContractors([]);
+        } finally {
+            setLoadingContractors(false);
+        }
+    }, [projectId]);
+    
     // This effect now conditionally fetches data based on the access check
     useEffect(() => {
         if (isAccessAllowed) {
             fetchProjectDetails();
             fetchProjectPhotos();
+            fetchProjectContractors();
         }
     }, [isAccessAllowed, fetchProjectDetails, fetchProjectPhotos]);
 
@@ -2790,11 +2816,79 @@ function ProjectDetailsPage() {
                         }}>
                             <PeopleIcon /> Contractor & Team Information
                         </Typography>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="body1" color="text.secondary">
-                                Contractor details and assigned team members will be displayed here.
-                            </Typography>
-                        </Paper>
+                        {loadingContractors ? (
+                            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                                <CircularProgress />
+                            </Box>
+                        ) : contractorsError ? (
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                                {contractorsError}
+                            </Alert>
+                        ) : projectContractors.length === 0 ? (
+                            <Paper sx={{ p: 4, textAlign: 'center' }}>
+                                <Typography variant="body1" color="text.secondary">
+                                    No contractors assigned to this project.
+                                </Typography>
+                            </Paper>
+                        ) : (
+                            projectContractors.map((contractor, index) => (
+                                <Paper 
+                                    key={contractor.contractorId || index}
+                                    sx={{ 
+                                        p: 3, 
+                                        mb: 2,
+                                        borderRadius: '12px',
+                                        backgroundColor: theme.palette.mode === 'dark' ? '#1F2A40' : colors.grey[50]
+                                    }}
+                                >
+                                    <Grid container spacing={3}>
+                                        <Grid item xs={12}>
+                                            <Typography variant="h6" sx={{ 
+                                                fontWeight: 'bold',
+                                                color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                                                mb: 2
+                                            }}>
+                                                {contractor.companyName}
+                                            </Typography>
+                                        </Grid>
+                                        {contractor.contactPerson && (
+                                            <Grid item xs={12} md={6}>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                                    Contact Person
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {contractor.contactPerson}
+                                                </Typography>
+                                            </Grid>
+                                        )}
+                                        {contractor.email && (
+                                            <Grid item xs={12} md={6}>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                                    Email
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    <Link href={`mailto:${contractor.email}`} color="primary">
+                                                        {contractor.email}
+                                                    </Link>
+                                                </Typography>
+                                            </Grid>
+                                        )}
+                                        {contractor.phone && (
+                                            <Grid item xs={12} md={6}>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                                    Phone
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    <Link href={`tel:${contractor.phone}`} color="primary">
+                                                        {contractor.phone}
+                                                    </Link>
+                                                </Typography>
+                                            </Grid>
+                                        )}
+                                    </Grid>
+                                </Paper>
+                            ))
+                        )}
                     </Box>
                 )}
             </Paper>

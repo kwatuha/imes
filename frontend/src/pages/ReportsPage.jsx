@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
+import { groupStatusesByNormalized } from '../utils/projectStatusNormalizer';
 
 // Define a set of consistent colors for the pie chart slices
 // NOTE: PIE_COLORS is now largely redundant for the status chart as we'll use getProjectStatusBackgroundColor
@@ -57,12 +58,13 @@ function ReportsPage() {
       const statusCounts = await apiService.getProjectStatusCounts();
       console.log('Fetched project status counts:', statusCounts);
 
-      // Map status counts to chart data, using the specific background color for each status
-      const chartStatusData = statusCounts.map((item) => ({
-        name: item.status,
-        value: item.count,
-        // Use the utility function to get the color based on the status name
-        color: getProjectStatusBackgroundColor(item.status)
+      // Group statuses by normalized categories for charts
+      const groupedStatuses = groupStatusesByNormalized(statusCounts, 'status', 'count');
+      const chartStatusData = groupedStatuses.map((item) => ({
+        name: item.name,
+        value: item.value,
+        // Use the utility function to get the color based on the normalized status name
+        color: getProjectStatusBackgroundColor(item.name)
       }));
       const total = statusCounts.reduce((sum, item) => sum + item.count, 0);
       setTotalProjects(total);

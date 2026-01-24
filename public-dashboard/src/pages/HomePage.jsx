@@ -29,7 +29,8 @@ import {
   ArrowForward,
   TrendingUp,
   Engineering,
-  Public
+  Public,
+  MoreHoriz
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
@@ -137,6 +138,14 @@ const HomePage = () => {
       color: '#f44336',
       icon: Warning,
       onClick: () => handleCardClick('Stalled', 'Stalled Projects')
+    },
+    {
+      title: 'Other Projects',
+      count: stats?.other_projects || 0,
+      budget: stats?.other_budget || 0,
+      color: '#9e9e9e',
+      icon: MoreHoriz,
+      onClick: () => handleCardClick('Other', 'Other Projects')
     }
   ];
 

@@ -1,18 +1,27 @@
 // src/utils/projectStatusColors.js
+import { normalizeProjectStatus } from './projectStatusNormalizer';
 
 
 
 const PROJECT_STATUS_COLORS = {
-  'At Risk': '#b22222',      // FireBrick - Red
-  'In Progress': '#1e90ff', // DodgerBlue - Bright Blue
-  'Completed': '#32cd32',  // LimeGreen - Bright Green
-  'Initiated': '#6495ED',  // CornflowerBlue - More vibrant than LightBlue
-  'Stalled': '#ffa500',    // Orange - Bright Orange
-  'Delayed': '#e00202',    // A slightly darker red than At Risk for emphasis - Sharp Red
-  'Cancelled': '#000000',  // Black - Sharp
-  'Not Started': '#a9a9a9',  // DarkGray - Sharp
-  'Closed': '#228B22',     // ForestGreen - More vibrant than DarkGreen
-  'Default': '#757575',    // Grey - This is fine for a default
+  // Normalized statuses (for charts/analytics)
+  'Completed': '#32cd32',        // LimeGreen - Bright Green
+  'Ongoing': '#1e90ff',         // DodgerBlue - Bright Blue
+  'Not started': '#9e9e9e',     // Medium Gray (lighter than Other)
+  'Stalled': '#ffa500',         // Orange - Bright Orange
+  'Under Procurement': '#6495ED', // CornflowerBlue
+  'Suspended': '#e00202',       // Red
+  'Other': '#616161',           // Darker Gray (darker than Not started)
+  
+  // Legacy statuses (for backward compatibility)
+  'At Risk': '#b22222',         // FireBrick - Red
+  'In Progress': '#1e90ff',      // DodgerBlue - Bright Blue (maps to Ongoing)
+  'Initiated': '#6495ED',       // CornflowerBlue
+  'Delayed': '#e00202',         // Red
+  'Cancelled': '#000000',       // Black
+  'Not Started': '#9e9e9e',     // Medium Gray (maps to Not started)
+  'Closed': '#228B22',          // ForestGreen
+  'Default': '#757575',         // Grey
 };
 
 
@@ -22,19 +31,10 @@ const PROJECT_STATUS_COLORS = {
 export function getProjectStatusBackgroundColor(status) {
   if (!status) return PROJECT_STATUS_COLORS['Default'];
   
-  // Normalize status to title case for consistent matching
-  const normalizeStatus = (s) => {
-    if (!s) return '';
-    // Convert to lowercase first, then capitalize first letter of each word
-    return s.toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
+  // Use the project status normalizer to ensure consistent status names
+  const normalizedStatus = normalizeProjectStatus(status);
   
-  const normalizedStatus = normalizeStatus(status);
-  
-  // Try exact match first, then normalized match
+  // Try exact match first, then normalized match, then default
   return PROJECT_STATUS_COLORS[status] || PROJECT_STATUS_COLORS[normalizedStatus] || PROJECT_STATUS_COLORS['Default'];
 }
 

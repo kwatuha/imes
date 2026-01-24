@@ -8,6 +8,65 @@ const pool = require('../config/db');
  * Designed for public-facing dashboards similar to Makueni PMTS
  */
 
+// ==================== STATUS MATCHING HELPERS ====================
+
+/**
+ * Normalize status for matching (case-insensitive, handle variations)
+ * @param {string} status - The status to normalize
+ * @returns {string} - Normalized status string
+ */
+const normalizeStatusForMatching = (status) => {
+    if (!status || typeof status !== 'string') return '';
+    // Convert to lowercase and trim
+    const normalized = status.toLowerCase().trim();
+    
+    // Handle variations
+    // "completed", "complete", or "done" -> "completed"
+    if (normalized.includes('completed') || normalized === 'complete' || normalized === 'done') {
+        return 'completed';
+    }
+    // "on-going" or "ongoing" -> "ongoing"
+    if (normalized.includes('ongoing') || normalized.includes('on-going')) {
+        return 'ongoing';
+    }
+    // "procurement" or "under procurement" -> "under procurement"
+    if (normalized.includes('procurement') || normalized.includes('under procurement')) {
+        return 'under procurement';
+    }
+    // "not started" or "notstarted" -> "not started"
+    if (normalized.includes('not started') || normalized.includes('notstarted')) {
+        return 'not started';
+    }
+    // "stalled" -> "stalled"
+    if (normalized.includes('stalled')) {
+        return 'stalled';
+    }
+    
+    return normalized;
+};
+
+/**
+ * Check if a status matches a category (case-insensitive, handles variations)
+ * @param {string} status - The project status
+ * @param {string} category - The category to match against ('Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement')
+ * @returns {boolean}
+ */
+const matchesStatusCategory = (status, category) => {
+    const normalizedStatus = normalizeStatusForMatching(status);
+    const normalizedCategory = normalizeStatusForMatching(category);
+    return normalizedStatus === normalizedCategory;
+};
+
+/**
+ * Check if a status belongs to one of the main categories
+ * @param {string} status - The project status
+ * @returns {boolean}
+ */
+const isMainCategoryStatus = (status) => {
+    const categories = ['Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement'];
+    return categories.some(cat => matchesStatusCategory(status, cat));
+};
+
 // ==================== QUICK STATS ====================
 
 /**
@@ -19,7 +78,7 @@ router.get('/stats/overview', async (req, res) => {
     try {
         const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
         
-        let whereConditions = ['p.voided = 0'];
+        let whereConditions = ['p.voided = 0', 'p.approved_for_public = 1'];
         const queryParams = [];
         
         if (finYearId) {
@@ -59,63 +118,78 @@ router.get('/stats/overview', async (req, res) => {
 
         const whereClause = whereConditions.join(' AND ');
 
-        const query = `
+        // First, get all projects with their statuses to categorize them properly
+        const projectsQuery = `
             SELECT 
-                COUNT(*) as total_projects,
-                COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                
-                -- Status breakdown (including phased statuses)
-                -- Completed: exact match or contains "completed" (case-insensitive)
-                COUNT(CASE 
-                    WHEN p.status = 'Completed' 
-                    OR LOWER(p.status) LIKE '%completed%'
-                    THEN 1 
-                END) as completed_projects,
-                COALESCE(SUM(CASE 
-                    WHEN p.status = 'Completed' 
-                    OR LOWER(p.status) LIKE '%completed%'
-                    THEN p.costOfProject 
-                END), 0) as completed_budget,
-                
-                -- Ongoing: exact match or contains "ongoing" (case-insensitive)
-                COUNT(CASE 
-                    WHEN p.status = 'Ongoing' 
-                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
-                    THEN 1 
-                END) as ongoing_projects,
-                COALESCE(SUM(CASE 
-                    WHEN p.status = 'Ongoing' 
-                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
-                    THEN p.costOfProject 
-                END), 0) as ongoing_budget,
-                
-                -- Not Started
-                COUNT(CASE WHEN p.status = 'Not Started' THEN 1 END) as not_started_projects,
-                COALESCE(SUM(CASE WHEN p.status = 'Not Started' THEN p.costOfProject END), 0) as not_started_budget,
-                
-                -- Under Procurement
-                COUNT(CASE WHEN p.status = 'Under Procurement' THEN 1 END) as under_procurement_projects,
-                COALESCE(SUM(CASE WHEN p.status = 'Under Procurement' THEN p.costOfProject END), 0) as under_procurement_budget,
-                
-                -- Stalled
-                COUNT(CASE WHEN p.status = 'Stalled' THEN 1 END) as stalled_projects,
-                COALESCE(SUM(CASE WHEN p.status = 'Stalled' THEN p.costOfProject END), 0) as stalled_budget,
-                
-                -- Phased Projects: any status containing "Phase" (case-insensitive)
-                COUNT(CASE 
-                    WHEN LOWER(p.status) LIKE '%phase%' 
-                    THEN 1 
-                END) as phased_projects,
-                COALESCE(SUM(CASE 
-                    WHEN LOWER(p.status) LIKE '%phase%' 
-                    THEN p.costOfProject 
-                END), 0) as phased_budget
+                p.id,
+                p.status,
+                p.costOfProject
             FROM kemri_projects p
             WHERE ${whereClause}
         `;
-
-        const [results] = await pool.query(query, queryParams);
-        res.json(results[0]);
+        
+        const [projects] = await pool.query(projectsQuery, queryParams);
+        
+        // Categorize projects using the helper functions
+        let completed_projects = 0;
+        let completed_budget = 0;
+        let ongoing_projects = 0;
+        let ongoing_budget = 0;
+        let not_started_projects = 0;
+        let not_started_budget = 0;
+        let under_procurement_projects = 0;
+        let under_procurement_budget = 0;
+        let stalled_projects = 0;
+        let stalled_budget = 0;
+        let other_projects = 0;
+        let other_budget = 0;
+        let total_budget = 0;
+        
+        projects.forEach(project => {
+            const status = project.status || '';
+            const budget = parseFloat(project.costOfProject) || 0;
+            total_budget += budget;
+            
+            if (matchesStatusCategory(status, 'Completed')) {
+                completed_projects++;
+                completed_budget += budget;
+            } else if (matchesStatusCategory(status, 'Ongoing')) {
+                ongoing_projects++;
+                ongoing_budget += budget;
+            } else if (matchesStatusCategory(status, 'Not Started')) {
+                not_started_projects++;
+                not_started_budget += budget;
+            } else if (matchesStatusCategory(status, 'Under Procurement')) {
+                under_procurement_projects++;
+                under_procurement_budget += budget;
+            } else if (matchesStatusCategory(status, 'Stalled')) {
+                stalled_projects++;
+                stalled_budget += budget;
+            } else {
+                // Other category - any status that doesn't match the main categories
+                other_projects++;
+                other_budget += budget;
+            }
+        });
+        
+        const results = {
+            total_projects: projects.length,
+            total_budget: total_budget,
+            completed_projects: completed_projects,
+            completed_budget: completed_budget,
+            ongoing_projects: ongoing_projects,
+            ongoing_budget: ongoing_budget,
+            not_started_projects: not_started_projects,
+            not_started_budget: not_started_budget,
+            under_procurement_projects: under_procurement_projects,
+            under_procurement_budget: under_procurement_budget,
+            stalled_projects: stalled_projects,
+            stalled_budget: stalled_budget,
+            other_projects: other_projects,
+            other_budget: other_budget
+        };
+        
+        res.json(results);
     } catch (error) {
         console.error('Error fetching overview stats:', error);
         res.status(500).json({ error: 'Failed to fetch overview statistics' });
@@ -185,14 +259,47 @@ router.get('/projects', async (req, res) => {
             queryParams.push(finYearId);
         }
 
+        let needsPostFiltering = false;
         if (status) {
             // Special handling for phased projects
             if (status === 'Phase') {
                 whereConditions.push('LOWER(p.status) LIKE ?');
                 queryParams.push('%phase%');
+            } else if (status === 'Other') {
+                // Other category: projects that don't match any main category
+                // Exclude projects that match main categories
+                whereConditions.push(`(
+                    (LOWER(p.status) NOT LIKE '%completed%') AND
+                    (LOWER(p.status) NOT LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%on-going%' AND LOWER(p.status) NOT LIKE '%on going%') AND
+                    (LOWER(p.status) NOT LIKE '%procurement%' AND LOWER(p.status) NOT LIKE '%under procurement%') AND
+                    (LOWER(p.status) NOT LIKE '%not started%' AND LOWER(p.status) NOT LIKE '%notstarted%' AND LOWER(p.status) NOT LIKE '%not-started%') AND
+                    (LOWER(p.status) NOT LIKE '%stalled%') AND
+                    p.status IS NOT NULL AND p.status != ''
+                )`);
+                needsPostFiltering = true; // We'll do additional filtering in JavaScript for exact matching
             } else {
-                whereConditions.push('p.status = ?');
-                queryParams.push(status);
+                // Use normalized matching for main categories
+                const statusLower = status.toLowerCase();
+                if (statusLower.includes('ongoing') || statusLower.includes('on-going')) {
+                    whereConditions.push('(LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ?)');
+                    queryParams.push('%ongoing%', '%on-going%', '%on going%');
+                } else if (statusLower.includes('procurement')) {
+                    whereConditions.push('(LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ?)');
+                    queryParams.push('%procurement%', '%under procurement%');
+                } else if (statusLower.includes('not started') || statusLower.includes('notstarted')) {
+                    whereConditions.push('(LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ?)');
+                    queryParams.push('%not started%', '%notstarted%', '%not-started%');
+                } else if (statusLower.includes('completed')) {
+                    whereConditions.push('LOWER(p.status) LIKE ?');
+                    queryParams.push('%completed%');
+                } else if (statusLower.includes('stalled')) {
+                    whereConditions.push('LOWER(p.status) LIKE ?');
+                    queryParams.push('%stalled%');
+                } else {
+                    // Fallback to exact match
+                    whereConditions.push('p.status = ?');
+                    queryParams.push(status);
+                }
             }
         }
 
@@ -241,7 +348,7 @@ router.get('/projects', async (req, res) => {
         `;
 
         const [countResult] = await pool.query(countQuery, queryParams);
-        const totalProjects = countResult[0].total;
+        let totalProjects = countResult[0].total;
 
         // Get paginated projects with geographic info
         const projectsQuery = `
@@ -279,7 +386,35 @@ router.get('/projects', async (req, res) => {
         `;
 
         queryParams.push(parseInt(limit), offset);
-        const [projects] = await pool.query(projectsQuery, queryParams);
+        let [projects] = await pool.query(projectsQuery, queryParams);
+        
+        // Post-filter for "Other" status to ensure only non-main-category projects are returned
+        if (status === 'Other' && needsPostFiltering) {
+            projects = projects.filter(project => {
+                const projectStatus = (project.status || '').toString().trim();
+                return !isMainCategoryStatus(projectStatus);
+            });
+            
+            // Recalculate total count for "Other" after filtering
+            // Build query without limit/offset for total count
+            const allProjectsCountQuery = `
+                SELECT DISTINCT p.id, p.status
+                FROM kemri_projects p
+                LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
+                LEFT JOIN kemri_categories pc ON p.categoryId = pc.categoryId
+                LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId AND psc.voided = 0
+                LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId AND pw.voided = 0
+                WHERE ${whereClause}
+            `;
+            // Remove limit and offset from queryParams for count query
+            const countQueryParams = queryParams.slice(0, -2);
+            const [allProjects] = await pool.query(allProjectsCountQuery, countQueryParams);
+            const filteredTotal = allProjects.filter(p => {
+                const projectStatus = (p.status || '').toString().trim();
+                return !isMainCategoryStatus(projectStatus);
+            }).length;
+            totalProjects = filteredTotal;
+        }
 
         res.json({
             projects,
@@ -508,37 +643,126 @@ router.get('/stats/by-department', async (req, res) => {
             queryParams.push(`%${search}%`);
         }
 
-        const whereClause = whereConditions.join(' AND ');
-
-        const query = `
+        // Get all projects with their statuses to categorize them properly
+        // Build join conditions for projects
+        let projectJoinConditions = ['p.voided = 0'];
+        const projectQueryParams = [];
+        
+        if (finYearId) {
+            projectJoinConditions.push('p.finYearId = ?');
+            projectQueryParams.push(finYearId);
+        }
+        
+        if (departmentId) {
+            projectJoinConditions.push('p.departmentId = ?');
+            projectQueryParams.push(departmentId);
+        }
+        
+        if (search) {
+            projectJoinConditions.push('p.projectName LIKE ?');
+            projectQueryParams.push(`%${search}%`);
+        }
+        
+        let subquery = '';
+        if (subcountyId) {
+            subquery = `AND EXISTS (SELECT 1 FROM kemri_project_subcounties psc WHERE psc.projectId = p.id AND psc.subcountyId = ? AND psc.voided = 0)`;
+            projectQueryParams.push(subcountyId);
+        }
+        
+        if (wardId) {
+            subquery += ` AND EXISTS (SELECT 1 FROM kemri_project_wards pw WHERE pw.projectId = p.id AND pw.wardId = ? AND pw.voided = 0)`;
+            projectQueryParams.push(wardId);
+        }
+        
+        const projectJoinClause = projectJoinConditions.join(' AND ');
+        
+        const projectsQuery = `
             SELECT 
                 d.departmentId as department_id,
                 d.name as department_name,
                 d.alias as departmentAlias,
-                COUNT(p.id) as total_projects,
-                COALESCE(SUM(p.costOfProject), 0) as total_budget,
-                COUNT(CASE 
-                    WHEN p.status = 'Completed' 
-                    OR LOWER(p.status) LIKE '%completed%'
-                    THEN 1 
-                END) as completed_projects,
-                COUNT(CASE 
-                    WHEN p.status = 'Ongoing' 
-                    OR (LOWER(p.status) LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%completed%')
-                    THEN 1 
-                END) as ongoing_projects,
-                COUNT(CASE WHEN p.status = 'Stalled' THEN 1 END) as stalled_projects,
-                COUNT(CASE WHEN p.status = 'Not Started' THEN 1 END) as not_started_projects,
-                COUNT(CASE WHEN p.status = 'Under Procurement' THEN 1 END) as under_procurement_projects
+                p.id as project_id,
+                p.status,
+                p.costOfProject
             FROM kemri_departments d
-            LEFT JOIN kemri_projects p ON d.departmentId = p.departmentId AND p.voided = 0
-            WHERE ${whereClause}
-            GROUP BY d.departmentId, d.name, d.alias
-            HAVING total_projects > 0
-            ORDER BY total_budget DESC
+            LEFT JOIN kemri_projects p ON d.departmentId = p.departmentId 
+                AND ${projectJoinClause}
+                ${subquery}
+            WHERE (d.voided IS NULL OR d.voided = 0)
         `;
-
-        const [results] = await pool.query(query, queryParams);
+        
+        const [projects] = await pool.query(projectsQuery, projectQueryParams);
+        
+        // Group projects by department and categorize by status
+        const departmentMap = new Map();
+        
+        projects.forEach(project => {
+            const deptId = project.department_id;
+            const status = project.status || '';
+            
+            if (!deptId) return; // Skip projects without departments
+            
+            if (!departmentMap.has(deptId)) {
+                departmentMap.set(deptId, {
+                    department_id: deptId,
+                    department_name: project.department_name,
+                    departmentAlias: project.departmentAlias,
+                    projects: [],
+                    total_projects: 0,
+                    total_budget: 0,
+                    completed_projects: 0,
+                    ongoing_projects: 0,
+                    stalled_projects: 0,
+                    not_started_projects: 0,
+                    under_procurement_projects: 0,
+                    other_projects: 0
+                });
+            }
+            
+            const dept = departmentMap.get(deptId);
+            
+            if (project.project_id) {
+                dept.projects.push({
+                    id: project.project_id,
+                    status: status,
+                    costOfProject: parseFloat(project.costOfProject) || 0
+                });
+            }
+        });
+        
+        // Categorize projects using the helper functions
+        departmentMap.forEach((dept, deptId) => {
+            dept.total_projects = dept.projects.length;
+            dept.total_budget = dept.projects.reduce((sum, p) => sum + p.costOfProject, 0);
+            
+            dept.projects.forEach(project => {
+                const status = project.status || '';
+                
+                if (matchesStatusCategory(status, 'Completed')) {
+                    dept.completed_projects++;
+                } else if (matchesStatusCategory(status, 'Ongoing')) {
+                    dept.ongoing_projects++;
+                } else if (matchesStatusCategory(status, 'Not Started')) {
+                    dept.not_started_projects++;
+                } else if (matchesStatusCategory(status, 'Under Procurement')) {
+                    dept.under_procurement_projects++;
+                } else if (matchesStatusCategory(status, 'Stalled')) {
+                    dept.stalled_projects++;
+                } else {
+                    // Other category
+                    dept.other_projects++;
+                }
+            });
+            
+            // Remove projects array as it's not needed in response
+            delete dept.projects;
+        });
+        
+        // Convert map to array and filter departments with projects
+        const results = Array.from(departmentMap.values())
+            .filter(dept => dept.total_projects > 0)
+            .sort((a, b) => b.total_budget - a.total_budget);
+        
         res.json(results);
     } catch (error) {
         console.error('Error fetching department stats:', error);
@@ -557,7 +781,7 @@ router.get('/stats/by-subcounty', async (req, res) => {
     try {
         const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
         
-        let whereConditions = ['p.voided = 0'];
+        let whereConditions = [];
         const queryParams = [];
         
         if (finYearId) {
@@ -611,7 +835,8 @@ router.get('/stats/by-subcounty', async (req, res) => {
             FROM kemri_subcounties sc
             LEFT JOIN kemri_project_subcounties psc ON sc.subcountyId = psc.subcountyId AND psc.voided = 0
             LEFT JOIN kemri_projects p ON psc.projectId = p.id AND p.voided = 0
-            WHERE ${whereClause}
+            WHERE (sc.voided IS NULL OR sc.voided = 0)
+            ${whereClause ? `AND ${whereClause}` : ''}
             GROUP BY sc.subcountyId, sc.name
             HAVING project_count > 0
             ORDER BY total_budget DESC
@@ -685,7 +910,7 @@ router.get('/stats/by-ward', async (req, res) => {
             FROM kemri_wards w
             LEFT JOIN kemri_subcounties sc ON w.subcountyId = sc.subcountyId
             LEFT JOIN kemri_project_wards pw ON w.wardId = pw.wardId AND pw.voided = 0
-            LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0
+            LEFT JOIN kemri_projects p ON pw.projectId = p.id AND p.voided = 0 AND p.approved_for_public = 1
             WHERE ${whereClause}
             GROUP BY w.wardId, w.name, sc.subcountyId, sc.name
             HAVING project_count > 0
@@ -726,7 +951,7 @@ router.get('/stats/by-project-type', async (req, res) => {
                 COUNT(p.id) as project_count,
                 COALESCE(SUM(p.costOfProject), 0) as total_budget
             FROM kemri_categories pc
-            LEFT JOIN kemri_projects p ON pc.categoryId = p.categoryId AND p.voided = 0
+            LEFT JOIN kemri_projects p ON pc.categoryId = p.categoryId AND p.voided = 0 AND p.approved_for_public = 1
             ${finYearId ? 'AND p.finYearId = ?' : ''}
             GROUP BY pc.categoryId, pc.categoryName
             HAVING project_count > 0

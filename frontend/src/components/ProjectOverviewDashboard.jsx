@@ -29,6 +29,7 @@ import BudgetAllocationChart from './charts/BudgetAllocationChart';
 import ProjectStatusDistributionChart from './charts/ProjectStatusDistributionChart';
 import DashboardFilters from './DashboardFilters';
 import { getProjectStatusBackgroundColor } from '../utils/projectStatusColors';
+import { groupStatusesByNormalized, normalizeProjectStatus } from '../utils/projectStatusNormalizer';
 import projectService from '../api/projectService';
 import reportsService from '../api/reportsService';
 
@@ -56,11 +57,50 @@ const ProjectOverviewDashboard = () => {
     const fetchProjectStatusData = async (filters) => {
         try {
             const response = await projectService.analytics.getProjectStatusCounts();
-            return response.map(item => ({
-                name: item.status,
-                value: item.count,
-                color: getProjectStatusBackgroundColor(item.status)
+            console.log('Raw status data from API:', response);
+            
+            // Ensure we have valid data
+            if (!Array.isArray(response) || response.length === 0) {
+                console.warn('No status data received from API');
+                return [];
+            }
+            
+            // Group statuses by normalized categories
+            const grouped = groupStatusesByNormalized(response, 'status', 'count');
+            console.log('Normalized grouped status data:', grouped);
+            console.log('Number of normalized statuses:', grouped.length);
+            console.log('Normalized status names:', grouped.map(g => `${g.name} (${g.value})`));
+            
+            // Verify grouping worked and we have normalized data
+            if (!Array.isArray(grouped) || grouped.length === 0) {
+                console.warn('Normalization returned empty array, falling back to individual normalization');
+                // Fallback: normalize each item individually and group manually
+                const fallbackMap = {};
+                response.forEach(item => {
+                    const normalized = normalizeProjectStatus(item.status);
+                    if (!fallbackMap[normalized]) {
+                        fallbackMap[normalized] = { name: normalized, value: 0 };
+                    }
+                    fallbackMap[normalized].value += item.count || 0;
+                });
+                const fallbackResult = Object.values(fallbackMap).map(item => ({
+                    name: item.name,
+                    value: item.value,
+                    color: getProjectStatusBackgroundColor(item.name)
+                }));
+                console.log('Fallback normalized data:', fallbackResult);
+                return fallbackResult;
+            }
+            
+            const result = grouped.map(item => ({
+                name: item.name,
+                value: item.value,
+                color: getProjectStatusBackgroundColor(item.name)
             }));
+            console.log('Final status data for chart (should only have 7 categories max):', result);
+            console.log('Final status count:', result.length);
+            console.log('Final status names:', result.map(r => r.name));
+            return result;
         } catch (error) {
             console.error('Error fetching project status data:', error);
             return [];
@@ -84,12 +124,28 @@ const ProjectOverviewDashboard = () => {
     const fetchBudgetAllocationData = async (filters) => {
         try {
             const response = await reportsService.getFinancialStatusByProjectStatus(filters);
-            return response.map(item => ({
-                name: item.status,
-                contracted: parseFloat(item.totalBudget) || 0,
-                paid: parseFloat(item.totalPaid) || 0,
-                color: getProjectStatusBackgroundColor(item.status),
-                count: item.projectCount || 0
+            // Aggregate financial data by normalized status
+            const financialMap = {};
+            response.forEach(item => {
+                const normalizedStatus = normalizeProjectStatus(item.status);
+                if (!financialMap[normalizedStatus]) {
+                    financialMap[normalizedStatus] = {
+                        name: normalizedStatus,
+                        contracted: 0,
+                        paid: 0,
+                        count: 0
+                    };
+                }
+                financialMap[normalizedStatus].contracted += parseFloat(item.totalBudget) || 0;
+                financialMap[normalizedStatus].paid += parseFloat(item.totalPaid) || 0;
+                financialMap[normalizedStatus].count += item.projectCount || 0;
+            });
+            return Object.values(financialMap).map(item => ({
+                name: item.name,
+                contracted: item.contracted,
+                paid: item.paid,
+                color: getProjectStatusBackgroundColor(item.name),
+                count: item.count
             }));
         } catch (error) {
             console.error('Error fetching budget allocation data:', error);
@@ -103,6 +159,7 @@ const ProjectOverviewDashboard = () => {
             return response.map(dept => ({
                 department: dept.departmentAlias || dept.departmentName, // Use alias for display, fallback to name
                 departmentName: dept.departmentName, // Keep full name for tooltips
+                departmentAlias: dept.departmentAlias, // Keep alias for filtering
                 percentCompleted: dept.percentCompleted || 0,
                 percentBudgetContracted: dept.percentBudgetContracted || 0,
                 percentContractSumPaid: dept.percentContractSumPaid || 0,
@@ -189,9 +246,25 @@ const ProjectOverviewDashboard = () => {
                 ? projectStatusData.filter(item => item.name === filters.status) 
                 : projectStatusData;
             
+            // Filter by department - check both department (alias) and departmentName (full name)
             let filteredProjectProgress = filters.department 
-                ? projectProgressData.filter(item => item.department === filters.department) 
+                ? projectProgressData.filter(item => 
+                    item.department === filters.department || 
+                    item.departmentName === filters.department ||
+                    item.departmentAlias === filters.department
+                ) 
                 : projectProgressData;
+            
+            console.log('Department filter debug:', {
+                filterValue: filters.department,
+                totalData: projectProgressData.length,
+                filteredData: filteredProjectProgress.length,
+                availableDepartments: projectProgressData.map(d => ({ 
+                    department: d.department, 
+                    departmentName: d.departmentName,
+                    departmentAlias: d.departmentAlias 
+                }))
+            });
             
             let filteredProjectTypes = filters.projectType 
                 ? projectTypesData.filter(item => item.name === filters.projectType) 
@@ -205,16 +278,79 @@ const ProjectOverviewDashboard = () => {
                 ? statusDistributionData.filter(item => item.name === filters.status) 
                 : statusDistributionData;
 
-            // Ensure all data has correct colors
-            filteredProjectStatus = filteredProjectStatus.map(item => ({
-                ...item,
+            // Ensure all data has correct colors and verify normalization
+            filteredProjectStatus = filteredProjectStatus.map(item => {
+                // Double-check that status is normalized (should only be one of the 7 categories)
+                const validStatuses = ['Completed', 'Ongoing', 'Not started', 'Stalled', 'Under Procurement', 'Suspended', 'Other'];
+                const isNormalized = validStatuses.includes(item.name);
+                if (!isNormalized) {
+                    console.warn(`Status "${item.name}" is not normalized! Normalizing now...`);
+                    const normalized = normalizeProjectStatus(item.name);
+                    console.log(`Normalized "${item.name}" to "${normalized}"`);
+                    return {
+                        ...item,
+                        name: normalized,
+                        color: getProjectStatusBackgroundColor(normalized)
+                    };
+                }
+                return {
+                    ...item,
+                    color: getProjectStatusBackgroundColor(item.name)
+                };
+            });
+            
+            // Final verification: group again to ensure no duplicates
+            const finalGrouped = groupStatusesByNormalized(
+                filteredProjectStatus.map(item => ({ status: item.name, count: item.value })),
+                'status',
+                'count'
+            );
+            filteredProjectStatus = finalGrouped.map(item => ({
+                name: item.name,
+                value: item.value,
                 color: getProjectStatusBackgroundColor(item.name)
             }));
+            console.log('Final verified normalized status data:', filteredProjectStatus);
 
-            filteredBudgetAllocation = filteredBudgetAllocation.map(item => ({
-                ...item,
-                color: getProjectStatusBackgroundColor(item.name)
-            }));
+            // Ensure budget allocation data is normalized and has correct colors
+            filteredBudgetAllocation = filteredBudgetAllocation.map(item => {
+                // Double-check that status is normalized (should only be one of the 7 categories)
+                const validStatuses = ['Completed', 'Ongoing', 'Not started', 'Stalled', 'Under Procurement', 'Suspended', 'Other'];
+                const isNormalized = validStatuses.includes(item.name);
+                if (!isNormalized) {
+                    console.warn(`ProjectOverviewDashboard - Budget allocation status "${item.name}" is not normalized! Normalizing now...`);
+                    const normalized = normalizeProjectStatus(item.name);
+                    console.log(`ProjectOverviewDashboard - Normalized "${item.name}" to "${normalized}"`);
+                    return {
+                        ...item,
+                        name: normalized,
+                        color: getProjectStatusBackgroundColor(normalized)
+                    };
+                }
+                return {
+                    ...item,
+                    color: getProjectStatusBackgroundColor(item.name)
+                };
+            });
+            
+            // Final verification: group again to ensure no duplicates
+            const budgetGrouped = {};
+            filteredBudgetAllocation.forEach(item => {
+                if (!budgetGrouped[item.name]) {
+                    budgetGrouped[item.name] = {
+                        name: item.name,
+                        contracted: 0,
+                        paid: 0,
+                        count: 0,
+                        color: item.color
+                    };
+                }
+                budgetGrouped[item.name].contracted += item.contracted || 0;
+                budgetGrouped[item.name].paid += item.paid || 0;
+                budgetGrouped[item.name].count += item.count || 0;
+            });
+            filteredBudgetAllocation = Object.values(budgetGrouped);
+            console.log('ProjectOverviewDashboard - Final verified normalized budget allocation data:', filteredBudgetAllocation);
 
             filteredStatusDistribution = filteredStatusDistribution.map(item => ({
                 ...item,
@@ -348,8 +484,8 @@ const ProjectOverviewDashboard = () => {
     // Calculate KPIs from dashboard data
     const totalProjects = dashboardData.projectStatus.reduce((sum, item) => sum + item.value, 0);
     const completedProjects = dashboardData.projectStatus.find(item => item.name === 'Completed')?.value || 0;
-    const inProgressProjects = dashboardData.projectStatus.find(item => item.name === 'In Progress')?.value || 0;
-    const atRiskProjects = dashboardData.projectStatus.find(item => item.name === 'At Risk')?.value || 0;
+    const inProgressProjects = dashboardData.projectStatus.find(item => item.name === 'Ongoing')?.value || 0;
+    const atRiskProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
     const completionRate = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
     const totalBudget = dashboardData.budgetAllocation.reduce((sum, item) => sum + item.value, 0);
     const budgetFormatted = totalBudget >= 1000000 ? `${(totalBudget / 1000000).toFixed(1)}M` : `${(totalBudget / 1000).toFixed(0)}K`;
@@ -394,7 +530,7 @@ const ProjectOverviewDashboard = () => {
         averageProgress: averageProgress
     });
     const totalDepartments = dashboardData.projectProgress.length;
-    const delayedProjects = dashboardData.projectStatus.find(item => item.name === 'Delayed')?.value || 0;
+    const delayedProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
     const stalledProjects = dashboardData.projectStatus.find(item => item.name === 'Stalled')?.value || 0;
     const healthScore = totalProjects > 0 ? Math.round(((completedProjects + inProgressProjects) / totalProjects) * 100) : 0;
 
@@ -432,7 +568,7 @@ const ProjectOverviewDashboard = () => {
 
     return (
         <Box sx={{ 
-            p: 3, 
+            p: 2, 
             maxWidth: '100%', 
             overflowX: 'hidden',
             background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -440,33 +576,35 @@ const ProjectOverviewDashboard = () => {
         }}>
             {/* Header Section */}
             <Fade in timeout={800}>
-                <Box sx={{ mb: 4, textAlign: 'center' }}>
-                    <Typography 
-                        variant="h4" 
-                        component="h1" 
-                        sx={{ 
-                            fontWeight: 'bold',
-                            background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            mb: 1.5,
-                            letterSpacing: '0.3px'
-                        }}
-                    >
-                Project Overview Dashboard
-            </Typography>
-                    <Typography 
-                        variant="subtitle1" 
-                        color="text.secondary" 
-                        sx={{ 
-                            fontWeight: 400,
-                            opacity: 0.8,
-                            letterSpacing: '0.2px'
-                        }}
-                    >
-                        Comprehensive project analytics and insights
-                    </Typography>
+                <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box>
+                        <Typography 
+                            variant="h6" 
+                            component="h1" 
+                            sx={{ 
+                                fontWeight: 600,
+                                color: 'text.primary',
+                                mb: 0,
+                                fontSize: '1.125rem',
+                                lineHeight: 1.2
+                            }}
+                        >
+                            Project Overview Dashboard
+                        </Typography>
+                        <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ 
+                                fontWeight: 400,
+                                opacity: 0.7,
+                                fontSize: '0.7rem',
+                                display: 'block',
+                                mt: 0.25
+                            }}
+                        >
+                            Comprehensive project analytics and insights
+                        </Typography>
+                    </Box>
                 </Box>
             </Fade>
 
@@ -482,7 +620,7 @@ const ProjectOverviewDashboard = () => {
             </Slide>
 
             {/* Tabbed Dashboard Interface */}
-            <Box sx={{ mt: 3 }}>
+            <Box sx={{ mt: 1.5 }}>
                 <Tabs 
                     value={activeTab} 
                     onChange={handleTabChange}
@@ -490,13 +628,14 @@ const ProjectOverviewDashboard = () => {
                     sx={{
                         '& .MuiTab-root': {
                             textTransform: 'none',
-                            fontWeight: 'bold',
-                            fontSize: '1rem',
-                            minHeight: '48px'
+                            fontWeight: 600,
+                            fontSize: '0.875rem',
+                            minHeight: '40px',
+                            py: 1
                         },
                         '& .Mui-selected': {
                             color: 'primary.main',
-                            fontWeight: 'bold'
+                            fontWeight: 600
                         }
                     }}
                 >
@@ -521,17 +660,17 @@ const ProjectOverviewDashboard = () => {
                 </Tabs>
 
                 {/* Tab Content */}
-                <Box sx={{ mt: 3 }}>
+                <Box sx={{ mt: 1.5 }}>
                     {activeTab === 0 && (
-                        <Grid container spacing={2}>
+                        <Grid container spacing={1.5}>
 
                 {/* Project Status (Donut Chart) */}
                 <Grid item xs={12} md={5}>
                     <Fade in timeout={1200}>
                         <Card sx={{ 
                             height: '100%',
-                            minHeight: '420px',
-                            borderRadius: '12px',
+                            minHeight: '360px',
+                            borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                             border: '1px solid rgba(255,255,255,0.2)',
@@ -560,16 +699,16 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <PieChart sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                        <PieChart sx={{ color: 'primary.main', fontSize: '1rem' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
                                             Project Status Overview
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 1, px: 2, pt: 1.5, flexShrink: 0 }}
+                                sx={{ pb: 0.5, px: 1.5, pt: 1, flexShrink: 0 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 1, pb: 1.5, overflow: 'visible', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                                <Box sx={{ width: '100%', height: '100%', minHeight: '340px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0.5, pb: 1, overflow: 'visible', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                                <Box sx={{ width: '100%', height: '100%', minHeight: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto' }}>
                                 {dashboardData.projectStatus.length > 0 ? (
                                     <CircularChart
                                             title=""
@@ -590,8 +729,8 @@ const ProjectOverviewDashboard = () => {
                     <Fade in timeout={1400}>
                         <Card sx={{ 
                             height: '100%',
-                            minHeight: '420px',
-                            borderRadius: '12px',
+                            minHeight: '360px',
+                            borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                             border: '1px solid rgba(255,255,255,0.2)',
@@ -617,16 +756,16 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Speed sx={{ color: 'info.main', fontSize: '1.2rem' }} />
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                        <Speed sx={{ color: 'info.main', fontSize: '1rem' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
                                             Project Performance Metrics
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                sx={{ pb: 0.5, px: 1.5, pt: 1 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                <Box sx={{ height: '240px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                                     {/* Completion Rate */}
                                     <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px' }}>
                                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50', mb: 0.5 }}>
@@ -707,9 +846,9 @@ const ProjectOverviewDashboard = () => {
                         <Box sx={{ 
                             display: 'flex', 
                             flexDirection: 'column', 
-                            gap: 1.5, 
+                            gap: 1, 
                             height: '100%',
-                            minHeight: '420px',
+                            minHeight: '360px',
                             justifyContent: 'space-between'
                         }}>
                             <KPICard
@@ -742,8 +881,8 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={8}>
                     <Fade in timeout={1600}>
                         <Card sx={{ 
-                            height: '380px',
-                            borderRadius: '12px',
+                            height: '320px',
+                            borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                             border: '1px solid rgba(255,255,255,0.2)',
@@ -775,10 +914,10 @@ const ProjectOverviewDashboard = () => {
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                sx={{ pb: 0.5, px: 1.5, pt: 1 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                <Box sx={{ height: '300px', minWidth: '500px' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                <Box sx={{ height: '240px', minWidth: '500px' }}>
                                     {dashboardData.budgetAllocation.length > 0 ? (
                                         <BudgetAllocationChart
                                             title=""
@@ -797,8 +936,8 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={4}>
                     <Fade in timeout={1800}>
                         <Card sx={{ 
-                            height: '380px',
-                            borderRadius: '12px',
+                            height: '320px',
+                            borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                             border: '1px solid rgba(255,255,255,0.2)',
@@ -858,8 +997,8 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={9}>
                     <Fade in timeout={2000}>
                         <Card sx={{ 
-                            height: '400px',
-                            borderRadius: '12px',
+                            height: '340px',
+                            borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                             border: '1px solid rgba(255,255,255,0.2)',
@@ -893,8 +1032,8 @@ const ProjectOverviewDashboard = () => {
                                 }
                                 sx={{ pb: 0.5, px: 2, pt: 1.5 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                <Box sx={{ height: '320px', minWidth: '700px' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                <Box sx={{ height: '260px', minWidth: '700px' }}>
                                 {dashboardData.projectProgress.length > 0 ? (
                                     <LineBarComboChart
                                             title=""
@@ -918,14 +1057,14 @@ const ProjectOverviewDashboard = () => {
                         <Box sx={{ 
                             display: 'flex', 
                             flexDirection: 'column', 
-                            gap: 1.5, 
-                            height: '400px',
+                            gap: 1, 
+                            height: '340px',
                             justifyContent: 'space-between'
                         }}>
                             {/* Project Risk Level */}
                             <Card sx={{ 
-                                height: '120px',
-                                borderRadius: '12px',
+                                height: '100px',
+                                borderRadius: '8px',
                                 background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                 border: '1px solid rgba(255,255,255,0.2)',
@@ -981,8 +1120,8 @@ const ProjectOverviewDashboard = () => {
 
                             {/* Project Timeline Metrics */}
                             <Card sx={{ 
-                                height: '120px',
-                                borderRadius: '12px',
+                                height: '100px',
+                                borderRadius: '8px',
                                 background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                 border: '1px solid rgba(255,255,255,0.2)',
@@ -1035,8 +1174,8 @@ const ProjectOverviewDashboard = () => {
 
                             {/* Issues Summary */}
                             <Card sx={{ 
-                                height: '120px',
-                                borderRadius: '12px',
+                                height: '100px',
+                                borderRadius: '8px',
                                 background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
                                 border: '1px solid rgba(255,255,255,0.2)',

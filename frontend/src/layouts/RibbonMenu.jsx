@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Box, Button, Tooltip, useTheme } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AssessmentIcon from '@mui/icons-material/Assessment';
@@ -51,6 +51,7 @@ export default function RibbonMenu({ isAdmin = false }) {
   const { hasPrivilege, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredTab, setHoveredTab] = useState(null);
+  const timeoutRefs = useRef({});
   
   // Get filtered menu categories based on user permissions (memoized to prevent unnecessary recalculations)
   const menuCategories = useMemo(() => {
@@ -66,15 +67,25 @@ export default function RibbonMenu({ isAdmin = false }) {
 
   // Only collapse the primary menu bar height on scroll, but keep submenu visible when tab is active or hovered
   useEffect(() => {
+    let ticking = false;
     const onScroll = () => {
-      // Collapse primary menu height when scrolled, but don't hide submenu if tab is active
-      // The submenu visibility is controlled separately by validTab and hoveredTab
-      setCollapsed(window.scrollY > 80);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          // Collapse primary menu height when scrolled, but don't hide submenu if tab is active
+          // The submenu visibility is controlled separately by validTab and hoveredTab
+          // Only update if hoveredTab is null to prevent conflicts
+          if (hoveredTab === null) {
+            setCollapsed(window.scrollY > 80);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [hoveredTab]);
 
   // Auto-navigate to Citizen feedback when Admin tab is selected
   useEffect(() => {
@@ -98,6 +109,16 @@ export default function RibbonMenu({ isAdmin = false }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [isAdmin]);
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(timeoutRefs.current).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
+      timeoutRefs.current = {};
+    };
+  }, []);
+
   const Btn = ({ title, icon, to, route, onClick }) => {
     const IconComponent = ICON_MAP[icon] || DashboardIcon;
     const targetRoute = route && ROUTES[route] ? ROUTES[route] : to;
@@ -107,11 +128,11 @@ export default function RibbonMenu({ isAdmin = false }) {
       <Tooltip title={title} arrow>
         <Button size="small" variant="contained" onClick={onClick || go(targetRoute)}
           sx={{
-            px: 1,
-            minWidth: 60,
+            px: 0.75,
+            minWidth: 50,
             lineHeight: 1.2,
-            fontSize: 11,
-            height: 46,
+            fontSize: 10,
+            height: 38,
             borderRadius: 0,
             display: 'flex',
             flexDirection: 'column',
@@ -136,11 +157,14 @@ export default function RibbonMenu({ isAdmin = false }) {
               background: isActive
                 ? 'linear-gradient(180deg, #1e40af, #1e3a8a)'
                 : 'linear-gradient(180deg, #2563eb, #1d4ed8)'
+            },
+            '&:active': {
+              transform: 'translateY(0px)',
             }
           }}>
           <Box sx={{
-            width: 22,
-            height: 22,
+            width: 18,
+            height: 18,
             borderRadius: '50%',
             display: 'grid',
             placeItems: 'center',
@@ -160,7 +184,7 @@ export default function RibbonMenu({ isAdmin = false }) {
   return (
     <Box sx={{
       position: 'sticky',
-      top: '64px',
+      top: '48px',
       zIndex: 998,
       // Glass / gradient background
       bgcolor: theme.palette.mode === 'dark' ? 'rgba(20,25,30,0.65)' : 'rgba(255,255,255,0.7)',
@@ -171,13 +195,27 @@ export default function RibbonMenu({ isAdmin = false }) {
         : 'linear-gradient(180deg, rgba(0,0,0,0.03), rgba(0,0,0,0))',
       borderBottom: `1px solid ${theme.palette.divider}`,
       boxShadow: theme.palette.mode === 'dark' ? 'inset 0 -1px 0 rgba(255,255,255,0.06)' : '0 2px 8px rgba(0,0,0,0.06)',
+      marginTop: 0,
+      marginBottom: 0,
     }}
     onMouseEnter={() => {
+      // Prevent collapse when hovering over the ribbon
       setCollapsed(false);
     }}
     onMouseLeave={() => { 
+      // Only collapse if scrolled and no tab is hovered
       if (window.scrollY > 80 && hoveredTab === null) {
-        setCollapsed(true);
+        // Clear any existing timeout
+        if (timeoutRefs.current.ribbonLeave) {
+          clearTimeout(timeoutRefs.current.ribbonLeave);
+        }
+        // Use setTimeout to prevent rapid state changes
+        timeoutRefs.current.ribbonLeave = setTimeout(() => {
+          if (hoveredTab === null) {
+            setCollapsed(true);
+          }
+          delete timeoutRefs.current.ribbonLeave;
+        }, 100);
       }
     }}
     >
@@ -185,9 +223,11 @@ export default function RibbonMenu({ isAdmin = false }) {
       <Box sx={{
         display: 'flex',
         gap: 0,
-        px: 1,
-        py: 0.5,
-        minHeight: collapsed ? 26 : 30,
+        px: 0.75,
+        py: 0.25,
+        height: collapsed ? 22 : 26,
+        transition: 'height 0.2s ease-in-out',
+        overflow: 'hidden',
       }}>
         {menuCategories.map((category, idx, arr) => {
           const IconComponent = ICON_MAP[category.icon] || DashboardIcon;
@@ -201,12 +241,17 @@ export default function RibbonMenu({ isAdmin = false }) {
               setCollapsed(false); // Show submenu when hovering
             }}
             onMouseLeave={() => {
+              // Clear any existing timeout for this tab
+              if (timeoutRefs.current[`tab-${idx}`]) {
+                clearTimeout(timeoutRefs.current[`tab-${idx}`]);
+              }
               // Delay clearing hover to allow moving to submenu
-              setTimeout(() => {
+              timeoutRefs.current[`tab-${idx}`] = setTimeout(() => {
                 if (window.scrollY > 80 && idx !== validTab) {
                   setHoveredTab(null);
                 }
-              }, 150);
+                delete timeoutRefs.current[`tab-${idx}`];
+              }, 200);
             }}
             startIcon={<IconComponent fontSize="small" />}
             disableElevation
@@ -216,8 +261,9 @@ export default function RibbonMenu({ isAdmin = false }) {
               color: '#fff',
               fontWeight: 600,
               letterSpacing: 0.25,
-              fontSize: 12,
-              height: collapsed ? 26 : 32,
+              fontSize: 11,
+              height: collapsed ? 22 : 26,
+              transition: 'height 0.2s ease-in-out, background 0.15s ease-in-out',
               borderRadius: 0,
               borderTopLeftRadius: idx === 0 ? 8 : 0,
               borderBottomLeftRadius: idx === 0 ? 8 : 0,
@@ -253,11 +299,11 @@ export default function RibbonMenu({ isAdmin = false }) {
             sx={{ 
               display: 'flex', 
               gap: 0, 
-              px: 1, 
-              py: 0.5, 
+              px: 0.75, 
+              py: 0.25, 
               flexWrap: 'wrap', 
               borderTop: `1px solid ${theme.palette.divider}`, 
-              minHeight: 50,
+              minHeight: 42,
               backgroundColor: theme.palette.mode === 'dark' ? 'rgba(20,25,30,0.95)' : 'rgba(255,255,255,0.95)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
@@ -268,11 +314,16 @@ export default function RibbonMenu({ isAdmin = false }) {
               }
             }}
             onMouseLeave={() => {
+              // Clear any existing timeout for submenu
+              if (timeoutRefs.current.submenu) {
+                clearTimeout(timeoutRefs.current.submenu);
+              }
               // Only clear hover if we're not leaving to another tab
-              setTimeout(() => {
+              timeoutRefs.current.submenu = setTimeout(() => {
                 if (hoveredTab === activeTabIndex) {
                   setHoveredTab(null);
                 }
+                delete timeoutRefs.current.submenu;
               }, 100);
             }}
           >

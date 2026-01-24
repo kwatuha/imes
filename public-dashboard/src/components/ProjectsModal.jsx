@@ -63,6 +63,8 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
                 // Handle phased projects filter
                 if (filterValue === 'Phase') {
                     filters.status = 'Phase'; // Special value that backend will handle
+                } else if (filterValue === 'Other') {
+                    filters.status = 'Other'; // Special value for other statuses
                 } else {
                     filters.status = filterValue;
                 }
@@ -144,7 +146,9 @@ const ProjectsModal = ({ open, onClose, filterType, filterValue, title }) => {
                                 {title}
                             </Typography>
                             <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                                Detailed project breakdown and information
+                                {filterValue === 'Other' 
+                                    ? 'Projects with statuses that don\'t match the main categories'
+                                    : 'Detailed project breakdown and information'}
                             </Typography>
                         </Box>
                     </Box>

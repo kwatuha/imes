@@ -10,6 +10,7 @@ import { ChatProvider } from './context/ChatContext';
 import MainLayout from './layouts/MainLayout';
 import DashboardPage from './pages/DashboardPage';
 import DashboardLandingPage from './pages/DashboardLandingPage';
+import HomePage from './pages/HomePage';
 import ProjectManagementPage from './pages/ProjectManagementPage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import ProjectGanttChartPage from './pages/ProjectGanttChartPage';
@@ -82,11 +83,11 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <DashboardLandingPage />,
+        element: <HomePage />,
       },
       {
         path: 'dashboard',
-        element: <DashboardPage />,
+        element: <DashboardLandingPage />,
       },
       {
         path: 'dashboard-config',

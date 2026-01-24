@@ -1,6 +1,16 @@
 // src/components/DashboardFilters.jsx
 
 import React, { useState, useEffect } from 'react';
+// Normalized status options for filters
+const NORMALIZED_STATUSES = [
+    { name: 'Completed' },
+    { name: 'Ongoing' },
+    { name: 'Not started' },
+    { name: 'Stalled' },
+    { name: 'Under Procurement' },
+    { name: 'Suspended' },
+    { name: 'Other' }
+];
 import {
     Box,
     FormControl,
@@ -12,15 +22,18 @@ import {
     IconButton,
     Typography,
     Collapse,
-    Paper // Added Paper for a cleaner filter container
+    Paper,
+    Grid,
+    InputAdornment
 } from '@mui/material';
-import { ClearAll as ClearAllIcon, KeyboardArrowUp, KeyboardArrowDown } from '@mui/icons-material';
+import { Clear as ClearIcon, KeyboardArrowUp, KeyboardArrowDown, Search } from '@mui/icons-material';
 import reportsService from '../api/reportsService';
 import regionalService from '../api/regionalService';
 import { DEFAULT_COUNTY, DEFAULT_SUBCOUNTY } from '../configs/appConfig';
 
 const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
-    const [open, setOpen] = useState(true); // State for collapse functionality
+    const [open, setOpen] = useState(false); // Collapsed by default to save space
+    const [searchInput, setSearchInput] = useState(filters.globalSearch || ''); // Local state for input
     const [filterOptions, setFilterOptions] = useState({
         departments: [],
         projectTypes: [],
@@ -36,6 +49,26 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
 
     const handleToggleCollapse = () => {
         setOpen(!open);
+    };
+
+    // Update local search input when filters change externally
+    useEffect(() => {
+        setSearchInput(filters.globalSearch || '');
+    }, [filters.globalSearch]);
+
+    const handleSearch = () => {
+        onFilterChange('globalSearch', searchInput.trim());
+    };
+
+    const handleSearchKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    const handleClearSearch = () => {
+        setSearchInput('');
+        onFilterChange('globalSearch', '');
     };
 
     // Fetch filter options on component mount
@@ -181,224 +214,452 @@ const DashboardFilters = ({ filters, onFilterChange, onClearFilters }) => {
     console.log('DashboardFilters render - availableWards length:', availableWards.length);
     console.log('DashboardFilters render - current subCounty filter:', filters.subCounty);
 
+    // Check if there are active filters
+    const hasActiveFilters = filters.cidpPeriod || filters.financialYear || filters.startDate || filters.endDate || 
+                             filters.projectType || filters.projectStatus || filters.department || filters.section || 
+                             filters.subCounty || filters.ward || filters.globalSearch;
+
+    // Create a summary of active filters for the collapsed view
+    const getFilterSummary = () => {
+        const activeFilters = [];
+        if (filters.cidpPeriod) activeFilters.push(`CIDP: ${filters.cidpPeriod}`);
+        if (filters.financialYear) activeFilters.push(`Year: ${filters.financialYear}`);
+        if (filters.projectType) activeFilters.push(`Type: ${filters.projectType}`);
+        if (filters.projectStatus) activeFilters.push(`Status: ${filters.projectStatus}`);
+        if (filters.department) activeFilters.push(`Dept: ${filters.department}`);
+        if (filters.section) activeFilters.push(`Section: ${filters.section}`);
+        if (filters.subCounty) activeFilters.push(`Sub-County: ${filters.subCounty}`);
+        if (filters.ward) activeFilters.push(`Ward: ${filters.ward}`);
+        if (filters.startDate) activeFilters.push(`From: ${filters.startDate}`);
+        if (filters.endDate) activeFilters.push(`To: ${filters.endDate}`);
+        return activeFilters.length > 0 ? activeFilters.join(' • ') : '';
+    };
+
     return (
-        <Paper elevation={1} sx={{ mb: 2, p: 1.5 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: open ? 1.5 : 0 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: '600', fontSize: '0.95rem' }}>FILTER YOUR REPORT BY:</Typography>
-                <Box>
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<ClearAllIcon />}
-                        onClick={onClearFilters}
+        <Paper 
+            elevation={1}
+            sx={{ 
+                mb: 1, 
+                borderRadius: 2, 
+                p: open ? 0.75 : 0.5,
+                transition: 'all 0.3s ease'
+            }}
+        >
+            <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                mb: open ? 1 : 0,
+                gap: 1
+            }}>
+                {!open && (
+                    <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        flex: 1,
+                        minWidth: 0
+                    }}>
+                        {/* Global Search Field */}
+                        <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Search projects, departments, or keywords..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            onKeyPress={handleSearchKeyPress}
+                            sx={{
+                                flex: 1,
+                                '& .MuiOutlinedInput-root': {
+                                    height: '32px',
+                                    fontSize: '0.8125rem',
+                                    backgroundColor: 'background.paper'
+                                }
+                            }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleSearch}
+                                            edge="start"
+                                            sx={{ 
+                                                fontSize: 14,
+                                                color: 'primary.main',
+                                                '&:hover': {
+                                                    backgroundColor: 'primary.light',
+                                                    color: 'primary.contrastText'
+                                                }
+                                            }}
+                                        >
+                                            <Search sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (searchInput || filters.globalSearch) && (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleClearSearch}
+                                            edge="end"
+                                            sx={{ fontSize: 14 }}
+                                        >
+                                            <ClearIcon sx={{ fontSize: 14 }} />
+                                        </IconButton>
+                                    </InputAdornment>
+                                )
+                            }}
+                        />
+                        {/* Active Filters Summary (if any) */}
+                        {getFilterSummary() && (
+                            <Box sx={{ 
+                                display: { xs: 'none', sm: 'flex' },
+                                alignItems: 'center',
+                                ml: 1,
+                                px: 1,
+                                py: 0.5,
+                                borderRadius: 1,
+                                backgroundColor: 'primary.light',
+                                maxWidth: '300px'
+                            }}>
+                                <Typography 
+                                    variant="caption" 
+                                    sx={{ 
+                                        fontSize: '0.7rem',
+                                        color: 'primary.contrastText',
+                                        fontWeight: 500,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}
+                                >
+                                    {getFilterSummary()}
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
+                )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: open ? 'auto' : 0, flexShrink: 0 }}>
+                    {open && (
+                        <IconButton
+                            onClick={onClearFilters}
+                            disabled={!hasActiveFilters && !filters.globalSearch}
+                            size="small"
+                            sx={{
+                                backgroundColor: (hasActiveFilters || filters.globalSearch) ? 'error.light' : 'grey.200',
+                                color: (hasActiveFilters || filters.globalSearch) ? 'white' : 'grey.500',
+                                height: '28px',
+                                width: '28px',
+                                '&:hover': {
+                                    backgroundColor: (hasActiveFilters || filters.globalSearch) ? 'error.main' : 'grey.300'
+                                }
+                            }}
+                        >
+                            <ClearIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                    )}
+                    <IconButton 
+                        onClick={handleToggleCollapse} 
+                        size="small" 
                         sx={{ 
-                            mr: 0.5,
-                            fontSize: '0.8rem',
-                            py: 0.5,
-                            px: 1.5,
-                            minWidth: 'auto'
+                            height: '28px', 
+                            width: '28px',
+                            color: 'text.secondary'
                         }}
                     >
-                        Clear All
-                    </Button>
-                    <IconButton onClick={handleToggleCollapse} size="small" sx={{ p: 0.5 }}>
                         {open ? <KeyboardArrowUp fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
                     </IconButton>
                 </Box>
             </Box>
 
             <Collapse in={open}>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
+                <Grid container spacing={0.75} alignItems="center">
                     {/* County Display */}
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="county-label">County</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="county-label"
-                            id="county-select"
-                            value={DEFAULT_COUNTY.name}
-                            label="County"
-                            disabled={true}
-                        >
-                            <MenuItem value={DEFAULT_COUNTY.name} sx={{ fontSize: '0.875rem' }}>
-                                {DEFAULT_COUNTY.name}
-                            </MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    {/* Row 1 */}
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="cidp-period-label">Filter by CIDP Period</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="cidp-period-label"
-                            id="cidp-period-select"
-                            value={filters.cidpPeriod}
-                            label="Filter by CIDP Period"
-                            onChange={(e) => onFilterChange('cidpPeriod', e.target.value)}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            <MenuItem value="CIDP 2023-2027">CIDP 2023-2027</MenuItem>
-                            <MenuItem value="CIDP 2018-2022">CIDP 2018-2022</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="financial-year-label">Filter by ADP / Financial Year</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="financial-year-label"
-                            id="financial-year-select"
-                            value={filters.financialYear}
-                            label="Filter by ADP / Financial Year"
-                            onChange={(e) => onFilterChange('financialYear', e.target.value)}
-                            disabled={isLoadingOptions}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {filterOptions.financialYears.map((year) => (
-                                <MenuItem key={year.id} value={year.id}>
-                                    {year.name}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="county-label" sx={{ fontSize: '0.8125rem' }}>County</InputLabel>
+                            <Select
+                                labelId="county-label"
+                                value={DEFAULT_COUNTY.name}
+                                label="County"
+                                disabled={true}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value={DEFAULT_COUNTY.name} sx={{ fontSize: '0.8125rem' }}>
+                                    {DEFAULT_COUNTY.name}
                                 </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                            </Select>
+                        </FormControl>
+                    </Grid>
 
-                    <TextField
-                        id="start-date"
-                        label="Start Date"
-                        type="date"
-                        value={filters.startDate}
-                        onChange={(e) => onFilterChange('startDate', e.target.value)}
-                        InputLabelProps={{
-                            shrink: true,
-                        }}
-                        sx={{ minWidth: 180 }}
-                    />
-                    <TextField
-                        id="end-date"
-                        label="End Date"
-                        type="date"
-                        value={filters.endDate}
-                        onChange={(e) => onFilterChange('endDate', e.target.value)}
-                        InputLabelProps={{
-                            shrink: true,
-                        }}
-                        sx={{ minWidth: 180 }}
-                    />
+                    {/* CIDP Period */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="cidp-period-label" sx={{ fontSize: '0.8125rem' }}>CIDP Period</InputLabel>
+                            <Select
+                                labelId="cidp-period-label"
+                                value={filters.cidpPeriod || ''}
+                                onChange={(e) => onFilterChange('cidpPeriod', e.target.value)}
+                                label="CIDP Period"
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                <MenuItem value="CIDP 2023-2027" sx={{ fontSize: '0.8125rem' }}>CIDP 2023-2027</MenuItem>
+                                <MenuItem value="CIDP 2018-2022" sx={{ fontSize: '0.8125rem' }}>CIDP 2018-2022</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
 
-                    {/* Row 2 */}
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="project-type-label">Filter by Project Type</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="project-type-label"
-                            id="project-type-select"
-                            value={filters.projectType}
-                            label="Filter by Project Type"
-                            onChange={(e) => onFilterChange('projectType', e.target.value)}
-                            disabled={isLoadingOptions}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {filterOptions.projectTypes.map((type) => (
-                                <MenuItem key={type.name} value={type.name}>
-                                    {type.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    {/* Financial Year */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="financial-year-label" sx={{ fontSize: '0.8125rem' }}>Financial Year</InputLabel>
+                            <Select
+                                labelId="financial-year-label"
+                                value={filters.financialYear || ''}
+                                onChange={(e) => onFilterChange('financialYear', e.target.value)}
+                                label="Financial Year"
+                                disabled={isLoadingOptions}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {filterOptions.financialYears.map((year) => (
+                                    <MenuItem key={year.id} value={year.id} sx={{ fontSize: '0.8125rem' }}>
+                                        {year.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
 
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="project-status-label">Filter by Project Status</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="project-status-label"
-                            id="project-status-select"
-                            value={filters.projectStatus}
-                            label="Filter by Project Status"
-                            onChange={(e) => onFilterChange('projectStatus', e.target.value)}
-                            disabled={isLoadingOptions}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {filterOptions.projectStatuses.map((status) => (
-                                <MenuItem key={status.name} value={status.name}>
-                                    {status.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    {/* Start Date */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label="Start Date"
+                            type="date"
+                            value={filters.startDate || ''}
+                            onChange={(e) => onFilterChange('startDate', e.target.value)}
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            sx={{ 
+                                '& .MuiOutlinedInput-root': { 
+                                    height: '32px',
+                                    fontSize: '0.8125rem'
+                                } 
+                            }}
+                        />
+                    </Grid>
 
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="department-label">Filter By Department</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="department-label"
-                            id="department-select"
-                            value={filters.department}
-                            label="Filter By Department"
-                            onChange={(e) => onFilterChange('department', e.target.value)}
-                            disabled={isLoadingOptions}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {filterOptions.departments.map((dept) => (
-                                <MenuItem key={dept.name} value={dept.name}>
-                                    {dept.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    {/* End Date */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label="End Date"
+                            type="date"
+                            value={filters.endDate || ''}
+                            onChange={(e) => onFilterChange('endDate', e.target.value)}
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            sx={{ 
+                                '& .MuiOutlinedInput-root': { 
+                                    height: '32px',
+                                    fontSize: '0.8125rem'
+                                } 
+                            }}
+                        />
+                    </Grid>
 
-                    {/* Row 3 */}
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="section-label">Filter By Section</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="section-label"
-                            id="section-select"
-                            value={filters.section}
-                            label="Filter By Section"
-                            onChange={(e) => onFilterChange('section', e.target.value)}
-                            disabled={isLoadingOptions}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {filterOptions.sections.map((section) => (
-                                <MenuItem key={section.name} value={section.name}>
-                                    {section.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    {/* Project Type */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="project-type-label" sx={{ fontSize: '0.8125rem' }}>Project Type</InputLabel>
+                            <Select
+                                labelId="project-type-label"
+                                value={filters.projectType || ''}
+                                onChange={(e) => onFilterChange('projectType', e.target.value)}
+                                label="Project Type"
+                                disabled={isLoadingOptions}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {filterOptions.projectTypes.map((type) => (
+                                    <MenuItem key={type.name} value={type.name} sx={{ fontSize: '0.8125rem' }}>
+                                        {type.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
 
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="sub-county-label">Filter By Sub-County</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="sub-county-label"
-                            id="sub-county-select"
-                            value={filters.subCounty}
-                            label="Filter By Sub-County"
-                            onChange={(e) => handleSubCountyChange(e.target.value)}
-                            disabled={isLoadingOptions}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {availableSubCounties.map((subCounty) => (
-                                <MenuItem key={subCounty.subcountyId} value={subCounty.subcountyName}>
-                                    {subCounty.subcountyName}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    {/* Project Status */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="project-status-label" sx={{ fontSize: '0.8125rem' }}>Status</InputLabel>
+                            <Select
+                                labelId="project-status-label"
+                                value={filters.projectStatus || ''}
+                                onChange={(e) => onFilterChange('projectStatus', e.target.value)}
+                                label="Status"
+                                disabled={isLoadingOptions}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {NORMALIZED_STATUSES.map((status) => (
+                                    <MenuItem key={status.name} value={status.name} sx={{ fontSize: '0.8125rem' }}>
+                                        {status.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
 
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                        <InputLabel sx={{ fontSize: '0.875rem' }} id="ward-label">Filter By Ward</InputLabel>
-                        <Select sx={{ fontSize: '0.875rem' }}
-                            labelId="ward-label"
-                            id="ward-select"
-                            value={filters.ward}
-                            label="Filter By Ward"
-                            onChange={(e) => onFilterChange('ward', e.target.value)}
-                            disabled={isLoadingOptions || availableWards.length === 0}
-                        >
-                            <MenuItem value="" sx={{ fontSize: '0.875rem' }}><em>All</em></MenuItem>
-                            {availableWards.map((ward) => (
-                                <MenuItem key={ward.wardId} value={ward.wardName}>
-                                    {ward.wardName}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Box>
+                    {/* Department */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 140 }}>
+                            <InputLabel id="department-label" sx={{ fontSize: '0.8125rem' }}>Department</InputLabel>
+                            <Select
+                                labelId="department-label"
+                                value={filters.department || ''}
+                                onChange={(e) => onFilterChange('department', e.target.value)}
+                                label="Department"
+                                disabled={isLoadingOptions}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {filterOptions.departments.map((dept) => (
+                                    <MenuItem key={dept.name} value={dept.name} sx={{ fontSize: '0.8125rem' }}>
+                                        {dept.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    {/* Section */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="section-label" sx={{ fontSize: '0.8125rem' }}>Section</InputLabel>
+                            <Select
+                                labelId="section-label"
+                                value={filters.section || ''}
+                                onChange={(e) => onFilterChange('section', e.target.value)}
+                                label="Section"
+                                disabled={isLoadingOptions}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {filterOptions.sections.map((section) => (
+                                    <MenuItem key={section.name} value={section.name} sx={{ fontSize: '0.8125rem' }}>
+                                        {section.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    {/* Sub-County */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="sub-county-label" sx={{ fontSize: '0.8125rem' }}>Sub-County</InputLabel>
+                            <Select
+                                labelId="sub-county-label"
+                                value={filters.subCounty || ''}
+                                onChange={(e) => handleSubCountyChange(e.target.value)}
+                                label="Sub-County"
+                                disabled={isLoadingOptions}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {availableSubCounties.map((subCounty) => (
+                                    <MenuItem key={subCounty.subcountyId} value={subCounty.subcountyName} sx={{ fontSize: '0.8125rem' }}>
+                                        {subCounty.subcountyName}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    {/* Ward */}
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel id="ward-label" sx={{ fontSize: '0.8125rem' }}>Ward</InputLabel>
+                            <Select
+                                labelId="ward-label"
+                                value={filters.ward || ''}
+                                onChange={(e) => onFilterChange('ward', e.target.value)}
+                                label="Ward"
+                                disabled={isLoadingOptions || availableWards.length === 0}
+                                sx={{ 
+                                    height: '32px', 
+                                    fontSize: '0.8125rem',
+                                    '& .MuiSelect-select': {
+                                        py: 0.5
+                                    }
+                                }}
+                            >
+                                <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                                {availableWards.map((ward) => (
+                                    <MenuItem key={ward.wardId} value={ward.wardName} sx={{ fontSize: '0.8125rem' }}>
+                                        {ward.wardName}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                </Grid>
             </Collapse>
         </Paper>
     );

@@ -43,7 +43,7 @@ const BarChart = ({ title, data, xDataKey, yDataKey, yAxisLabel, horizontal = fa
 
   return (
     <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'background.paper' }}>
-      <Typography variant="h6" align="center" gutterBottom>{title}</Typography>
+      {title && <Typography variant="h6" align="center" gutterBottom>{title}</Typography>}
       <ResponsiveContainer width="100%" height={300}>
         <RechartsBarChart
           data={data}
