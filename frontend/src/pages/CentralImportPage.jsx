@@ -481,16 +481,16 @@ function CentralImportPage() {
   const isUploadButtonDisabled = !selectedFile || loading || !currentImportType || !checkUserPrivilege(user, currentImportType.privilege);
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>Central Data Import Hub</Typography>
-      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h5" gutterBottom sx={{ mb: 0.5 }}>Central Data Import Hub</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose the type of data you want to import and upload your Excel file
       </Typography>
 
       {/* Import Type Selection */}
-      <Paper elevation={3} sx={{ p: 3, borderRadius: '8px', mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Select Import Type</Typography>
-        <FormControl fullWidth sx={{ mb: 2 }}>
+      <Paper elevation={2} sx={{ p: 1.5, borderRadius: '8px', mb: 2 }}>
+        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ mb: 1, fontSize: '0.9rem' }}>Select Import Type</Typography>
+        <FormControl fullWidth size="small" sx={{ mb: selectedImportType ? 1 : 0 }}>
           <InputLabel>Import Type</InputLabel>
           <Select
             value={selectedImportType}
@@ -500,10 +500,10 @@ function CentralImportPage() {
             {IMPORT_TYPES.map((type) => (
               <MenuItem key={type.id} value={type.id}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {type.icon}
+                  <Box sx={{ fontSize: '1.1rem' }}>{type.icon}</Box>
                   <Box>
-                    <Typography variant="body1">{type.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{type.name}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                       {type.description}
                     </Typography>
                   </Box>
@@ -511,41 +511,45 @@ function CentralImportPage() {
               </MenuItem>
             ))}
           </Select>
-          <FormHelperText>
-            {selectedImportType ? `Selected: ${currentImportType?.name}` : 'Choose what type of data you want to import'}
-          </FormHelperText>
         </FormControl>
 
-        {/* Import Type Cards */}
+        {/* Compact Import Type Info */}
         {selectedImportType && (
-          <Card sx={{ mt: 2 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                {currentImportType.icon}
-                <Typography variant="h6">{currentImportType.name}</Typography>
-                <Chip 
-                  label={currentImportType.name} 
-                  color={currentImportType.color} 
-                  size="small" 
-                />
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {currentImportType.description}
+          <Box sx={{ 
+            mt: 1, 
+            p: 1, 
+            bgcolor: 'action.hover', 
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Box sx={{ fontSize: '1rem', color: 'primary.main' }}>{currentImportType.icon}</Box>
+              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem' }}>
+                {currentImportType.name}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Required privilege: {currentImportType.privilege}
-              </Typography>
-            </CardContent>
-          </Card>
+            </Box>
+            <Chip 
+              label={currentImportType.privilege} 
+              color={currentImportType.color} 
+              size="small"
+              sx={{ height: 20, fontSize: '0.65rem', '& .MuiChip-label': { px: 0.75 } }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', ml: 'auto' }}>
+              {currentImportType.description}
+            </Typography>
+          </Box>
         )}
       </Paper>
 
       {/* File Upload Section */}
       {selectedImportType && (
-        <Paper elevation={3} sx={{ p: 3, borderRadius: '8px' }}>
-          <Typography variant="h6" gutterBottom>Upload Excel File (.xlsx)</Typography>
+        <Paper elevation={2} sx={{ p: 2, borderRadius: '8px' }}>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1.5 }}>Upload Excel File (.xlsx)</Typography>
           
-          <Grid container spacing={2} alignItems="center">
+          <Grid container spacing={1.5} alignItems="center">
             <Grid item xs={12} sm={4} md={3}>
               <Button
                 variant="outlined"
@@ -633,42 +637,42 @@ function CentralImportPage() {
           
           {/* Metadata Mapping Preview - Only for Projects */}
           {showMappingPreview && mappingSummary && currentImportType.id === 'projects' && (
-            <Box sx={{ mt: 3 }}>
-              <Paper elevation={3} sx={{ p: 3, borderRadius: '8px', border: '2px solid', borderColor: 'primary.main' }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AssessmentIcon color="primary" />
+            <Box sx={{ mt: 2 }}>
+              <Paper elevation={2} sx={{ p: 2, borderRadius: '8px', border: '1.5px solid', borderColor: 'primary.main' }}>
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AssessmentIcon color="primary" fontSize="small" />
                   Metadata Mapping Preview
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.85rem' }}>
                   Review how your data will be mapped to existing metadata. Items marked as "Will be Created" need to be created manually before importing, or they will be skipped during import.
                 </Typography>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  <Typography variant="body2">
+                <Alert severity="info" sx={{ mb: 1.5, py: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
                     <strong>Note:</strong> The system checks both names and aliases when matching metadata. 
                     Items not found will be skipped during import. Please create missing metadata in the Metadata Management section before proceeding.
                   </Typography>
                 </Alert>
 
-                <Grid container spacing={2}>
+                <Grid container spacing={1.5}>
                   {/* Departments */}
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
                       <CardContent>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
                           Departments ({mappingSummary.departments.existing.length + mappingSummary.departments.new.length})
                         </Typography>
                         {mappingSummary.departments.existing.length > 0 && (
-                          <Box sx={{ mb: 1 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Box sx={{ mb: 0.75 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.departments.existing.length} Existing
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.departments.existing.map((dept, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <CheckCircleIcon fontSize="small" color="success" />
                                   </ListItemIcon>
-                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -676,16 +680,16 @@ function CentralImportPage() {
                         )}
                         {mappingSummary.departments.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AddCircleIcon fontSize="small" /> {mappingSummary.departments.new.length} Need to be Created (will be skipped if not)
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.departments.new.length} Need to be Created
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.departments.new.map((dept, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <AddCircleIcon fontSize="small" color="warning" />
                                   </ListItemIcon>
-                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -697,23 +701,23 @@ function CentralImportPage() {
 
                   {/* Directorates (Sections) */}
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
                       <CardContent>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
                           Directorates ({mappingSummary.directorates.existing.length + mappingSummary.directorates.new.length})
                         </Typography>
                         {mappingSummary.directorates.existing.length > 0 && (
-                          <Box sx={{ mb: 1 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Box sx={{ mb: 0.75 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.directorates.existing.length} Existing
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.directorates.existing.map((dir, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <CheckCircleIcon fontSize="small" color="success" />
                                   </ListItemIcon>
-                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -721,16 +725,16 @@ function CentralImportPage() {
                         )}
                         {mappingSummary.directorates.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AddCircleIcon fontSize="small" /> {mappingSummary.directorates.new.length} Need to be Created (will be skipped if not)
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.directorates.new.length} Need to be Created
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.directorates.new.map((dir, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <AddCircleIcon fontSize="small" color="warning" />
                                   </ListItemIcon>
-                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -742,23 +746,23 @@ function CentralImportPage() {
 
                   {/* Sub-counties */}
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
                       <CardContent>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
                           Sub-counties ({mappingSummary.subcounties.existing.length + mappingSummary.subcounties.new.length})
                         </Typography>
                         {mappingSummary.subcounties.existing.length > 0 && (
-                          <Box sx={{ mb: 1 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Box sx={{ mb: 0.75 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.subcounties.existing.length} Existing
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.subcounties.existing.map((sc, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <CheckCircleIcon fontSize="small" color="success" />
                                   </ListItemIcon>
-                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -766,16 +770,16 @@ function CentralImportPage() {
                         )}
                         {mappingSummary.subcounties.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AddCircleIcon fontSize="small" /> {mappingSummary.subcounties.new.length} Need to be Created (will be skipped if not)
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.subcounties.new.length} Need to be Created
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.subcounties.new.map((sc, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <AddCircleIcon fontSize="small" color="warning" />
                                   </ListItemIcon>
-                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -787,23 +791,23 @@ function CentralImportPage() {
 
                   {/* Wards */}
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
                       <CardContent>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
                           Wards ({mappingSummary.wards.existing.length + mappingSummary.wards.new.length})
                         </Typography>
                         {mappingSummary.wards.existing.length > 0 && (
-                          <Box sx={{ mb: 1 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Box sx={{ mb: 0.75 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.wards.existing.length} Existing
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.wards.existing.map((ward, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <CheckCircleIcon fontSize="small" color="success" />
                                   </ListItemIcon>
-                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -811,16 +815,16 @@ function CentralImportPage() {
                         )}
                         {mappingSummary.wards.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AddCircleIcon fontSize="small" /> {mappingSummary.wards.new.length} Need to be Created (will be skipped if not)
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.wards.new.length} Need to be Created
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.wards.new.map((ward, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <AddCircleIcon fontSize="small" color="warning" />
                                   </ListItemIcon>
-                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -832,24 +836,24 @@ function CentralImportPage() {
 
                   {/* Financial Years */}
                   <Grid item xs={12} md={6}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
                       <CardContent>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <CalendarTodayIcon fontSize="small" />
                           Financial Years ({mappingSummary.financialYears?.existing.length + mappingSummary.financialYears?.new.length || 0})
                         </Typography>
                         {mappingSummary.financialYears?.existing.length > 0 && (
-                          <Box sx={{ mb: 1 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Box sx={{ mb: 0.75 }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.financialYears.existing.length} Existing
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.financialYears.existing.map((fy, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <CheckCircleIcon fontSize="small" color="success" />
                                   </ListItemIcon>
-                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
@@ -857,23 +861,23 @@ function CentralImportPage() {
                         )}
                         {mappingSummary.financialYears?.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AddCircleIcon fontSize="small" /> {mappingSummary.financialYears.new.length} Need to be Created (will be skipped if not)
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                              <AddCircleIcon fontSize="small" /> {mappingSummary.financialYears.new.length} Need to be Created
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ py: 0 }}>
                               {mappingSummary.financialYears.new.map((fy, idx) => (
-                                <ListItem key={idx} sx={{ py: 0.25, px: 1 }}>
-                                  <ListItemIcon sx={{ minWidth: 24 }}>
+                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                  <ListItemIcon sx={{ minWidth: 20 }}>
                                     <AddCircleIcon fontSize="small" color="warning" />
                                   </ListItemIcon>
-                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'body2' }} />
+                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
                                 </ListItem>
                               ))}
                             </List>
                           </Box>
                         )}
                         {(!mappingSummary.financialYears || (mappingSummary.financialYears.existing.length === 0 && mappingSummary.financialYears.new.length === 0)) && (
-                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
                             No financial years found in import data
                           </Typography>
                         )}
@@ -884,36 +888,37 @@ function CentralImportPage() {
 
                 {/* Warnings for unmatched metadata */}
                 {mappingSummary.rowsWithUnmatchedMetadata.length > 0 && (
-                  <Alert severity="warning" sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                      <WarningIcon sx={{ verticalAlign: 'middle', mr: 0.5 }} />
+                  <Alert severity="warning" sx={{ mt: 1.5, py: 1 }}>
+                    <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
+                      <WarningIcon sx={{ verticalAlign: 'middle', mr: 0.5, fontSize: '1rem' }} />
                       Warning: {mappingSummary.rowsWithUnmatchedMetadata.length} row(s) contain metadata that cannot be matched
                     </Typography>
-                    <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+                    <Box component="ul" sx={{ mt: 0.75, mb: 0, pl: 2 }}>
                       {mappingSummary.rowsWithUnmatchedMetadata.slice(0, 10).map((row, idx) => (
                         <li key={idx}>
-                          <Typography variant="body2">
+                          <Typography variant="caption" sx={{ fontSize: '0.8rem' }}>
                             Row {row.rowNumber} ({row.projectName}): {row.unmatched.join(', ')}
                           </Typography>
                         </li>
                       ))}
                       {mappingSummary.rowsWithUnmatchedMetadata.length > 10 && (
                         <li>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                             ... and {mappingSummary.rowsWithUnmatchedMetadata.length - 10} more
                           </Typography>
                         </li>
                       )}
                     </Box>
-                    <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                    <Typography variant="caption" sx={{ mt: 0.75, display: 'block', fontSize: '0.75rem' }}>
                       These rows will be imported, but the unmatched metadata will not be linked. Please ensure metadata names match exactly.
                     </Typography>
                   </Alert>
                 )}
 
-                <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                <Box sx={{ mt: 1.5, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                   <Button
                     variant="outlined"
+                    size="small"
                     onClick={() => {
                       setShowMappingPreview(false);
                       setMappingSummary(null);
@@ -924,6 +929,7 @@ function CentralImportPage() {
                   <Button
                     variant="contained"
                     color="primary"
+                    size="small"
                     startIcon={<CheckCircleIcon />}
                     onClick={() => setShowMappingPreview(false)}
                   >
@@ -935,11 +941,11 @@ function CentralImportPage() {
           )}
 
           {importReport && (
-            <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: importReport.success ? 'success.main' : 'error.main', borderRadius: '8px' }}>
-              <Typography variant="h6" color={importReport.success ? 'success.main' : 'error.main'}>
+            <Box sx={{ mt: 2, p: 1.5, border: '1px solid', borderColor: importReport.success ? 'success.main' : 'error.main', borderRadius: '8px' }}>
+              <Typography variant="subtitle1" fontWeight={600} color={importReport.success ? 'success.main' : 'error.main'} sx={{ mb: 0.5 }}>
                 Import Report: {importReport.success ? 'Success' : 'Failed'}
               </Typography>
-              <Typography variant="body1">{importReport.message}</Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{importReport.message}</Typography>
               {importReport.details && (
                 <Box sx={{ mt: 2 }}>
                   {importReport.details.errors && Array.isArray(importReport.details.errors) && importReport.details.errors.length > 0 && (
@@ -992,9 +998,9 @@ function CentralImportPage() {
           )}
 
           {previewData && previewData.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" gutterBottom>Data Preview (First {previewData.length} Rows)</Typography>
-              <TableContainer component={Paper} elevation={2} sx={{ maxHeight: 400, overflow: 'auto' }}>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1 }}>Data Preview (First {previewData.length} Rows)</Typography>
+              <TableContainer component={Paper} elevation={1} sx={{ maxHeight: 350, overflow: 'auto' }}>
                 <Table stickyHeader size="small">
                   <TableHead>
                     <TableRow>
