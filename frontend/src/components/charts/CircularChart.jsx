@@ -19,39 +19,86 @@ const CustomTooltip = ({ active, payload }) => {
     return null;
 };
 
-// Custom Legend Component that wraps
+// Custom Legend Component that wraps into two rows
 const CustomLegend = ({ data }) => {
+    // Split data into two rows (first 4 items, then remaining)
+    const midPoint = Math.ceil(data.length / 2);
+    const firstRow = data.slice(0, midPoint);
+    const secondRow = data.slice(midPoint);
+    
     return (
         <Box sx={{ 
             display: 'flex', 
-            flexWrap: 'wrap', 
-            justifyContent: 'center', 
-            gap: '6px 10px',
-            px: 0.5
+            flexDirection: 'column',
+            gap: '6px',
+            width: '100%'
         }}>
-            {data.map((entry, index) => (
-                <Box 
-                    key={`legend-${index}`}
-                    sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 0.4,
-                    }}
-                >
+            {/* First Row */}
+            <Box sx={{ 
+                display: 'flex', 
+                flexWrap: 'wrap',
+                justifyContent: 'center', 
+                gap: '8px 12px',
+            }}>
+                {firstRow.map((entry, index) => (
                     <Box 
+                        key={`legend-${index}`}
                         sx={{ 
-                            width: 9, 
-                            height: 9, 
-                            backgroundColor: entry.color,
-                            borderRadius: '2px',
-                            flexShrink: 0
-                        }} 
-                    />
-                    <Typography variant="caption" sx={{ fontSize: '9px', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
-                        {entry.name}
-                    </Typography>
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 0.5,
+                        }}
+                    >
+                        <Box 
+                            sx={{ 
+                                width: 10, 
+                                height: 10, 
+                                backgroundColor: entry.color,
+                                borderRadius: '2px',
+                                flexShrink: 0,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                            }} 
+                        />
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', lineHeight: 1.2, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                            {entry.name}
+                        </Typography>
+                    </Box>
+                ))}
+            </Box>
+            {/* Second Row */}
+            {secondRow.length > 0 && (
+                <Box sx={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap',
+                    justifyContent: 'center', 
+                    gap: '8px 12px',
+                }}>
+                    {secondRow.map((entry, index) => (
+                        <Box 
+                            key={`legend-${midPoint + index}`}
+                            sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 0.5,
+                            }}
+                        >
+                            <Box 
+                                sx={{ 
+                                    width: 10, 
+                                    height: 10, 
+                                    backgroundColor: entry.color,
+                                    borderRadius: '2px',
+                                    flexShrink: 0,
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                }} 
+                            />
+                            <Typography variant="caption" sx={{ fontSize: '0.65rem', lineHeight: 1.2, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                {entry.name}
+                            </Typography>
+                        </Box>
+                    ))}
                 </Box>
-            ))}
+            )}
         </Box>
     );
 };
@@ -71,7 +118,7 @@ const CircularChart = ({ title, data, type }) => {
     const colors = chartData.map(item => item.color);
 
     return (
-        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', overflow: 'visible', p: 0.5 }}>
+        <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', overflow: 'visible', p: 0 }}>
             {title && (
                 <Typography variant="h6" align="center" sx={{ mb: 1, flexShrink: 0 }}>
                     {title}
@@ -83,35 +130,38 @@ const CircularChart = ({ title, data, type }) => {
                 flex: '1 1 auto', 
                 display: 'flex', 
                 flexDirection: 'column',
-                alignItems: 'stretch', 
-                justifyContent: 'space-between', 
-                minHeight: 0,
+                alignItems: 'center', 
+                justifyContent: 'flex-start', 
+                minHeight: '280px',
                 overflow: 'visible',
-                position: 'relative'
+                position: 'relative',
+                gap: 0.5
             }}>
                 <Box sx={{ 
-                    width: '100%', 
-                    flex: '1 1 auto', 
-                    minHeight: 0,
+                    width: '100%',
+                    height: { xs: '280px', sm: '320px', md: '360px' },
+                    flex: { xs: '0 0 280px', sm: '0 0 320px', md: '0 0 360px' },
+                    minHeight: { xs: '280px', sm: '320px', md: '360px' },
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    py: 1
+                    py: 0.5
                 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                        <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                             <Pie
                                 data={chartData}
                                 dataKey="value"
                                 nameKey="name"
                                 cx="50%"
                                 cy="50%"
-                                innerRadius="40%"
-                                outerRadius="75%"
+                                innerRadius={type === 'donut' ? '35%' : 0}
+                                outerRadius="85%"
                                 fill="#8884d8"
-                                paddingAngle={3}
-                                // Only show labels for donut chart if desired, or adjust for pie chart
-                                label={type === 'donut' ? ({ name, percent }) => `${(percent * 100).toFixed(0)}%` : undefined} 
+                                paddingAngle={2}
+                                // Show percentage labels inside donut segments for better visibility
+                                label={type === 'donut' ? ({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : '' : undefined}
+                                labelLine={false}
                             >
                                 {chartData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -121,7 +171,17 @@ const CircularChart = ({ title, data, type }) => {
                         </PieChart>
                     </ResponsiveContainer>
                 </Box>
-                <Box sx={{ flexShrink: 0, mt: 1 }}>
+                <Box sx={{ 
+                    flexShrink: 0, 
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    px: 0.5,
+                    pt: 0.25,
+                    pb: 0
+                }}>
                     <CustomLegend data={chartData} />
                 </Box>
             </Box>

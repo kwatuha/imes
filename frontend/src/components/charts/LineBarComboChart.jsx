@@ -107,20 +107,25 @@ const LineBarComboChart = ({
             <ResponsiveContainer width="100%" height={350}>
                 <ComposedChart
                     data={data}
-                    // Optimized margins for better scalability
-                    margin={{ top: 20, right: 20, left: 20, bottom: data.length > 5 ? 100 : 80 }}
+                    // Optimized margins for better scalability with many years
+                    margin={{ 
+                        top: 20, 
+                        right: 20, 
+                        left: 20, 
+                        bottom: data.length > 15 ? 140 : data.length > 10 ? 120 : data.length > 5 ? 100 : 80 
+                    }}
                 >
                     <CartesianGrid strokeDasharray="3 3" />
                     
-                    {/* X-Axis with rotated labels - optimized for more departments */}
+                    {/* X-Axis with rotated labels - optimized for many years/data points */}
                     <XAxis
                         dataKey={xAxisKey}
-                        angle={-45}
+                        angle={data.length > 10 ? -60 : -45}
                         textAnchor="end"
-                        height={data.length > 5 ? 120 : 100} 
-                        interval={0}
-                        fontSize={data.length > 8 ? 10 : 12}
-                        tick={{ fontSize: data.length > 8 ? 10 : 12 }}
+                        height={data.length > 10 ? 140 : data.length > 5 ? 120 : 100} 
+                        interval={data.length > 15 ? 1 : 0} // Show every other year if more than 15 years
+                        fontSize={data.length > 12 ? 9 : data.length > 8 ? 10 : 12}
+                        tick={{ fontSize: data.length > 12 ? 9 : data.length > 8 ? 10 : 12 }}
                     />
 
                     {/* Y-Axis with formatted labels */}

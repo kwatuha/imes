@@ -184,9 +184,14 @@ const reportsService = {
   },
 
   // --- Annual Trends ---
-  getAnnualTrends: async () => {
+  getAnnualTrends: async (filters = {}) => {
     try {
-      const response = await axiosInstance.get('/reports/annual-trends');
+      // Support optional startYear and endYear parameters
+      const params = {};
+      if (filters.startYear) params.startYear = filters.startYear;
+      if (filters.endYear) params.endYear = filters.endYear;
+      
+      const response = await axiosInstance.get('/reports/annual-trends', { params });
       return response.data;
     } catch (error) {
       console.error("Failed to fetch annual trends:", error);

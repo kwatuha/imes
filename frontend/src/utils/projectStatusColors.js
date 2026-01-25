@@ -7,11 +7,11 @@ const PROJECT_STATUS_COLORS = {
   // Normalized statuses (for charts/analytics)
   'Completed': '#32cd32',        // LimeGreen - Bright Green
   'Ongoing': '#1e90ff',         // DodgerBlue - Bright Blue
-  'Not started': '#9e9e9e',     // Medium Gray (lighter than Other)
+  'Not started': '#9e9e9e',     // Medium Gray
   'Stalled': '#ffa500',         // Orange - Bright Orange
-  'Under Procurement': '#6495ED', // CornflowerBlue
+  'Under Procurement': '#9370DB', // MediumSlateBlue - Purple (distinct from Ongoing's blue)
   'Suspended': '#e00202',       // Red
-  'Other': '#616161',           // Darker Gray (darker than Not started)
+  'Other': '#CD853F',           // Peru - Warm Brown/Tan (distinct from grays)
   
   // Legacy statuses (for backward compatibility)
   'At Risk': '#b22222',         // FireBrick - Red

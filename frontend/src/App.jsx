@@ -63,6 +63,8 @@ import CountyProposedProjectsManagementPage from './pages/CountyProposedProjects
 import ProjectAnnouncementsManagementPage from './pages/ProjectAnnouncementsManagementPage';
 // ✨ NEW: Import the Public Approval Management page
 import PublicApprovalManagementPage from './pages/PublicApprovalManagementPage';
+// ✨ NEW: Import the Project Analytics page
+import ProjectAnalyticsPage from './pages/ProjectAnalyticsPage';
  
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
@@ -224,6 +226,10 @@ const router = createBrowserRouter([
       {
         path: 'public-approval',
         element: <PublicApprovalManagementPage />,
+      },
+      {
+        path: 'project-analytics',
+        element: <ProjectAnalyticsPage />,
       },
     ],
   },

@@ -1049,14 +1049,44 @@ router.get('/filter-options', async (req, res) => {
 // --- Annual Trends Endpoints ---
 /**
  * @route GET /api/reports/annual-trends
- * @description Get 5-year historical trends data
+ * @description Get historical trends data from earliest project date (2013/2014) to present
+ * @query {number} [startYear] - Optional start year (defaults to earliest project year or 2013)
+ * @query {number} [endYear] - Optional end year (defaults to current year)
  * @access Public (for now)
  * @returns {Object} Object containing arrays of trend data
  */
 router.get('/annual-trends', async (req, res) => {
     try {
+        const { startYear: queryStartYear, endYear: queryEndYear } = req.query;
         const currentYear = new Date().getFullYear();
-        const startYear = currentYear - 4; // 5 years of data
+        
+        // Determine the actual year range from data
+        let actualStartYear, actualEndYear;
+        
+        if (queryStartYear && queryEndYear) {
+            // Use provided query parameters
+            actualStartYear = parseInt(queryStartYear);
+            actualEndYear = parseInt(queryEndYear);
+        } else {
+            // Find the earliest project startDate in the database
+            const [earliestProject] = await pool.execute(`
+                SELECT MIN(YEAR(p.startDate)) as earliestYear
+                FROM kemri_projects p
+                WHERE p.voided = 0 AND p.startDate IS NOT NULL
+            `);
+            
+            const earliestYear = earliestProject[0]?.earliestYear;
+            // Default to 2013 if no data found, or use query parameter if provided
+            actualStartYear = queryStartYear ? parseInt(queryStartYear) : (earliestYear || 2013);
+            actualEndYear = queryEndYear ? parseInt(queryEndYear) : currentYear;
+        }
+        
+        // Ensure valid year range
+        if (actualStartYear > actualEndYear) {
+            return res.status(400).json({ 
+                error: 'Invalid year range: startYear must be less than or equal to endYear' 
+            });
+        }
         
         // Get project performance trends
         const [projectPerformance] = await pool.execute(`
@@ -1068,11 +1098,12 @@ router.get('/annual-trends', async (req, res) => {
                 AVG(DATEDIFF(p.endDate, p.startDate)) as avgDuration
             FROM kemri_projects p
             WHERE p.voided = 0 
+                AND p.startDate IS NOT NULL
                 AND YEAR(p.startDate) >= ?
                 AND YEAR(p.startDate) <= ?
             GROUP BY YEAR(p.startDate)
             ORDER BY year
-        `, [startYear, currentYear]);
+        `, [actualStartYear, actualEndYear]);
 
         // Get financial trends
         const [financialTrends] = await pool.execute(`
@@ -1087,11 +1118,12 @@ router.get('/annual-trends', async (req, res) => {
                 END as absorptionRate
             FROM kemri_projects p
             WHERE p.voided = 0 
+                AND p.startDate IS NOT NULL
                 AND YEAR(p.startDate) >= ?
                 AND YEAR(p.startDate) <= ?
             GROUP BY YEAR(p.startDate)
             ORDER BY year
-        `, [startYear, currentYear]);
+        `, [actualStartYear, actualEndYear]);
 
         // Get department trends
         const [departmentTrends] = await pool.execute(`
@@ -1105,11 +1137,12 @@ router.get('/annual-trends', async (req, res) => {
             FROM kemri_projects p
             INNER JOIN kemri_departments d ON p.departmentId = d.departmentId
             WHERE p.voided = 0 
+                AND p.startDate IS NOT NULL
                 AND YEAR(p.startDate) >= ?
                 AND YEAR(p.startDate) <= ?
             GROUP BY YEAR(p.startDate), d.departmentId, d.name, d.alias
             ORDER BY year, d.name
-        `, [startYear, currentYear]);
+        `, [actualStartYear, actualEndYear]);
 
         // Get project status trends
         const [statusTrends] = await pool.execute(`
@@ -1119,12 +1152,13 @@ router.get('/annual-trends', async (req, res) => {
                 COUNT(p.id) as count
             FROM kemri_projects p
             WHERE p.voided = 0 
+                AND p.startDate IS NOT NULL
                 AND YEAR(p.startDate) >= ?
                 AND YEAR(p.startDate) <= ?
                 AND p.status IS NOT NULL
             GROUP BY YEAR(p.startDate), p.status
             ORDER BY year, p.status
-        `, [startYear, currentYear]);
+        `, [actualStartYear, actualEndYear]);
 
         // Calculate year-over-year growth rates
         const calculateGrowthRate = (current, previous) => {
@@ -1162,7 +1196,8 @@ router.get('/annual-trends', async (req, res) => {
         });
 
         // Ensure we have data for all years in the range, even if they're empty
-        const allYears = Array.from({length: 5}, (_, i) => startYear + i);
+        const yearCount = actualEndYear - actualStartYear + 1;
+        const allYears = Array.from({length: yearCount}, (_, i) => actualStartYear + i);
         
         // Fill in missing years with zero data
         const completeProjectPerformance = allYears.map(year => {
@@ -1196,8 +1231,8 @@ router.get('/annual-trends', async (req, res) => {
             departmentTrends: departmentTrends,
             statusTrends: statusTrends,
             yearRange: {
-                start: startYear,
-                end: currentYear,
+                start: actualStartYear,
+                end: actualEndYear,
                 years: allYears
             }
         });

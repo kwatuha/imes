@@ -14,6 +14,11 @@
           "title": "Contractor Dashboard",
           "icon": "PaidIcon",
           "route": "CONTRACTOR_DASHBOARD"
+        },
+        {
+          "title": "Analytics",
+          "icon": "AnalyticsIcon",
+          "route": "PROJECT_ANALYTICS"
         }
       ]
     },

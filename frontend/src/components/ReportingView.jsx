@@ -141,20 +141,117 @@ const ReportingView = () => {
 
     const fetchProjectProgressData = async (filters) => {
         try {
-            const response = await reportsService.getDepartmentSummaryReport(filters);
-            return response.map(dept => ({
-                department: dept.departmentAlias || dept.departmentName, // Use alias for display, fallback to name
-                departmentName: dept.departmentName, // Keep full name for tooltips
-                departmentAlias: dept.departmentAlias, // Keep alias for filtering
-                percentCompleted: dept.percentCompleted || 0,
-                percentBudgetContracted: dept.percentBudgetContracted || 0,
-                percentContractSumPaid: dept.percentContractSumPaid || 0,
-                percentAbsorptionRate: dept.percentAbsorptionRate || 0,
-                allocatedBudget: dept.allocatedBudget || 0,
-                contractSum: dept.contractSum || 0,
-                amountPaid: dept.amountPaid || 0,
-                numProjects: dept.numProjects || 0
-            }));
+            // Check if filtering by a normalized status
+            const normalizedStatuses = ['Completed', 'Ongoing', 'Not started', 'Stalled', 'Under Procurement', 'Suspended', 'Other'];
+            const statusFilter = filters.projectStatus || filters.status;
+            const isNormalizedStatus = statusFilter && normalizedStatuses.includes(statusFilter);
+            
+            if (isNormalizedStatus) {
+                // First, get all original statuses from the database (without any filters to get raw statuses)
+                const allStatusesResponse = await reportsService.getProjectStatusSummary({});
+                const allOriginalStatuses = allStatusesResponse.map(item => item.name);
+                
+                console.log('ReportingView - All original statuses from database:', allOriginalStatuses);
+                
+                // Find which original statuses normalize to the selected normalized status
+                const matchingOriginalStatuses = allOriginalStatuses.filter(originalStatus => {
+                    if (!originalStatus) return false;
+                    const normalized = normalizeProjectStatus(originalStatus);
+                    const matches = normalized === statusFilter;
+                    if (matches) {
+                        console.log(`ReportingView - Status "${originalStatus}" normalizes to "${normalized}" (matches filter: ${statusFilter})`);
+                    } else {
+                        console.log(`ReportingView - Status "${originalStatus}" normalizes to "${normalized}" (does NOT match filter: ${statusFilter})`);
+                    }
+                    return matches;
+                });
+                
+                console.log(`ReportingView - Normalized status "${statusFilter}" maps to original statuses:`, matchingOriginalStatuses);
+                
+                if (matchingOriginalStatuses.length === 0) {
+                    // No matching original statuses found, return empty array
+                    console.warn(`ReportingView - No original statuses found that normalize to "${statusFilter}"`);
+                    return [];
+                }
+                
+                // Fetch data for each original status and combine results
+                const allDepartmentData = [];
+                const departmentMap = new Map(); // Use Map to aggregate by department
+                
+                for (const originalStatus of matchingOriginalStatuses) {
+                    // Create new filters object without the normalized status, and use the original status
+                    const statusFilters = { ...filters };
+                    // Remove normalized status filters
+                    delete statusFilters.projectStatus;
+                    delete statusFilters.status;
+                    // Add the original status for this API call
+                    statusFilters.status = originalStatus;
+                    
+                    try {
+                        const response = await reportsService.getDepartmentSummaryReport(statusFilters);
+                        
+                        // Aggregate data by department
+                        response.forEach(dept => {
+                            const deptKey = dept.departmentAlias || dept.departmentName;
+                            if (!departmentMap.has(deptKey)) {
+                                departmentMap.set(deptKey, {
+                                    department: dept.departmentAlias || dept.departmentName,
+                                    departmentName: dept.departmentName,
+                                    departmentAlias: dept.departmentAlias,
+                                    percentCompleted: 0,
+                                    percentBudgetContracted: 0,
+                                    percentContractSumPaid: 0,
+                                    percentAbsorptionRate: 0,
+                                    allocatedBudget: 0,
+                                    contractSum: 0,
+                                    amountPaid: 0,
+                                    numProjects: 0
+                                });
+                            }
+                            
+                            const existing = departmentMap.get(deptKey);
+                            existing.numProjects += dept.numProjects || 0;
+                            existing.allocatedBudget += parseFloat(dept.allocatedBudget) || 0;
+                            existing.contractSum += parseFloat(dept.contractSum) || 0;
+                            existing.amountPaid += parseFloat(dept.amountPaid) || 0;
+                            
+                            // Recalculate percentages based on aggregated values
+                            if (existing.numProjects > 0) {
+                                // Note: percentCompleted calculation would need project-level data
+                                // For now, we'll use weighted average or keep the latest value
+                                existing.percentCompleted = dept.percentCompleted || 0;
+                            }
+                            if (existing.contractSum > 0) {
+                                existing.percentContractSumPaid = (existing.amountPaid / existing.contractSum) * 100;
+                                existing.percentAbsorptionRate = (existing.amountPaid / existing.contractSum) * 100;
+                            }
+                            existing.percentBudgetContracted = dept.percentBudgetContracted || 100.0;
+                        });
+                    } catch (error) {
+                        console.error(`Error fetching data for status "${originalStatus}":`, error);
+                        // Continue with other statuses even if one fails
+                    }
+                }
+                
+                // Convert Map to array
+                return Array.from(departmentMap.values());
+            } else {
+                // Not a normalized status, use normal filtering
+                const response = await reportsService.getDepartmentSummaryReport(filters);
+                return response.map(dept => ({
+                    department: dept.departmentAlias || dept.departmentName,
+                    departmentName: dept.departmentName,
+                    departmentAlias: dept.departmentAlias,
+                    percentCompleted: dept.percentCompleted || 0,
+                    percentBudgetContracted: dept.percentBudgetContracted || 0,
+                    percentContractSumPaid: dept.percentContractSumPaid || 0,
+                    percentAbsorptionRate: dept.percentAbsorptionRate || 0,
+                    allocatedBudget: dept.allocatedBudget || 0,
+                    contractSum: dept.contractSum || 0,
+                    amountPaid: dept.amountPaid || 0,
+                    numProjects: dept.numProjects || 0
+                }));
+            }
         } catch (error) {
             console.error('Error fetching project progress data:', error);
             return [];
@@ -657,22 +754,26 @@ const ReportingView = () => {
         </Box>
     );
 
-    // KPI Cards Component
+    // Enhanced KPI Cards Component - More Compact and Space-Efficient
     const KPICard = ({ title, value, icon, color, subtitle, progress }) => (
         <Card sx={{ 
-            height: '75px',
-            borderRadius: '6px',
+            height: '100%',
+            minHeight: '90px',
+            borderRadius: '8px',
             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-            border: '1px solid rgba(255,255,255,0.2)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            border: `1px solid ${color}20`,
             backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
             position: 'relative',
             overflow: 'hidden',
             '&:hover': {
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                boxShadow: `0 6px 24px ${color}25`,
                 border: `1px solid ${color}40`,
-                transform: 'translateY(-2px)'
+                transform: 'translateY(-3px)',
+                '& .kpi-icon': {
+                    transform: 'scale(1.1) rotate(5deg)'
+                }
             },
             '&::before': {
                 content: '""',
@@ -680,71 +781,112 @@ const ReportingView = () => {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: '2px',
-                background: `linear-gradient(90deg, ${color}, ${color}dd)`,
-                borderRadius: '6px 6px 0 0'
+                height: '3px',
+                background: `linear-gradient(90deg, ${color}, ${color}dd, ${color}aa)`,
+                borderRadius: '8px 8px 0 0'
             }
         }}>
-            <CardContent sx={{ p: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.25 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.75)', fontSize: '0.65rem' }}>
-                        {title}
-                    </Typography>
+            <CardContent sx={{ p: 1.25, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="caption" sx={{ 
+                            fontWeight: 600, 
+                            color: 'rgba(0, 0, 0, 0.7)', 
+                            fontSize: '0.7rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            display: 'block',
+                            mb: 0.25
+                        }}>
+                            {title}
+                        </Typography>
+                        <Typography variant="h5" sx={{ 
+                            fontWeight: 'bold', 
+                            color: color, 
+                            fontSize: '1.5rem', 
+                            lineHeight: 1.2,
+                            mb: 0
+                        }}>
+                            {value}
+                        </Typography>
+                    </Box>
                     <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
                         backgroundColor: `${color}15`,
                         color: color,
+                        transition: 'all 0.25s ease',
+                        flexShrink: 0,
+                        ml: 1,
                         '& svg': {
-                            fontSize: '0.9rem'
+                            fontSize: '1.1rem'
                         }
-                    }}>
+                    }} className="kpi-icon">
                         {icon}
                     </Box>
                 </Box>
-                <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.9)', mb: 0, fontSize: '1.1rem', lineHeight: 1.2 }}>
-                        {value}
+                {subtitle && (
+                    <Typography variant="caption" sx={{ 
+                        color: 'rgba(0, 0, 0, 0.55)', 
+                        fontSize: '0.65rem', 
+                        display: 'block',
+                        mt: 0.25,
+                        lineHeight: 1.3
+                    }}>
+                        {subtitle}
                     </Typography>
-                    {subtitle && (
-                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: '0.6rem', display: 'block', mt: 0.25 }}>
-                            {subtitle}
-                        </Typography>
-                    )}
-                    {progress !== undefined && (
+                )}
+                {progress !== undefined && (
+                    <Box sx={{ 
+                        mt: 0.75, 
+                        height: 4, 
+                        borderRadius: 2,
+                        backgroundColor: 'rgba(0,0,0,0.08)',
+                        overflow: 'hidden',
+                        position: 'relative'
+                    }}>
                         <Box sx={{ 
-                            mt: 0.5, 
-                            height: 3, 
-                            borderRadius: 1.5,
-                            backgroundColor: 'rgba(0,0,0,0.08)',
-                            overflow: 'hidden'
-                        }}>
-                            <Box sx={{ 
-                                height: '100%', 
-                                width: `${Math.min(progress, 100)}%`, 
-                                backgroundColor: color,
-                                borderRadius: 1.5,
-                                transition: 'width 0.3s ease'
-                            }} />
-                        </Box>
-                    )}
-                </Box>
+                            height: '100%', 
+                            width: `${Math.min(progress, 100)}%`, 
+                            background: `linear-gradient(90deg, ${color}, ${color}dd)`,
+                            borderRadius: 2,
+                            transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: `0 0 8px ${color}40`
+                        }} />
+                    </Box>
+                )}
             </CardContent>
         </Card>
     );
 
     // Calculate KPIs from dashboard data
-    // Calculate totalProjects from filtered department data to reflect filters/search
-    const totalProjects = dashboardData.projectProgress.reduce((sum, dept) => sum + (dept.numProjects || 0), 0);
+    // Calculate totalProjects from status distribution to match "Project Count Distribution by Status"
+    // This ensures consistency across the dashboard
+    const totalProjects = dashboardData.projectStatus.reduce((sum, item) => sum + (item.value || 0), 0);
     const completedProjects = dashboardData.projectStatus.find(item => item.name === 'Completed')?.value || 0;
     const inProgressProjects = dashboardData.projectStatus.find(item => item.name === 'Ongoing')?.value || 0;
-    const atRiskProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
     const completionRate = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
-    const totalBudget = dashboardData.budgetAllocation.reduce((sum, item) => sum + item.value, 0);
+    
+    // Calculate total budget from budgetAllocation, fallback to allocatedBudget from projectProgress
+    let totalBudget = 0;
+    if (dashboardData.budgetAllocation && Array.isArray(dashboardData.budgetAllocation) && dashboardData.budgetAllocation.length > 0) {
+        totalBudget = dashboardData.budgetAllocation.reduce((sum, item) => {
+            const value = parseFloat(item?.value) || 0;
+            return sum + (isNaN(value) ? 0 : value);
+        }, 0);
+    }
+    
+    // Fallback to allocatedBudget from projectProgress if budgetAllocation is empty or invalid
+    if (totalBudget === 0 && dashboardData.projectProgress && Array.isArray(dashboardData.projectProgress) && dashboardData.projectProgress.length > 0) {
+        totalBudget = dashboardData.projectProgress.reduce((sum, dept) => {
+            const value = parseFloat(dept?.allocatedBudget) || 0;
+            return sum + (isNaN(value) ? 0 : value);
+        }, 0);
+    }
     const budgetFormatted = totalBudget >= 1000000 ? `${(totalBudget / 1000000).toFixed(1)}M` : `${(totalBudget / 1000).toFixed(0)}K`;
 
     // Calculate financial summary from department data
@@ -759,12 +901,16 @@ const ReportingView = () => {
     });
     
     const formatCurrency = (amount) => {
-        if (amount >= 1000000) {
-            return `KSh ${(amount / 1000000).toFixed(1)}M`;
-        } else if (amount >= 1000) {
-            return `KSh ${(amount / 1000).toFixed(0)}K`;
+        const numAmount = parseFloat(amount) || 0;
+        if (isNaN(numAmount) || numAmount === 0) {
+            return 'KSh 0';
+        }
+        if (numAmount >= 1000000) {
+            return `KSh ${(numAmount / 1000000).toFixed(1)}M`;
+        } else if (numAmount >= 1000) {
+            return `KSh ${(numAmount / 1000).toFixed(0)}K`;
         } else {
-            return `KSh ${amount.toLocaleString()}`;
+            return `KSh ${numAmount.toLocaleString()}`;
         }
     };
 
@@ -787,9 +933,12 @@ const ReportingView = () => {
         averageProgress: averageProgress
     });
     const totalDepartments = dashboardData.projectProgress.length;
-    const delayedProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
+    const delayedProjects = 0; // Delayed projects - can be calculated from other statuses if needed
     const stalledProjects = dashboardData.projectStatus.find(item => item.name === 'Stalled')?.value || 0;
-    const healthScore = totalProjects > 0 ? Math.round(((completedProjects + inProgressProjects) / totalProjects) * 100) : 0;
+    const suspendedProjects = dashboardData.projectStatus.find(item => item.name === 'Suspended')?.value || 0;
+    // Health Score: percentage of projects that are either completed or ongoing (capped at 100%)
+    const healthScoreRaw = totalProjects > 0 ? Math.round(((completedProjects + inProgressProjects) / totalProjects) * 100) : 0;
+    const healthScore = Math.min(healthScoreRaw, 100); // Cap at 100%
 
     if (isLoading) {
         return (
@@ -1098,299 +1247,453 @@ const ReportingView = () => {
                     <>
                     {activeTab === 0 && (
                         <Grid container spacing={1}>
-                            {/* Overview Tab - Key Metrics Only */}
+                            {/* Enhanced Overview Tab Layout */}
                             
-                            {/* Project Status Summary */}
-                            <Grid item xs={12} md={6}>
+                            {/* Top Row: KPI Cards - 2x2 Grid */}
+                            <Grid item xs={12}>
+                                <Fade in timeout={1000}>
+                                    <Box>
+                                        {/* Row 1: Total Projects and Total Contracted */}
+                                        <Grid container spacing={1} sx={{ mb: 1 }}>
+                                            <Grid item xs={12} sm={6}>
+                                                <KPICard
+                                                    title="Total Projects"
+                                                    value={totalProjects}
+                                                    icon={<Assessment />}
+                                                    color="#1976d2"
+                                                    subtitle="Across all departments"
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <KPICard
+                                                    title="Total Contracted"
+                                                    value={formatCurrency(financialSummary.totalContracted)}
+                                                    icon={<Business />}
+                                                    color="#1976d2"
+                                                    subtitle="Contract sum"
+                                                />
+                                            </Grid>
+                                        </Grid>
+                                        {/* Row 2: Total Paid and Budget Utilization */}
+                                        <Grid container spacing={1}>
+                                            <Grid item xs={12} sm={6}>
+                                                <KPICard
+                                                    title="Total Paid"
+                                                    value={formatCurrency(financialSummary.totalPaid)}
+                                                    icon={<CheckCircle />}
+                                                    color="#4caf50"
+                                                    subtitle="Amount disbursed"
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <KPICard
+                                                    title="Budget Utilization"
+                                                    value={`${financialSummary.absorptionRate.toFixed(2)}%`}
+                                                    icon={<AttachMoney />}
+                                                    color="#ff9800"
+                                                    subtitle="Absorption rate"
+                                                    progress={financialSummary.absorptionRate}
+                                                />
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                </Fade>
+                            </Grid>
+
+                            {/* Middle Row: Chart (Left) + Status Count & Performance Metrics (Right) */}
+                            <Grid item xs={12} md={8}>
                                 <Fade in timeout={1200}>
-                                <Card sx={{ 
-                                    height: '280px',
-                                    borderRadius: '8px',
-                                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    position: 'relative',
-                                    overflow: 'visible',
-                                    '&:hover': {
-                                        boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
-                                        transform: 'translateY(-2px)',
-                                        border: '1px solid rgba(25, 118, 210, 0.3)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                                    },
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '3px',
-                                        background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
-                                        borderRadius: '8px 8px 0 0'
-                                    }
-                                }}>
-                                    <CardHeader
-                                        title={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <PieChart sx={{ color: 'primary.main', fontSize: '0.875rem' }} />
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
-                                                    Project Status Overview
-                                                </Typography>
-                                            </Box>
+                                    <Card sx={{ 
+                                        height: '480px',
+                                        borderRadius: '8px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'visible',
+                                        '&:hover': {
+                                            boxShadow: '0 12px 40px rgba(25, 118, 210, 0.15)',
+                                            transform: 'translateY(-2px)',
+                                            border: '1px solid rgba(25, 118, 210, 0.3)',
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                            borderRadius: '8px 8px 0 0'
                                         }
-                                        sx={{ pb: 0.25, px: 1, pt: 0.75 }}
-                                    />
-                                    <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0 }}>
-                                        <Box sx={{ 
-                                            height: '250px', 
-                                            minWidth: { xs: '280px', sm: '300px' },
-                                            overflow: 'visible'
-                                        }}>
-                                        {dashboardData.projectStatus.length > 0 ? (
-                                            <CircularChart
-                                                title=""
-                                                data={dashboardData.projectStatus}
-                                                type="donut"
-                                            />
-                                        ) : (
-                                            renderNoDataCard("Project Status")
-                                        )}
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <PieChart sx={{ color: 'primary.main', fontSize: '0.875rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
+                                                        Project Status Distribution
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
+                                        />
+                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0, pb: 1 }}>
+                                            <Box sx={{ 
+                                                height: '440px', 
+                                                minWidth: { xs: '280px', sm: '300px' },
+                                                overflow: 'visible'
+                                            }}>
+                                                {dashboardData.projectStatus.length > 0 ? (
+                                                    <CircularChart
+                                                        title=""
+                                                        data={dashboardData.projectStatus}
+                                                        type="donut"
+                                                    />
+                                                ) : (
+                                                    renderNoDataCard("Project Status")
+                                                )}
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            </Grid>
+
+                            {/* Right Column: Status Count & Performance Metrics */}
+                            <Grid item xs={12} md={4}>
+                                <Fade in timeout={1400}>
+                                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, height: '480px' }}>
+                                    {/* Project Count Distribution by Status */}
+                                    <Card sx={{ 
+                                        borderRadius: '8px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        flex: { xs: '1 1 auto', md: '1 1 60%' },
+                                        minHeight: 0,
+                                        width: { xs: '100%', md: '60%' },
+                                        '&:hover': {
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(25, 118, 210, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '2px',
+                                            background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                            borderRadius: '8px 8px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <FilterList sx={{ color: 'primary.main', fontSize: '0.85rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.7rem' }}>
+                                                        Project Count by Status
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.4, px: 0.75, pt: 0.6 }}
+                                        />
+                                        <CardContent sx={{ p: 1, pt: 0, pb: 1, height: '100%', overflow: 'auto' }}>
+                                            <Box sx={{ 
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 0.6,
+                                                width: '100%'
+                                            }}>
+                                                {dashboardData.projectStatus
+                                                    .filter(statusItem => statusItem.name !== 'Stalled' && statusItem.name !== 'Suspended')
+                                                    .map((statusItem) => {
+                                                    const isActive = filters.projectStatus === statusItem.name || filters.status === statusItem.name;
+                                                    const statusColor = getProjectStatusBackgroundColor(statusItem.name);
+                                                    const totalProjects = dashboardData.projectStatus.reduce((sum, item) => sum + (item.value || 0), 0);
+                                                    const percentage = totalProjects > 0 ? ((statusItem.value || 0) / totalProjects * 100).toFixed(1) : 0;
+                                                    
+                                                    return (
+                                                        <Box
+                                                            key={statusItem.name}
+                                                            onClick={() => {
+                                                                if (isActive) {
+                                                                    handleFilterChange('projectStatus', '');
+                                                                    handleFilterChange('status', '');
+                                                                } else {
+                                                                    handleFilterChange('projectStatus', statusItem.name);
+                                                                    handleFilterChange('status', statusItem.name);
+                                                                }
+                                                            }}
+                                                            sx={{
+                                                                p: 1,
+                                                                borderRadius: '6px',
+                                                                background: isActive 
+                                                                    ? `linear-gradient(135deg, ${statusColor}, ${statusColor}dd)`
+                                                                    : `linear-gradient(135deg, ${statusColor}12, ${statusColor}08)`,
+                                                                border: `2px solid ${isActive ? statusColor : `${statusColor}35`}`,
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                                position: 'relative',
+                                                                overflow: 'hidden',
+                                                                display: 'flex',
+                                                                justifyContent: 'space-between',
+                                                                alignItems: 'center',
+                                                                minHeight: '50px',
+                                                                '&:hover': {
+                                                                    transform: 'translateX(4px)',
+                                                                    boxShadow: `0 4px 12px ${statusColor}40`,
+                                                                    border: `2px solid ${statusColor}`,
+                                                                    background: `linear-gradient(135deg, ${statusColor}20, ${statusColor}15)`,
+                                                                },
+                                                                '&::before': {
+                                                                    content: '""',
+                                                                    position: 'absolute',
+                                                                    left: 0,
+                                                                    top: 0,
+                                                                    bottom: 0,
+                                                                    width: '3px',
+                                                                    background: `linear-gradient(180deg, ${statusColor}, ${statusColor}dd)`,
+                                                                    opacity: isActive ? 1 : 0.5,
+                                                                    transition: 'opacity 0.2s ease'
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, ml: 0.5 }}>
+                                                                <Typography 
+                                                                    variant="body2" 
+                                                                    sx={{ 
+                                                                        color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(0, 0, 0, 0.75)', 
+                                                                        fontSize: '0.7rem', 
+                                                                        fontWeight: 700,
+                                                                        textTransform: 'uppercase',
+                                                                        letterSpacing: '0.5px',
+                                                                        textShadow: isActive ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
+                                                                        mb: 0.25
+                                                                    }}
+                                                                >
+                                                                    {statusItem.name}
+                                                                </Typography>
+                                                                <Typography 
+                                                                    variant="caption" 
+                                                                    sx={{ 
+                                                                        color: isActive ? 'rgba(255,255,255,0.8)' : 'rgba(0, 0, 0, 0.55)', 
+                                                                        fontSize: '0.65rem', 
+                                                                        fontWeight: 600,
+                                                                        textShadow: isActive ? '0 1px 2px rgba(0,0,0,0.2)' : 'none'
+                                                                    }}
+                                                                >
+                                                                    {percentage}% of total
+                                                                </Typography>
+                                                            </Box>
+                                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', mr: 0.5 }}>
+                                                                <Typography 
+                                                                    variant="h5" 
+                                                                    sx={{ 
+                                                                        fontWeight: 'bold', 
+                                                                        color: isActive ? 'white' : statusColor, 
+                                                                        fontSize: '1.5rem',
+                                                                        textShadow: isActive ? '0 2px 4px rgba(0,0,0,0.2)' : 'none',
+                                                                        lineHeight: 1
+                                                                    }}
+                                                                >
+                                                                    {statusItem.value || 0}
+                                                                </Typography>
+                                                                {isActive && (
+                                                                    <Chip 
+                                                                        label="Active" 
+                                                                        size="small" 
+                                                                        sx={{ 
+                                                                            height: '16px',
+                                                                            fontSize: '0.6rem',
+                                                                            backgroundColor: 'rgba(255,255,255,0.25)',
+                                                                            color: 'white',
+                                                                            fontWeight: 700,
+                                                                            border: '1px solid rgba(255,255,255,0.3)',
+                                                                            mt: 0.25,
+                                                                            '& .MuiChip-label': { px: 0.5, py: 0 }
+                                                                        }} 
+                                                                    />
+                                                                )}
+                                                            </Box>
+                                                        </Box>
+                                                    );
+                                                })}
+                                            </Box>
+                                            <Typography 
+                                                variant="caption" 
+                                                sx={{ 
+                                                    color: 'rgba(0, 0, 0, 0.5)', 
+                                                    fontSize: '0.6rem', 
+                                                    display: 'block', 
+                                                    mt: 1, 
+                                                    textAlign: 'center',
+                                                    fontStyle: 'italic'
+                                                }}
+                                            >
+                                                Click status to filter
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                    
+                                    {/* Performance Metrics */}
+                                    <Card sx={{ 
+                                        borderRadius: '8px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        flex: { xs: '1 1 auto', md: '1 1 40%' },
+                                        minHeight: 0,
+                                        width: { xs: '100%', md: '40%' },
+                                        '&:hover': {
+                                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(33, 150, 243, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '2px',
+                                            background: 'linear-gradient(90deg, #2196f3, #42a5f5)',
+                                            borderRadius: '8px 8px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Speed sx={{ color: 'info.main', fontSize: '0.9rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.75rem' }}>
+                                                        Performance Metrics
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.1, px: 0.75, pt: 0.5 }}
+                                        />
+                                        <CardContent sx={{ flexGrow: 1, p: 0.5, pt: 0, height: '100%', overflow: 'auto' }}>
+                                            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 0.5, justifyContent: 'flex-start' }}>
+                                                {/* Completion Rate */}
+                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: '6px' }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.4 }}>
+                                                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                            Completion Rate
+                                                        </Typography>
+                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '1.1rem' }}>
+                                                            {completionRate}%
+                                                        </Typography>
+                                                    </Box>
+                                                    <LinearProgress 
+                                                        variant="determinate" 
+                                                        value={completionRate} 
+                                                        sx={{ 
+                                                            height: 6, 
+                                                            borderRadius: 3,
+                                                            backgroundColor: 'rgba(76, 175, 80, 0.15)',
+                                                            '& .MuiLinearProgress-bar': {
+                                                                backgroundColor: '#4caf50',
+                                                                borderRadius: 3
+                                                            }
+                                                        }} 
+                                                    />
+                                                </Box>
+
+                                                {/* Health Score */}
+                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(33, 150, 243, 0.08)', borderRadius: '6px' }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.4 }}>
+                                                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                            Health Score
+                                                        </Typography>
+                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1565c0', fontSize: '1.1rem' }}>
+                                                            {healthScore}%
+                                                        </Typography>
+                                                    </Box>
+                                                    <LinearProgress 
+                                                        variant="determinate" 
+                                                        value={healthScore} 
+                                                        sx={{ 
+                                                            height: 6, 
+                                                            borderRadius: 3,
+                                                            backgroundColor: 'rgba(33, 150, 243, 0.15)',
+                                                            '& .MuiLinearProgress-bar': {
+                                                                backgroundColor: '#2196f3',
+                                                                borderRadius: 3
+                                                            }
+                                                        }} 
+                                                    />
+                                                </Box>
+
+                                                {/* Average Progress */}
+                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: '6px' }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.4 }}>
+                                                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                            Average Progress
+                                                        </Typography>
+                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e65100', fontSize: '1.1rem' }}>
+                                                            {averageProgress}%
+                                                        </Typography>
+                                                    </Box>
+                                                    <LinearProgress 
+                                                        variant="determinate" 
+                                                        value={averageProgress} 
+                                                        sx={{ 
+                                                            height: 6, 
+                                                            borderRadius: 3,
+                                                            backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                                                            '& .MuiLinearProgress-bar': {
+                                                                backgroundColor: '#ff9800',
+                                                                borderRadius: 3
+                                                            }
+                                                        }} 
+                                                    />
+                                                </Box>
+
+                                                {/* Issues Summary - Compact */}
+                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(244, 67, 54, 0.05)', borderRadius: '6px', border: '1px solid rgba(244, 67, 54, 0.1)' }}>
+                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600, mb: 0.5, display: 'block' }}>
+                                                        Issues Summary
+                                                    </Typography>
+                                                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
+                                                        <Box sx={{ textAlign: 'center', p: 0.5, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '4px' }}>
+                                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.15, fontSize: '1rem' }}>
+                                                                {stalledProjects}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.6rem', fontWeight: 500 }}>
+                                                                Stalled
+                                                            </Typography>
+                                                        </Box>
+                                                        <Box sx={{ textAlign: 'center', p: 0.5, bgcolor: 'rgba(233, 30, 99, 0.1)', borderRadius: '4px' }}>
+                                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#c2185b', mb: 0.15, fontSize: '1rem' }}>
+                                                                {suspendedProjects}
+                                                            </Typography>
+                                                            <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.6rem', fontWeight: 500 }}>
+                                                                Suspended
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
                                     </Box>
-                                </CardContent>
-                            </Card>
-                            </Fade>
-                        </Grid>
+                                </Fade>
+                            </Grid>
 
-                        {/* Key Performance Indicators */}
-                        <Grid item xs={12} md={6}>
-                            <Fade in timeout={1400}>
-                                <Box sx={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
-                                    gap: 0.5, 
-                                    height: '240px',
-                                    justifyContent: 'flex-start'
-                                }}>
-                                    <KPICard
-                                        title="Number of Projects"
-                                        value={totalProjects}
-                                        icon={<Assessment />}
-                                        color="#1976d2"
-                                        subtitle="Total projects across all departments"
-                                    />
-                                    <KPICard
-                                        title="Total Departments"
-                                        value={dashboardData.projectProgress.length}
-                                        icon={<Business />}
-                                        color="#4caf50"
-                                        subtitle="Departments with active projects"
-                                    />
-                                    <KPICard
-                                        title="Budget Utilization"
-                                        value={`${financialSummary.absorptionRate.toFixed(2)}%`}
-                                        icon={<AttachMoney />}
-                                        color="#ff9800"
-                                        subtitle="Total budget utilized"
-                                        progress={financialSummary.absorptionRate}
-                                    />
-                                </Box>
-                            </Fade>
-                        </Grid>
-
-                        {/* Project Performance Metrics */}
-                        <Grid item xs={12} md={6}>
-                            <Fade in timeout={1600}>
-                                <Card sx={{ 
-                                    height: '240px',
-                                    borderRadius: '6px',
-                                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    '&:hover': {
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                                        border: '1px solid rgba(33, 150, 243, 0.2)'
-                                    },
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '2px',
-                                        background: 'linear-gradient(90deg, #2196f3, #42a5f5)',
-                                        borderRadius: '6px 6px 0 0'
-                                    }
-                                }}>
-                                    <CardHeader
-                                        title={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <Speed sx={{ color: 'info.main', fontSize: '0.9rem' }} />
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.75rem' }}>
-                                                    Performance Metrics
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        sx={{ pb: 0.15, px: 0.75, pt: 0.5 }}
-                                    />
-                                    <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0 }}>
-                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                                            {/* Completion Rate */}
-                                            <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: '6px' }}>
-                                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#2e7d32', mb: 0.25, fontSize: '1rem' }}>
-                                                    {completionRate}%
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', display: 'block', mb: 0.5, fontWeight: 500 }}>
-                                                    Completion Rate
-                                                </Typography>
-                                                <LinearProgress 
-                                                    variant="determinate" 
-                                                    value={completionRate} 
-                                                    sx={{ 
-                                                        height: 3, 
-                                                        borderRadius: 1.5,
-                                                        backgroundColor: 'rgba(76, 175, 80, 0.15)',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            backgroundColor: '#4caf50',
-                                                            borderRadius: 1.5
-                                                        }
-                                                    }} 
-                                                />
-                                            </Box>
-
-                                            {/* Health Score */}
-                                            <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(33, 150, 243, 0.08)', borderRadius: '6px' }}>
-                                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1565c0', mb: 0.25, fontSize: '1rem' }}>
-                                                    {healthScore}%
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', display: 'block', mb: 0.5, fontWeight: 500 }}>
-                                                    Health Score
-                                                </Typography>
-                                                <LinearProgress 
-                                                    variant="determinate" 
-                                                    value={healthScore} 
-                                                    sx={{ 
-                                                        height: 3, 
-                                                        borderRadius: 1.5,
-                                                        backgroundColor: 'rgba(33, 150, 243, 0.15)',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            backgroundColor: '#2196f3',
-                                                            borderRadius: 1.5
-                                                        }
-                                                    }} 
-                                                />
-                                            </Box>
-
-                                            {/* Average Progress */}
-                                            <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: '6px' }}>
-                                                <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.25, fontSize: '1rem' }}>
-                                                    {averageProgress}%
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', display: 'block', mb: 0.5, fontWeight: 500 }}>
-                                                    Average Progress
-                                                </Typography>
-                                                <LinearProgress 
-                                                    variant="determinate" 
-                                                    value={averageProgress} 
-                                                    sx={{ 
-                                                        height: 3, 
-                                                        borderRadius: 1.5,
-                                                        backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            backgroundColor: '#ff9800',
-                                                            borderRadius: 1.5
-                                                        }
-                                                    }} 
-                                                />
-                                            </Box>
-                                    </Box>
-                                </CardContent>
-                            </Card>
-                            </Fade>
-                        </Grid>
-
-                        {/* Issues Summary */}
-                        <Grid item xs={12} md={6}>
-                            <Fade in timeout={1800}>
-                                <Card sx={{ 
-                                    height: '240px',
-                                    borderRadius: '6px',
-                                    background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                    boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    backdropFilter: 'blur(10px)',
-                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    '&:hover': {
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                                        border: '1px solid rgba(255, 152, 0, 0.2)'
-                                    },
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        height: '2px',
-                                        background: 'linear-gradient(90deg, #ff9800, #ffb74d)',
-                                        borderRadius: '6px 6px 0 0'
-                                    }
-                                }}>
-                                    <CardHeader
-                                        title={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                <TrendingDown sx={{ color: 'warning.main', fontSize: '0.9rem' }} />
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.75rem' }}>
-                                                    Issues Summary
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        sx={{ pb: 0.15, px: 0.75, pt: 0.5 }}
-                                    />
-                                    <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0 }}>
-                                        <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1 }}>
-                                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0.75 }}>
-                                                <Box sx={{ textAlign: 'center', p: 1.25, bgcolor: 'rgba(244, 67, 54, 0.08)', borderRadius: '6px' }}>
-                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#c62828', mb: 0.25, fontSize: '1.1rem' }}>
-                                                        {delayedProjects}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 500 }}>
-                                                        Delayed
-                                                    </Typography>
-                                                </Box>
-                                                <Box sx={{ textAlign: 'center', p: 1.25, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: '6px' }}>
-                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.25, fontSize: '1.1rem' }}>
-                                                        {stalledProjects}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 500 }}>
-                                                        Stalled
-                                                    </Typography>
-                                                </Box>
-                                                <Box sx={{ textAlign: 'center', p: 1.25, bgcolor: 'rgba(233, 30, 99, 0.08)', borderRadius: '6px' }}>
-                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#c2185b', mb: 0.25, fontSize: '1.1rem' }}>
-                                                        {atRiskProjects}
-                                                    </Typography>
-                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 500 }}>
-                                                        At Risk
-                                                    </Typography>
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                    </CardContent>
-                                </Card>
-                            </Fade>
-                        </Grid>
-                        
                         {/* Visual Separator */}
                         <Grid item xs={12}>
                             <Box sx={{ 
-                                mt: 2.5, 
-                                mb: 1.5,
+                                mt: 1, 
+                                mb: 1,
                                 position: 'relative',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -2056,10 +2359,10 @@ const ReportingView = () => {
                                         </Box>
                                         <Box sx={{ textAlign: 'center' }}>
                                                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ff9800', fontSize: '1.1rem' }}>
-                                                            {Math.round((delayedProjects + stalledProjects) / totalProjects * 100)}%
+                                                            {Math.round((stalledProjects + suspendedProjects) / totalProjects * 100)}%
                                             </Typography>
                                             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            Delayed Projects
+                                                            Issues (Stalled + Suspended)
                                             </Typography>
                                         </Box>
                                     </Box>
@@ -2099,15 +2402,7 @@ const ReportingView = () => {
                                         </Typography>
                                         <TrendingDown sx={{ color: '#ff9800', fontSize: '1.2rem' }} />
                                     </Box>
-                                                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
-                                        <Box sx={{ textAlign: 'center' }}>
-                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#f44336', fontSize: '1.1rem' }}>
-                                                {delayedProjects}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                Delayed
-                                            </Typography>
-                                        </Box>
+                                                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
                                         <Box sx={{ textAlign: 'center' }}>
                                             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#ff9800', fontSize: '1.1rem' }}>
                                                 {stalledProjects}
@@ -2116,14 +2411,14 @@ const ReportingView = () => {
                                                 Stalled
                                             </Typography>
                                         </Box>
-                                                    <Box sx={{ textAlign: 'center' }}>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e91e63', fontSize: '1.1rem' }}>
-                                                            {atRiskProjects}
-                                                        </Typography>
-                                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                            At Risk
-                                                        </Typography>
-                                                    </Box>
+                                        <Box sx={{ textAlign: 'center' }}>
+                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e91e63', fontSize: '1.1rem' }}>
+                                                {suspendedProjects}
+                                            </Typography>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                                                Suspended
+                                            </Typography>
+                                        </Box>
                                     </Box>
                                 </CardContent>
                             </Card>
@@ -2298,7 +2593,7 @@ const ReportingView = () => {
                             {/* Annual Trends Tab Content */}
                             
                             {/* Project Performance Overview */}
-                            <Grid item xs={12}>
+                            <Grid item xs={12} md={8}>
                                 <Fade in timeout={2000}>
                                     <Card sx={{ 
                                         height: '400px',
@@ -2330,14 +2625,14 @@ const ReportingView = () => {
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                                     <ShowChart sx={{ color: 'primary.main', fontSize: '1rem' }} />
                                                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
-                                                        Project Performance Trends ({trendsData.yearRange.start}-{trendsData.yearRange.end})
+                                                        Project Performance Trends ({trendsData.yearRange.start || 'N/A'}-{trendsData.yearRange.end || 'N/A'})
                                                     </Typography>
                                                 </Box>
                                             }
                                             sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
                                         <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
-                                            <Box sx={{ height: '340px', minWidth: '900px' }}>
+                                            <Box sx={{ height: '340px', minWidth: '600px' }}>
                                                 {trendsData.projectPerformance.length > 0 ? (
                                                     <LineBarComboChart
                                                         title=""
@@ -2350,66 +2645,6 @@ const ReportingView = () => {
                                                     />
                                                 ) : (
                                                     renderNoDataCard("Project Performance Trends")
-                                                )}
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </Fade>
-                            </Grid>
-
-                            {/* Financial Performance Trends */}
-                            <Grid item xs={12} md={8}>
-                                <Fade in timeout={2200}>
-                                    <Card sx={{ 
-                                        height: '400px',
-                                        borderRadius: '8px',
-                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        backdropFilter: 'blur(10px)',
-                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        '&:hover': {
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(76, 175, 80, 0.2)'
-                                        },
-                                        '&::before': {
-                                            content: '""',
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
-                                            borderRadius: '8px 8px 0 0'
-                                        }
-                                    }}>
-                                        <CardHeader
-                                            title={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1rem' }} />
-                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
-                                                        Financial Performance Trends
-                                                    </Typography>
-                                                </Box>
-                                            }
-                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
-                                        />
-                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
-                                            <Box sx={{ height: '340px', minWidth: '700px' }}>
-                                                {trendsData.financialTrends.length > 0 ? (
-                                                    <LineBarComboChart
-                                                        title=""
-                                                        data={trendsData.financialTrends}
-                                                        barKeys={['totalBudget', 'totalExpenditure']}
-                                                        lineKeys={['absorptionRate']}
-                                                        xAxisKey="year"
-                                                        yAxisLabelLeft="Budget Amount (KSh)"
-                                                        yAxisLabelRight="Absorption Rate (%)"
-                                                    />
-                                                ) : (
-                                                    renderNoDataCard("Financial Trends")
                                                 )}
                                             </Box>
                                         </CardContent>
@@ -2465,7 +2700,10 @@ const ReportingView = () => {
                                                         {trendsData.projectPerformance.reduce((sum, item) => sum + (item.totalProjects || 0), 0)}
                                                     </Typography>
                                                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                                                        Over 5 years
+                                                        {trendsData.yearRange.start && trendsData.yearRange.end 
+                                                            ? `From ${trendsData.yearRange.start} to ${trendsData.yearRange.end}`
+                                                            : 'All available years'
+                                                        }
                                                     </Typography>
                                                 </Box>
                                             </CardContent>
@@ -2553,7 +2791,7 @@ const ReportingView = () => {
                                                 </Box>
                                                 <Box>
                                                     <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.25, fontSize: '1.25rem' }}>
-                                                        KSh {(trendsData.financialTrends.reduce((sum, item) => sum + (item.totalBudget || 0), 0) / 1000000).toFixed(1)}M
+                                                        {formatCurrency(trendsData.financialTrends.reduce((sum, item) => sum + parseFloat(item.totalBudget || 0), 0))}
                                                     </Typography>
                                                     <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                                         Over 5 years
@@ -2562,6 +2800,66 @@ const ReportingView = () => {
                                             </CardContent>
                                         </Card>
                                     </Box>
+                                </Fade>
+                            </Grid>
+
+                            {/* Financial Performance Trends */}
+                            <Grid item xs={12}>
+                                <Fade in timeout={2200}>
+                                    <Card sx={{ 
+                                        height: '400px',
+                                        borderRadius: '8px',
+                                        background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
+                                        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&:hover': {
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                            border: '1px solid rgba(76, 175, 80, 0.2)'
+                                        },
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '3px',
+                                            background: 'linear-gradient(90deg, #4caf50, #66bb6a, #81c784)',
+                                            borderRadius: '8px 8px 0 0'
+                                        }
+                                    }}>
+                                        <CardHeader
+                                            title={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <AttachMoney sx={{ color: 'success.main', fontSize: '1rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.8125rem' }}>
+                                                        Financial Performance Trends
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            sx={{ pb: 0.25, px: 1, pt: 0.75 }}
+                                        />
+                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
+                                            <Box sx={{ height: '340px', minWidth: '700px' }}>
+                                                {trendsData.financialTrends.length > 0 ? (
+                                                    <LineBarComboChart
+                                                        title=""
+                                                        data={trendsData.financialTrends}
+                                                        barKeys={['totalBudget', 'totalExpenditure']}
+                                                        lineKeys={['absorptionRate']}
+                                                        xAxisKey="year"
+                                                        yAxisLabelLeft="Budget Amount (KSh)"
+                                                        yAxisLabelRight="Absorption Rate (%)"
+                                                    />
+                                                ) : (
+                                                    renderNoDataCard("Financial Trends")
+                                                )}
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
                                 </Fade>
                             </Grid>
 
@@ -2812,6 +3110,7 @@ const ReportingView = () => {
                 open={modalOpen}
                 onClose={handleCloseModal}
                 departmentData={selectedDepartment}
+                statusFilter={filters.projectStatus || filters.status}
             />
 
             {/* Year Projects Modal */}

@@ -9,6 +9,7 @@ import useProjectForm from '../hooks/useProjectForm';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
 import { tokens } from '../pages/dashboard/theme';
 import { DEFAULT_COUNTY } from '../configs/appConfig';
+import { normalizeProjectStatus } from '../utils/projectStatusNormalizer';
 
 const ProjectFormDialog = ({
   open,
@@ -62,9 +63,15 @@ const ProjectFormDialog = ({
     }
   }, [formData.finYearId, open, currentProject, allMetadata]);
 
+  // Use normalized status options for consistency across the application
   const projectStatuses = [
-    'Not Started', 'In Progress', 'Completed', 'On Hold', 'Cancelled',
-    'At Risk', 'Stalled', 'Delayed', 'Closed', 'Planning', 'Initiated'
+    'Completed',
+    'Ongoing',
+    'Not started',
+    'Stalled',
+    'Under Procurement',
+    'Suspended',
+    'Other'
   ];
 
   return (
@@ -310,7 +317,7 @@ const ProjectFormDialog = ({
             <Grid item xs={12} sm={6}>
               <TextField 
                 name="principalInvestigator" 
-                label="Principal Investigator" 
+                label="Project Manager" 
                 type="text" 
                 fullWidth 
                 variant="outlined" 
@@ -344,7 +351,7 @@ const ProjectFormDialog = ({
             <Grid item xs={12} sm={6}>
               <TextField 
                 name="principalInvestigatorStaffId" 
-                label="PI Staff ID" 
+                label="PM Staff ID" 
                 type="number" 
                 fullWidth 
                 variant="outlined" 
@@ -377,7 +384,7 @@ const ProjectFormDialog = ({
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth variant="outlined" size="small">
+              <FormControl fullWidth variant="outlined" size="small" sx={{ minWidth: 180 }}>
                 <InputLabel sx={{ color: colorMode === 'dark' ? colors.grey[100] : colors.grey[200], fontWeight: 'bold' }}>Status</InputLabel>
                 <Select 
                   name="status" 
