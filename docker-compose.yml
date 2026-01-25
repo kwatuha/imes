@@ -3,7 +3,7 @@ services:
   nginx_proxy:
     image: nginx:alpine
     container_name: nginx_proxy
-    restart: unless-stopped
+    restart: always
     ports:
       - "8080:80"
     volumes:
@@ -17,7 +17,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: react_frontend
-    restart: unless-stopped
+    restart: always
     ports:
       - "5175:5173"
     volumes:
@@ -35,7 +35,7 @@ services:
       context: ./public-dashboard
       dockerfile: Dockerfile
     container_name: public_dashboard
-    restart: unless-stopped
+    restart: always
     ports:
       - "5174:5173"
     volumes:
@@ -53,7 +53,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
     container_name: node_api
-    restart: unless-stopped
+    restart: always
     ports:
       - "3000:3000"
     volumes:

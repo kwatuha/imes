@@ -169,9 +169,31 @@ const ReportingView = () => {
                 console.log(`ReportingView - Normalized status "${statusFilter}" maps to original statuses:`, matchingOriginalStatuses);
                 
                 if (matchingOriginalStatuses.length === 0) {
-                    // No matching original statuses found, return empty array
-                    console.warn(`ReportingView - No original statuses found that normalize to "${statusFilter}"`);
-                    return [];
+                    // No matching original statuses found, try using the normalized status directly as fallback
+                    console.warn(`ReportingView - No original statuses found that normalize to "${statusFilter}", trying direct filter as fallback`);
+                    try {
+                        const fallbackFilters = { ...filters };
+                        fallbackFilters.status = statusFilter;
+                        delete fallbackFilters.projectStatus;
+                        const fallbackResponse = await reportsService.getDepartmentSummaryReport(fallbackFilters);
+                        console.log(`ReportingView - Fallback direct filter returned ${fallbackResponse.length} departments`);
+                        return fallbackResponse.map(dept => ({
+                            department: dept.departmentAlias || dept.departmentName,
+                            departmentName: dept.departmentName,
+                            departmentAlias: dept.departmentAlias,
+                            percentCompleted: dept.percentCompleted || 0,
+                            percentBudgetContracted: dept.percentBudgetContracted || 0,
+                            percentContractSumPaid: dept.percentContractSumPaid || 0,
+                            percentAbsorptionRate: dept.percentAbsorptionRate || 0,
+                            allocatedBudget: dept.allocatedBudget || 0,
+                            contractSum: dept.contractSum || 0,
+                            amountPaid: dept.amountPaid || 0,
+                            numProjects: dept.numProjects || 0
+                        }));
+                    } catch (fallbackError) {
+                        console.error(`ReportingView - Fallback filter also failed:`, fallbackError);
+                        return [];
+                    }
                 }
                 
                 // Fetch data for each original status and combine results
@@ -1686,7 +1708,51 @@ const ReportingView = () => {
                                                         Issues Summary
                                                     </Typography>
                                                     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-                                                        <Box sx={{ textAlign: 'center', p: 0.5, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '4px' }}>
+                                                        {/* Stalled - Clickable */}
+                                                        <Box 
+                                                            onClick={() => {
+                                                                const isActive = filters.projectStatus === 'Stalled' || filters.status === 'Stalled';
+                                                                if (isActive) {
+                                                                    handleFilterChange('projectStatus', '');
+                                                                    handleFilterChange('status', '');
+                                                                } else {
+                                                                    handleFilterChange('projectStatus', 'Stalled');
+                                                                    handleFilterChange('status', 'Stalled');
+                                                                }
+                                                            }}
+                                                            sx={{ 
+                                                                textAlign: 'center', 
+                                                                p: 0.5, 
+                                                                bgcolor: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled') 
+                                                                    ? 'rgba(255, 152, 0, 0.25)' 
+                                                                    : 'rgba(255, 152, 0, 0.1)', 
+                                                                borderRadius: '4px',
+                                                                border: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled')
+                                                                    ? '2px solid #e65100'
+                                                                    : '1px solid rgba(255, 152, 0, 0.3)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                                position: 'relative',
+                                                                overflow: 'hidden',
+                                                                '&:hover': {
+                                                                    transform: 'translateY(-2px)',
+                                                                    boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+                                                                    border: '2px solid #e65100',
+                                                                    bgcolor: 'rgba(255, 152, 0, 0.2)',
+                                                                },
+                                                                '&::before': {
+                                                                    content: '""',
+                                                                    position: 'absolute',
+                                                                    left: 0,
+                                                                    top: 0,
+                                                                    bottom: 0,
+                                                                    width: '3px',
+                                                                    background: 'linear-gradient(180deg, #e65100, #ff9800)',
+                                                                    opacity: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled') ? 1 : 0.5,
+                                                                    transition: 'opacity 0.2s ease'
+                                                                }
+                                                            }}
+                                                        >
                                                             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.15, fontSize: '1rem' }}>
                                                                 {stalledProjects}
                                                             </Typography>
@@ -1694,7 +1760,51 @@ const ReportingView = () => {
                                                                 Stalled
                                                             </Typography>
                                                         </Box>
-                                                        <Box sx={{ textAlign: 'center', p: 0.5, bgcolor: 'rgba(233, 30, 99, 0.1)', borderRadius: '4px' }}>
+                                                        {/* Suspended - Clickable */}
+                                                        <Box 
+                                                            onClick={() => {
+                                                                const isActive = filters.projectStatus === 'Suspended' || filters.status === 'Suspended';
+                                                                if (isActive) {
+                                                                    handleFilterChange('projectStatus', '');
+                                                                    handleFilterChange('status', '');
+                                                                } else {
+                                                                    handleFilterChange('projectStatus', 'Suspended');
+                                                                    handleFilterChange('status', 'Suspended');
+                                                                }
+                                                            }}
+                                                            sx={{ 
+                                                                textAlign: 'center', 
+                                                                p: 0.5, 
+                                                                bgcolor: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended')
+                                                                    ? 'rgba(233, 30, 99, 0.25)' 
+                                                                    : 'rgba(233, 30, 99, 0.1)', 
+                                                                borderRadius: '4px',
+                                                                border: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended')
+                                                                    ? '2px solid #c2185b'
+                                                                    : '1px solid rgba(233, 30, 99, 0.3)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                                position: 'relative',
+                                                                overflow: 'hidden',
+                                                                '&:hover': {
+                                                                    transform: 'translateY(-2px)',
+                                                                    boxShadow: '0 4px 12px rgba(233, 30, 99, 0.3)',
+                                                                    border: '2px solid #c2185b',
+                                                                    bgcolor: 'rgba(233, 30, 99, 0.2)',
+                                                                },
+                                                                '&::before': {
+                                                                    content: '""',
+                                                                    position: 'absolute',
+                                                                    left: 0,
+                                                                    top: 0,
+                                                                    bottom: 0,
+                                                                    width: '3px',
+                                                                    background: 'linear-gradient(180deg, #c2185b, #e91e63)',
+                                                                    opacity: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended') ? 1 : 0.5,
+                                                                    transition: 'opacity 0.2s ease'
+                                                                }
+                                                            }}
+                                                        >
                                                             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#c2185b', mb: 0.15, fontSize: '1rem' }}>
                                                                 {suspendedProjects}
                                                             </Typography>
