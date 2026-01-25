@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, CircularProgress, Alert, Button, Paper,
     List, ListItem, ListItemText, IconButton,
     Stack, Chip, Snackbar, LinearProgress,
     Tooltip, Accordion, AccordionSummary, AccordionDetails, useTheme, Grid,
-    Divider, Tabs, Tab, Card, CardContent, CardMedia, Link
+    Divider, Tabs, Tab, Card, CardContent, CardMedia, Link,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
+    InputLabel, Select, FormControl
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
@@ -19,6 +22,7 @@ import {
     Flag as FlagIcon,
     Assessment as AssessmentIcon,
     AccountTree as AccountTreeIcon,
+    Timeline as TimelineIcon,
     Info as InfoIcon,
     AttachMoney as MoneyIcon,
     TrendingUp as TrendingUpIcon,
@@ -30,13 +34,23 @@ import {
     LocationOn as LocationOnIcon,
     Description as DescriptionIcon,
     People as PeopleIcon,
-    CheckCircle as CheckCircleIcon
+    CheckCircle as CheckCircleIcon,
+    Upload as UploadIcon,
+    Download as DownloadIcon,
+    Print as PrintIcon,
+    Group as GroupIcon,
+    Public as PublicIcon,
+    Cancel as CancelIcon,
+    Pending as PendingIcon
 } from '@mui/icons-material';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import ProjectDocumentsAttachments from '../components/ProjectDocumentsAttachments';
 import ProjectMapEditor from '../components/ProjectMapEditor';
 import { getProjectStatusBackgroundColor, getProjectStatusTextColor } from '../utils/projectStatusColors';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Helper function to map milestone activity status to project status colors
 const getMilestoneStatusColors = (status) => {
@@ -55,6 +69,34 @@ const getMilestoneStatusColors = (status) => {
         textColor: getProjectStatusTextColor(mappedStatus)
     };
 };
+
+// Helper function to get public approval status
+const getPublicApprovalStatus = (project) => {
+    if (!project) return null;
+    
+    const isApproved = project.approved_for_public === 1 || project.approved_for_public === true;
+    const needsRevision = project.revision_requested === 1 || project.revision_requested === true;
+    
+    if (isApproved) {
+        return {
+            label: 'Public Approved',
+            color: 'success',
+            icon: <PublicIcon sx={{ fontSize: 14 }} />
+        };
+    }
+    if (needsRevision) {
+        return {
+            label: 'Revision Required',
+            color: 'warning',
+            icon: <CancelIcon sx={{ fontSize: 14 }} />
+        };
+    }
+    return {
+        label: 'Pending Approval',
+        color: 'default',
+        icon: <PendingIcon sx={{ fontSize: 14 }} />
+    };
+};
 import { tokens } from "./dashboard/theme"; // Import tokens for color styling
 import MilestoneAttachments from '../components/MilestoneAttachments.jsx';
 import ProjectMonitoringComponent from '../components/ProjectMonitoringComponent.jsx';
@@ -63,6 +105,7 @@ import AddEditActivityForm from '../components/modals/AddEditActivityForm';
 import AddEditMilestoneModal from '../components/modals/AddEditMilestoneModal';
 import PaymentRequestForm from '../components/PaymentRequestForm';
 import PaymentRequestDocumentUploader from '../components/PaymentRequestDocumentUploader';
+import ProjectGanttChart from '../components/ProjectGanttChart';
 
 const checkUserPrivilege = (user, privilegeName) => {
     return user && user.privileges && Array.isArray(user.privileges) && user.privileges.includes(privilegeName);
@@ -212,6 +255,23 @@ function ProjectDetailsPage() {
     const [loadingContractors, setLoadingContractors] = useState(false);
     const [contractorsError, setContractorsError] = useState(null);
 
+    // NEW: State for Teams
+    const [projectTeams, setProjectTeams] = useState([]);
+    const [loadingTeams, setLoadingTeams] = useState(false);
+    const [teamsError, setTeamsError] = useState(null);
+    const [openTeamDialog, setOpenTeamDialog] = useState(false);
+    const [editingTeam, setEditingTeam] = useState(null);
+    const [teamFormData, setTeamFormData] = useState({
+        teamName: '',
+        name: '',
+        role: '',
+        email: '',
+        phone: '',
+        dateAppointed: '',
+        dateEnded: '',
+        notes: ''
+    });
+
     // NEW: State for Tabs and Photos
     const [activeTab, setActiveTab] = useState(0);
     const [projectPhotos, setProjectPhotos] = useState([]);
@@ -336,6 +396,9 @@ function ProjectDetailsPage() {
             
             // NEW: Fetch contractors
             await fetchProjectContractors();
+            
+            // NEW: Fetch teams
+            await fetchProjectTeams();
 
         } catch (err) {
             console.error('ProjectDetailsPage: Error fetching project details:', err);
@@ -401,6 +464,622 @@ function ProjectDetailsPage() {
             setLoadingContractors(false);
         }
     }, [projectId]);
+
+    // NEW: Function to fetch teams for project
+    const fetchProjectTeams = useCallback(async () => {
+        setLoadingTeams(true);
+        setTeamsError(null);
+        
+        try {
+            // Try API endpoint if it exists
+            if (apiService.projects?.getTeams) {
+                const teams = await apiService.projects.getTeams(projectId);
+                setProjectTeams(teams || []);
+            } else {
+                // Fallback to localStorage for now (until API is implemented)
+                const storedTeams = localStorage.getItem(`project-teams-${projectId}`);
+                if (storedTeams) {
+                    setProjectTeams(JSON.parse(storedTeams));
+                } else {
+                    setProjectTeams([]);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching teams:', err);
+            // Fallback to localStorage on error
+            try {
+                const storedTeams = localStorage.getItem(`project-teams-${projectId}`);
+                if (storedTeams) {
+                    setProjectTeams(JSON.parse(storedTeams));
+                } else {
+                    setProjectTeams([]);
+                }
+            } catch (localErr) {
+                setTeamsError('Failed to load team information.');
+                setProjectTeams([]);
+            }
+        } finally {
+            setLoadingTeams(false);
+        }
+    }, [projectId]);
+
+    // NEW: Team handlers
+    const handleSaveTeam = async () => {
+        try {
+            let updatedTeams = [...projectTeams];
+            
+            if (editingTeam) {
+                // Update existing team member
+                if (apiService.projects?.updateTeamMember) {
+                    await apiService.projects.updateTeamMember(projectId, editingTeam.teamMemberId, teamFormData);
+                }
+                // Update local state
+                const index = updatedTeams.findIndex(t => t.teamMemberId === editingTeam.teamMemberId);
+                if (index !== -1) {
+                    updatedTeams[index] = { ...editingTeam, ...teamFormData };
+                }
+                setSnackbar({ open: true, message: 'Team member updated successfully!', severity: 'success' });
+            } else {
+                // Create new team member
+            const newTeamMember = {
+                teamMemberId: Date.now().toString(), // Temporary ID until API provides one
+                teamName: teamFormData.teamName || teamFormData.role || 'General Team',
+                ...teamFormData,
+                projectId: projectId
+            };
+                
+                if (apiService.projects?.addTeamMember) {
+                    const saved = await apiService.projects.addTeamMember(projectId, teamFormData);
+                    updatedTeams.push(saved || newTeamMember);
+                } else {
+                    updatedTeams.push(newTeamMember);
+                }
+                setSnackbar({ open: true, message: 'Team member added successfully!', severity: 'success' });
+            }
+            
+            // Update state and localStorage
+            setProjectTeams(updatedTeams);
+            localStorage.setItem(`project-teams-${projectId}`, JSON.stringify(updatedTeams));
+            
+            setOpenTeamDialog(false);
+            setEditingTeam(null);
+            setTeamFormData({
+                name: '',
+                role: '',
+                email: '',
+                phone: '',
+                dateAppointed: '',
+                dateEnded: '',
+                notes: ''
+            });
+        } catch (err) {
+            setSnackbar({ open: true, message: err.message || 'Failed to save team member.', severity: 'error' });
+        }
+    };
+
+    const handleEditTeam = (team) => {
+        setEditingTeam(team);
+        setTeamFormData({
+            teamName: team.teamName || '',
+            name: team.name || '',
+            role: team.role || '',
+            email: team.email || '',
+            phone: team.phone || '',
+            dateAppointed: team.dateAppointed ? new Date(team.dateAppointed).toISOString().split('T')[0] : '',
+            dateEnded: team.dateEnded ? new Date(team.dateEnded).toISOString().split('T')[0] : '',
+            notes: team.notes || ''
+        });
+        setOpenTeamDialog(true);
+    };
+
+    const handleDeleteTeam = async (teamMemberId) => {
+        if (!window.confirm('Are you sure you want to delete this team member?')) return;
+        
+        try {
+            if (apiService.projects?.deleteTeamMember) {
+                await apiService.projects.deleteTeamMember(projectId, teamMemberId);
+            }
+            
+            // Update local state
+            const updatedTeams = projectTeams.filter(t => t.teamMemberId !== teamMemberId);
+            setProjectTeams(updatedTeams);
+            localStorage.setItem(`project-teams-${projectId}`, JSON.stringify(updatedTeams));
+            
+            setSnackbar({ open: true, message: 'Team member deleted successfully!', severity: 'success' });
+        } catch (err) {
+            setSnackbar({ open: true, message: err.message || 'Failed to delete team member.', severity: 'error' });
+        }
+    };
+
+    const handleDownloadTeamTemplate = () => {
+        // Create Excel template with required columns
+        const headers = ['Team Name', 'Name', 'Role', 'Email', 'Phone', 'Date Appointed', 'Date Ended', 'Notes'];
+        const exampleRows = [
+            ['Inspection Team', 'John Doe', 'Project Manager', 'john.doe@example.com', '+254712345678', '2024-01-01', '', 'Team leader'],
+            ['Evaluation Committee', 'Jane Smith', 'Evaluation Committee', 'jane.smith@example.com', '+254712345679', '2024-01-15', '', 'Committee member'],
+            ['PMC', 'Bob Johnson', 'PMC', 'bob.johnson@example.com', '+254712345680', '2024-02-01', '', 'PMC member']
+        ];
+        
+        // Create worksheet data
+        const worksheetData = [headers, ...exampleRows];
+        
+        // Create worksheet
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        
+        // Set column widths for better readability
+        worksheet['!cols'] = [
+            { wch: 20 }, // Team Name
+            { wch: 25 }, // Name
+            { wch: 25 }, // Role
+            { wch: 30 }, // Email
+            { wch: 18 }, // Phone
+            { wch: 15 }, // Date Appointed
+            { wch: 15 }, // Date Ended
+            { wch: 30 }  // Notes
+        ];
+        
+        // Freeze header row
+        worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+        
+        // Create workbook
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Team Template');
+        
+        // Generate Excel file
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        // Download file
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `project-teams-template-${projectId}.xlsx`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        setSnackbar({ open: true, message: 'Excel template downloaded successfully!', severity: 'success' });
+    };
+
+    const handleTeamFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            let uploadedTeams = [];
+
+            if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                // Parse Excel file
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { 
+                    type: 'array',
+                    cellDates: true, // Parse dates properly
+                    cellNF: false, // Don't parse number formats
+                    cellText: false // Get raw values
+                });
+                
+                // Get the first worksheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to JSON array (array of arrays)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1, // Use array format
+                    defval: '', // Default value for empty cells
+                    raw: false, // Convert dates and numbers to strings
+                    blankrows: false // Skip blank rows
+                });
+                
+                console.log('Parsed Excel data (first 5 rows):', jsonData.slice(0, 5));
+                console.log('Total rows in Excel:', jsonData.length);
+                
+                if (jsonData.length < 2) {
+                    throw new Error('Excel file must contain at least a header row and one data row. Found only ' + jsonData.length + ' row(s).');
+                }
+                
+                // First row is headers, skip it
+                let skippedRows = 0;
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    // Skip completely empty rows
+                    if (!row || row.length === 0) {
+                        skippedRows++;
+                        continue;
+                    }
+                    
+                    // Ensure row is an array
+                    const rowArray = Array.isArray(row) ? row : [row];
+                    
+                    // Check if row has any non-empty cells
+                    const hasData = rowArray.some(cell => {
+                        if (cell === null || cell === undefined) return false;
+                        const str = cell.toString().trim();
+                        return str.length > 0;
+                    });
+                    
+                    if (!hasData) {
+                        skippedRows++;
+                        continue;
+                    }
+                    
+                    // Extract values, handling different data types
+                    const getCellValue = (index) => {
+                        if (index >= rowArray.length) return '';
+                        const cell = rowArray[index];
+                        if (cell === null || cell === undefined) return '';
+                        // Handle date objects
+                        if (cell instanceof Date) {
+                            return cell.toISOString().split('T')[0];
+                        }
+                        // Handle Excel date serial numbers (if any)
+                        if (typeof cell === 'number' && cell > 25569) { // Excel epoch starts at 1900-01-01
+                            try {
+                                const excelDate = XLSX.SSF.parse_date_code(cell);
+                                if (excelDate) {
+                                    const date = new Date(excelDate.y, excelDate.m - 1, excelDate.d);
+                                    return date.toISOString().split('T')[0];
+                                }
+                            } catch (e) {
+                                // Not a date, continue
+                            }
+                        }
+                        return cell.toString().trim();
+                    };
+                    
+                    const teamName = getCellValue(0);
+                    const name = getCellValue(1);
+                    const role = getCellValue(2);
+                    const email = getCellValue(3);
+                    const phone = getCellValue(4);
+                    const dateAppointed = getCellValue(5);
+                    const dateEnded = getCellValue(6);
+                    const notes = getCellValue(7);
+                    
+                    const teamData = {
+                        teamMemberId: `upload-${Date.now()}-${i}`,
+                        teamName: teamName,
+                        name: name,
+                        role: role,
+                        email: email,
+                        phone: phone,
+                        dateAppointed: dateAppointed,
+                        dateEnded: dateEnded,
+                        notes: notes,
+                        projectId: projectId
+                    };
+                    
+                    console.log(`Row ${i} parsed:`, teamData);
+                    
+                    // Only add if at least team name or name is provided
+                    if (teamName || name) {
+                        uploadedTeams.push(teamData);
+                    } else {
+                        skippedRows++;
+                        console.log(`Row ${i} skipped: no team name or name provided`);
+                    }
+                }
+                
+                console.log(`Total team members parsed: ${uploadedTeams.length}`, uploadedTeams);
+                console.log(`Skipped ${skippedRows} empty or invalid rows`);
+            } else if (fileExtension === 'csv') {
+                // Parse CSV file (backward compatibility)
+                const text = await file.text();
+                const lines = text.split('\n').filter(line => line.trim());
+                const headers = lines[0].split(',').map(h => h.trim());
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    if (values.length >= headers.length) {
+                        const teamData = {
+                            teamMemberId: Date.now().toString() + i,
+                            teamName: values[0] || '',
+                            name: values[1] || '',
+                            role: values[2] || '',
+                            email: values[3] || '',
+                            phone: values[4] || '',
+                            dateAppointed: values[5] || '',
+                            dateEnded: values[6] || '',
+                            notes: values[7] || '',
+                            projectId: projectId
+                        };
+                        uploadedTeams.push(teamData);
+                    }
+                }
+            } else {
+                throw new Error('Unsupported file format. Please upload a .xlsx, .xls, or .csv file.');
+            }
+            
+            if (uploadedTeams.length === 0) {
+                throw new Error('No valid team member data found in the file. Please check the file format and ensure data rows are present.');
+            }
+            
+            // Log before API call
+            console.log('Uploading teams:', uploadedTeams);
+            
+            if (apiService.projects?.uploadTeamList) {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    await apiService.projects.uploadTeamList(projectId, formData);
+                } catch (apiError) {
+                    console.warn('API upload failed, continuing with local storage:', apiError);
+                    // Continue with local storage even if API fails
+                }
+            }
+            
+            // Update local state - merge with existing teams, avoiding duplicates
+            const existingTeamIds = new Set(projectTeams.map(t => `${t.teamName}-${t.name}-${t.email}`));
+            const newTeams = uploadedTeams.filter(t => {
+                const key = `${t.teamName}-${t.name}-${t.email}`;
+                return !existingTeamIds.has(key);
+            });
+            
+            const updatedTeams = [...projectTeams, ...newTeams];
+            console.log('Updated teams list:', updatedTeams);
+            console.log(`Added ${newTeams.length} new team members (${uploadedTeams.length - newTeams.length} duplicates skipped)`);
+            
+            setProjectTeams(updatedTeams);
+            localStorage.setItem(`project-teams-${projectId}`, JSON.stringify(updatedTeams));
+            
+            // Verify data was saved and trigger a re-render
+            const savedData = localStorage.getItem(`project-teams-${projectId}`);
+            const parsedData = savedData ? JSON.parse(savedData) : [];
+            console.log('Saved to localStorage:', parsedData);
+            console.log('Current state after update:', updatedTeams);
+            
+            // Force a refresh of the teams list
+            setTimeout(() => {
+                fetchProjectTeams();
+            }, 100);
+            
+            setSnackbar({ 
+                open: true, 
+                message: `Successfully uploaded ${newTeams.length} team member(s)! ${uploadedTeams.length - newTeams.length > 0 ? `(${uploadedTeams.length - newTeams.length} duplicates skipped)` : ''}`, 
+                severity: 'success' 
+            });
+            
+            // Reset file input
+            event.target.value = '';
+        } catch (err) {
+            console.error('Error uploading team list:', err);
+            setSnackbar({ open: true, message: err.message || 'Failed to upload team list. Please check the file format.', severity: 'error' });
+        }
+    };
+
+    // Group teams by team name
+    const groupedTeams = useMemo(() => {
+        const grouped = {};
+        projectTeams.forEach(team => {
+            const teamName = team.teamName || 'Unassigned';
+            if (!grouped[teamName]) {
+                grouped[teamName] = [];
+            }
+            grouped[teamName].push(team);
+        });
+        return grouped;
+    }, [projectTeams]);
+
+    const handleDownloadTeamsPDF = async () => {
+        try {
+            const doc = new jsPDF('portrait', 'pt', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            let yPosition = 40;
+
+            // Title
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Project Team Members', pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += 20;
+
+            // Project info
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Project: ${project?.projectName || 'N/A'}`, 40, yPosition);
+            yPosition += 15;
+            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 40, yPosition);
+            yPosition += 20;
+
+            // Group teams by team name
+            const teamGroups = Object.entries(groupedTeams);
+
+            teamGroups.forEach(([teamName, members], teamIndex) => {
+                // Check if we need a new page
+                const membersPerPage = 4; // Approximate members per page
+                const estimatedHeight = members.length * 60 + 40; // Height for team section
+                
+                if (yPosition + estimatedHeight > pageHeight - 40) {
+                    doc.addPage();
+                    yPosition = 40;
+                }
+
+                // Team header
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setFillColor(41, 128, 185);
+                doc.rect(40, yPosition - 10, pageWidth - 80, 20, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.text(teamName, 50, yPosition + 5);
+                doc.setTextColor(0, 0, 0);
+                yPosition += 25;
+
+                // Table headers
+                const headers = ['#', 'Name', 'Role', 'Email', 'Phone', 'Date Appointed', 'Signature'];
+                const tableData = members.map((member, index) => [
+                    (index + 1).toString(),
+                    member.name || 'N/A',
+                    member.role || 'N/A',
+                    member.email || 'N/A',
+                    member.phone || 'N/A',
+                    formatDate(member.dateAppointed) || 'N/A',
+                    '' // Empty space for signature
+                ]);
+
+                // Add table with signature column
+                autoTable(doc, {
+                    head: [headers],
+                    body: tableData,
+                    startY: yPosition,
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 4,
+                        overflow: 'linebreak',
+                        halign: 'left'
+                    },
+                    headStyles: {
+                        fillColor: [41, 128, 185],
+                        textColor: 255,
+                        fontStyle: 'bold',
+                        fontSize: 9
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 20, halign: 'center' }, // #
+                        1: { cellWidth: 80 }, // Name
+                        2: { cellWidth: 70 }, // Role
+                        3: { cellWidth: 90 }, // Email
+                        4: { cellWidth: 70 }, // Phone
+                        5: { cellWidth: 70 }, // Date Appointed
+                        6: { cellWidth: 80, halign: 'center' } // Signature
+                    },
+                    margin: { left: 40, right: 40 },
+                    alternateRowStyles: { fillColor: [245, 245, 245] }
+                });
+
+                // Get the final Y position after the table
+                yPosition = doc.lastAutoTable.finalY + 15;
+
+                // Add spacing between teams
+                if (teamIndex < teamGroups.length - 1) {
+                    yPosition += 10;
+                }
+            });
+
+            // Save PDF
+            const filename = `project-teams-${projectId}-${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(filename);
+            setSnackbar({ open: true, message: 'PDF downloaded successfully!', severity: 'success' });
+        } catch (err) {
+            console.error('Error generating PDF:', err);
+            setSnackbar({ open: true, message: err.message || 'Failed to download PDF.', severity: 'error' });
+        }
+    };
+
+    const handlePrintTeams = () => {
+        // Create a print-friendly version
+        const printWindow = window.open('', '_blank');
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Project Team Members</title>
+                <style>
+                    @media print {
+                        @page { margin: 1cm; }
+                        body { margin: 0; }
+                    }
+                    body {
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                    }
+                    h1 {
+                        text-align: center;
+                        color: #2980b9;
+                        margin-bottom: 10px;
+                    }
+                    .project-info {
+                        text-align: center;
+                        margin-bottom: 30px;
+                        color: #666;
+                    }
+                    .team-section {
+                        margin-bottom: 30px;
+                        page-break-inside: avoid;
+                    }
+                    .team-header {
+                        background-color: #2980b9;
+                        color: white;
+                        padding: 10px;
+                        font-weight: bold;
+                        font-size: 16px;
+                        margin-bottom: 10px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 20px;
+                    }
+                    th, td {
+                        border: 1px solid #ddd;
+                        padding: 8px;
+                        text-align: left;
+                        font-size: 11px;
+                    }
+                    th {
+                        background-color: #2980b9;
+                        color: white;
+                        font-weight: bold;
+                    }
+                    tr:nth-child(even) {
+                        background-color: #f5f5f5;
+                    }
+                    .signature-cell {
+                        width: 100px;
+                        height: 40px;
+                        border: 1px solid #ccc;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Project Team Members</h1>
+                <div class="project-info">
+                    <strong>Project:</strong> ${project?.projectName || 'N/A'}<br>
+                    <strong>Generated:</strong> ${new Date().toLocaleDateString()}
+                </div>
+                ${Object.entries(groupedTeams).map(([teamName, members]) => `
+                    <div class="team-section">
+                        <div class="team-header">${teamName}</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Date Appointed</th>
+                                    <th>Signature</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${members.map((member, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${member.name || 'N/A'}</td>
+                                        <td>${member.role || 'N/A'}</td>
+                                        <td>${member.email || 'N/A'}</td>
+                                        <td>${member.phone || 'N/A'}</td>
+                                        <td>${formatDate(member.dateAppointed) || 'N/A'}</td>
+                                        <td><div class="signature-cell"></div></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `).join('')}
+            </body>
+            </html>
+        `;
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
     
     // This effect now conditionally fetches data based on the access check
     useEffect(() => {
@@ -408,8 +1087,9 @@ function ProjectDetailsPage() {
             fetchProjectDetails();
             fetchProjectPhotos();
             fetchProjectContractors();
+            fetchProjectTeams();
         }
-    }, [isAccessAllowed, fetchProjectDetails, fetchProjectPhotos]);
+    }, [isAccessAllowed, fetchProjectDetails, fetchProjectPhotos, fetchProjectTeams]);
 
     useEffect(() => {
         if (!milestones.length && !milestoneActivities.length) {
@@ -750,12 +1430,12 @@ function ProjectDetailsPage() {
 
     return (
                     <Box sx={{ 
-                p: 2, 
-                backgroundColor: colors.primary[400],
+                p: 1, 
+                backgroundColor: theme.palette.mode === 'dark' ? colors.primary[400] : '#E3F2FD', // Very light blue for light mode
                 minHeight: '100vh',
                 background: theme.palette.mode === 'dark' 
                     ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
-                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                    : '#E3F2FD', // Very light blue background
                 position: 'relative',
                 '&::before': theme.palette.mode === 'light' ? {
                     content: '""',
@@ -764,11 +1444,11 @@ function ProjectDetailsPage() {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    background: `radial-gradient(circle at 20% 80%, ${colors.blueAccent[100]}15 0%, transparent 50%), radial-gradient(circle at 80% 20%, ${colors.greenAccent[100]}15 0%, transparent 50%)`,
+                    background: `radial-gradient(circle at 20% 80%, rgba(33, 150, 243, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(76, 175, 80, 0.05) 0%, transparent 50%)`,
                     pointerEvents: 'none'
                 } : {}
             }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                 <Button
                     variant="outlined"
                     startIcon={<ArrowBackIcon />}
@@ -783,8 +1463,8 @@ function ProjectDetailsPage() {
                         },
                         fontWeight: 'bold',
                         borderRadius: '8px',
-                        px: 3,
-                        py: 1,
+                        px: 2,
+                        py: 0.5,
                         boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
                     }}
                 >
@@ -794,25 +1474,31 @@ function ProjectDetailsPage() {
 
             {/* Consolidated Top Section */}
             <Paper elevation={8} sx={{ 
-                p: 3, 
-                mb: 3, 
-                borderRadius: '16px',
+                p: 1, 
+                mb: 0.5, 
+                borderRadius: '12px',
                 background: theme.palette.mode === 'dark'
                     ? `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`
-                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
-                border: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                    : '#FFFFFF', // White background for light mode
+                border: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                 boxShadow: theme.palette.mode === 'dark'
-                    ? `0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2)`
-                    : `0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px ${colors.blueAccent[100]}`,
+                    ? `0 12px 40px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.25)`
+                    : `0 12px 40px rgba(0, 0, 0, 0.15), 0 6px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px ${colors.blueAccent[100]}`,
                 position: 'relative',
                 overflow: 'hidden',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                    boxShadow: theme.palette.mode === 'dark'
+                        ? `0 16px 48px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3)`
+                        : `0 16px 48px rgba(0, 0, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.12)`
+                },
                 '&::before': {
                     content: '""',
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: '4px',
+                    height: '5px',
                     background: `linear-gradient(90deg, ${colors.blueAccent[500]}, ${colors.greenAccent[500]}, ${colors.blueAccent[500]})`,
                     backgroundSize: '200% 100%',
                     animation: 'shimmer 3s ease-in-out infinite',
@@ -822,20 +1508,28 @@ function ProjectDetailsPage() {
                     }
                 }
             }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', mb: 0.5 }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Typography
-                            variant="h4"
+                            variant="h3"
                             component="h1"
                             sx={{
-                                fontWeight: 'bold',
-                                color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[300],
+                                fontWeight: 700,
+                                fontSize: { xs: '1.35rem', sm: '1.6rem', md: '1.85rem' },
+                                color: theme.palette.mode === 'dark' ? colors.grey[100] : '#1a1a1a',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
                                 flexShrink: 1,
-                                textShadow: theme.palette.mode === 'dark' ? '2px 2px 4px rgba(0, 0, 0, 0.3)' : 'none',
-                                letterSpacing: '0.5px'
+                                textShadow: theme.palette.mode === 'dark' ? '2px 2px 4px rgba(0, 0, 0, 0.3)' : '0 1px 2px rgba(0, 0, 0, 0.1)',
+                                letterSpacing: '0.3px',
+                                lineHeight: 1.2,
+                                background: theme.palette.mode === 'light' 
+                                    ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+                                    : 'none',
+                                WebkitBackgroundClip: theme.palette.mode === 'light' ? 'text' : 'none',
+                                WebkitTextFillColor: theme.palette.mode === 'light' ? 'transparent' : 'inherit',
+                                backgroundClip: theme.palette.mode === 'light' ? 'text' : 'none'
                             }}
                         >
                             {project?.projectName || 'Project Name Missing'}
@@ -847,7 +1541,11 @@ function ProjectDetailsPage() {
                                 backgroundColor: getProjectStatusBackgroundColor(project?.status),
                                 color: getProjectStatusTextColor(project?.status),
                                 fontWeight: 'bold',
+                                fontSize: '0.875rem',
+                                height: '32px',
                                 flexShrink: 0,
+                                px: 1.5,
+                                boxShadow: theme.palette.mode === 'light' ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.3)',
                                 // Enhanced color rendering
                                 WebkitColorAdjust: 'exact',
                                 colorAdjust: 'exact',
@@ -856,8 +1554,25 @@ function ProjectDetailsPage() {
                                 isolation: 'isolate'
                             }}
                         />
+                        {getPublicApprovalStatus(project) && (
+                            <Chip
+                                label={getPublicApprovalStatus(project).label}
+                                icon={getPublicApprovalStatus(project).icon}
+                                color={getPublicApprovalStatus(project).color}
+                                size="small"
+                                sx={{
+                                    fontWeight: 'bold',
+                                    fontSize: '0.75rem',
+                                    height: '28px',
+                                    flexShrink: 0,
+                                    px: 1,
+                                    boxShadow: theme.palette.mode === 'light' ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 2px 8px rgba(0, 0, 0, 0.3)',
+                                    '& .MuiChip-icon': { fontSize: 14 }
+                                }}
+                            />
+                        )}
                     </Stack>
-                    <Stack direction="row" spacing={1.5} sx={{ flexShrink: 0 }}>
+                    <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
                         {canReviewSubmissions && (
                             <Tooltip title="Review Contractor Submissions">
                                 <IconButton 
@@ -913,29 +1628,40 @@ function ProjectDetailsPage() {
                         </Tooltip>
                     </Stack>
                 </Box>
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 2 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mt: 0.5, pt: 0.5, borderTop: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}` }}>
                     <Typography variant="h6" sx={{ 
-                        fontWeight: 'bold', 
+                        fontWeight: 600, 
                         flexShrink: 0,
-                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
-                        textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                        fontSize: '1rem',
+                        color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333',
+                        textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                        minWidth: '160px'
                     }}>
-                        Overall Progress: {overallProgress.toFixed(2)}%
+                        Overall Progress: <strong style={{ color: theme.palette.mode === 'dark' ? colors.greenAccent[400] : colors.greenAccent[600], fontSize: '1.1rem' }}>{overallProgress.toFixed(2)}%</strong>
                     </Typography>
                     <LinearProgress
                         variant="determinate"
                         value={Math.min(100, Math.max(0, overallProgress))}
                         sx={{ 
                             flexGrow: 1, 
-                            height: 14, 
-                            borderRadius: 7, 
-                            bgcolor: theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[300],
-                            boxShadow: theme.palette.mode === 'light' ? `inset 0 2px 4px rgba(0, 0, 0, 0.1)` : 'none',
+                            height: 12, 
+                            borderRadius: 6, 
+                            bgcolor: theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[200],
+                            boxShadow: theme.palette.mode === 'light' ? `inset 0 2px 4px rgba(0, 0, 0, 0.08)` : 'none',
+                            border: theme.palette.mode === 'light' ? `1px solid ${colors.grey[300]}` : 'none',
                             '& .MuiLinearProgress-bar': {
-                                borderRadius: 7,
-                                background: `linear-gradient(90deg, ${colors.greenAccent[500]} 0%, ${colors.greenAccent[600]} 100%)`,
-                                boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[500]}60` : 'none',
-                                transition: 'width 0.6s ease-in-out'
+                                borderRadius: 8,
+                                background: `linear-gradient(90deg, ${colors.greenAccent[500]} 0%, ${colors.greenAccent[600]} 50%, ${colors.greenAccent[500]} 100%)`,
+                                backgroundSize: '200% 100%',
+                                boxShadow: theme.palette.mode === 'light' 
+                                    ? `0 2px 8px ${colors.greenAccent[500]}80, inset 0 1px 0 rgba(255, 255, 255, 0.2)` 
+                                    : `0 2px 8px ${colors.greenAccent[500]}60`,
+                                transition: 'width 0.6s ease-in-out',
+                                animation: 'shimmer 2s ease-in-out infinite',
+                                '@keyframes shimmer': {
+                                    '0%': { backgroundPosition: '200% 0' },
+                                    '100%': { backgroundPosition: '-200% 0' }
+                                }
                             }
                         }}
                     />
@@ -943,7 +1669,7 @@ function ProjectDetailsPage() {
             </Paper>
 
             {/* Key Metrics Cards */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={1} sx={{ mb: 0.5 }}>
                 {/* Total Budget Card */}
                 <Grid item xs={12} sm={6} md={3}>
                     <Card sx={{ 
@@ -981,7 +1707,7 @@ function ProjectDetailsPage() {
                                     <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
                                         Total Budget
                                     </Typography>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.25 }}>
                                         {formatCurrency(totalBudget)}
                                     </Typography>
                                 </Box>
@@ -1022,20 +1748,20 @@ function ProjectDetailsPage() {
                             }
                         }
                     }}>
-                        <CardContent>
+                        <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 } }}>
                             <Box display="flex" alignItems="center" justifyContent="space-between">
                                 <Box>
-                                    <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                                    <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
                                         Contracted
                                     </Typography>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.2, fontSize: '0.95rem' }}>
                                         {formatCurrency(contractedAmount)}
                                     </Typography>
-                                    <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5, fontSize: '0.7rem' }}>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.25, fontSize: '0.65rem' }}>
                                         {contractPercentage.toFixed(1)}% of budget
                                     </Typography>
                                 </Box>
-                                <TrendingUpIcon sx={{ fontSize: 40, opacity: 0.8 }} />
+                                <TrendingUpIcon sx={{ fontSize: 24, opacity: 0.8 }} />
                             </Box>
                         </CardContent>
                     </Card>
@@ -1078,7 +1804,7 @@ function ProjectDetailsPage() {
                                     <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
                                         Paid Out
                                     </Typography>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.25 }}>
                                         {formatCurrency(paidAmount)}
                                     </Typography>
                                     <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5, fontSize: '0.7rem' }}>
@@ -1128,7 +1854,7 @@ function ProjectDetailsPage() {
                                     <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
                                         Absorption Rate
                                     </Typography>
-                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.25 }}>
                                         {absorptionRate.toFixed(1)}%
                                     </Typography>
                                     <Typography variant="caption" sx={{ opacity: 0.8, mt: 0.5, fontSize: '0.7rem' }}>
@@ -1145,16 +1871,16 @@ function ProjectDetailsPage() {
             {/* Project Photos Carousel */}
             {projectPhotos.length > 0 && (
                 <Paper elevation={6} sx={{ 
-                    p: 2, 
-                    mb: 3, 
+                    p: 1, 
+                    mb: 1, 
                     borderRadius: '12px',
                     background: theme.palette.mode === 'dark'
                         ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
                         : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
                     border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`
                 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[300] }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900] }}>
                             Project Photos ({projectPhotos.length})
                         </Typography>
                         <Button
@@ -1168,7 +1894,7 @@ function ProjectDetailsPage() {
                     </Box>
                     <Box sx={{ 
                         display: 'flex', 
-                        gap: 2, 
+                        gap: 1, 
                         overflowX: 'auto',
                         pb: 1,
                         '&::-webkit-scrollbar': {
@@ -1213,16 +1939,16 @@ function ProjectDetailsPage() {
 
             {/* Tabbed Interface */}
             <Paper elevation={6} sx={{ 
-                p: 2.5, 
-                mb: 3, 
-                borderRadius: '16px',
+                p: 0.75, 
+                mb: 0.5, 
+                borderRadius: '10px',
                 background: theme.palette.mode === 'dark'
                     ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
-                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                    : '#FFFFFF', // White background for light mode
                 border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                 boxShadow: theme.palette.mode === 'dark'
                     ? `0 4px 20px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)`
-                    : `0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.03)`
+                    : `0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03)`
             }}>
                 <Tabs 
                     value={activeTab} 
@@ -1231,14 +1957,14 @@ function ProjectDetailsPage() {
                     scrollButtons="auto"
                     sx={{
                         borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
-                        mb: 3,
+                        mb: 0.4,
                         '& .MuiTab-root': {
-                            color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[400],
+                            color: theme.palette.mode === 'dark' ? colors.grey[300] : '#4a4a4a',
                             textTransform: 'none',
-                            fontSize: '0.95rem',
-                            fontWeight: 500,
-                            minHeight: 48,
-                            padding: '12px 20px',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            minHeight: 40,
+                            padding: '8px 16px',
                             transition: 'all 0.2s ease-in-out',
                             borderRadius: '8px 8px 0 0',
                             marginRight: 1,
@@ -1259,12 +1985,13 @@ function ProjectDetailsPage() {
                     }}
                 >
                     <Tab label="Overview" icon={<InfoIcon />} iconPosition="start" />
-                    <Tab label="Financials" icon={<MoneyIcon />} iconPosition="start" />
+                    <Tab label="Teams" icon={<AccountTreeIcon />} iconPosition="start" />
+                    <Tab label="Contractor" icon={<PeopleIcon />} iconPosition="start" />
                     <Tab label="Timeline & Milestones" icon={<ScheduleIcon />} iconPosition="start" />
-                    <Tab label="Monitoring" icon={<AssessmentIcon />} iconPosition="start" />
+                    <Tab label="Gantt Chart" icon={<TimelineIcon />} iconPosition="start" />
+                    <Tab label="M&E" icon={<AssessmentIcon />} iconPosition="start" />
                     <Tab label="Documents" icon={<DescriptionIcon />} iconPosition="start" />
                     <Tab label="Map" icon={<LocationOnIcon />} iconPosition="start" />
-                    <Tab label="Contractor" icon={<PeopleIcon />} iconPosition="start" />
                 </Tabs>
 
                 {/* Tab Panels */}
@@ -1272,185 +1999,271 @@ function ProjectDetailsPage() {
                     <Box>
                         {/* Combined Overview and Description Section */}
             <Paper elevation={6} sx={{ 
-                p: 3.5, 
-                mb: 3, 
-                borderRadius: '16px',
+                p: 1, 
+                mb: 0.75, 
+                borderRadius: '12px',
                 background: theme.palette.mode === 'dark'
                     ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
-                    : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
+                    : '#FFFFFF', // White background for light mode
                 border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                 boxShadow: theme.palette.mode === 'dark'
                     ? `0 6px 24px rgba(0, 0, 0, 0.25), 0 3px 12px rgba(0, 0, 0, 0.15)`
-                    : `0 6px 24px rgba(0, 0, 0, 0.08), 0 3px 12px rgba(0, 0, 0, 0.04), 0 0 0 1px ${colors.blueAccent[50]}`,
+                    : `0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.03)`,
                 transition: 'all 0.3s ease-in-out',
                 '&:hover': {
                     boxShadow: theme.palette.mode === 'dark'
                         ? `0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2)`
-                        : `0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06)`
+                        : `0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)`
                 }
             }}>
                 <Typography variant="h5" sx={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    mb: 2,
-                    color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                    mb: 0.4,
+                    color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
                     fontWeight: 'bold',
                     textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
-                    borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                    pb: 1
+                    borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                    pb: 0.3,
+                    fontSize: '0.95rem'
                 }}>
-                    <InfoIcon sx={{ mr: 1, color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500] }} />
+                    <InfoIcon sx={{ mr: 0.5, fontSize: '0.9rem', color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600] }} />
                     Project Overview
                 </Typography>
-                <Grid container spacing={4}>
+                <Grid container spacing={0.5}>
                     {/* First Column: Key Information */}
                     <Grid item xs={12} md={4}>
                         <Box sx={{
-                            p: 2,
-                            borderRadius: '12px',
-                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
-                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            p: 1,
+                            borderRadius: '10px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : '#F5F5F5', // Light grey background for light mode
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                             height: '100%',
-                            boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px rgba(0, 0, 0, 0.05)` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
                             transition: 'all 0.3s ease-in-out',
                             '&:hover': {
                                 transform: 'translateY(-2px)',
-                                boxShadow: theme.palette.mode === 'light' ? `0 6px 24px ${colors.blueAccent[100]}60` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px rgba(0, 0, 0, 0.08)` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
                                 borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
                             }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 
-                                mb: 1.5,
-                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                mb: 0.4,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
                                 textAlign: 'center',
-                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                pb: 0.5
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                                pb: 0.25,
+                                fontSize: '0.85rem'
                             }}>
                                 Key Information
                             </Typography>
-                            <Stack spacing={1}>
+                            <Stack spacing={0.3}>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.9rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Project Category:</strong> {projectCategory?.categoryName || 'N/A'}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Project Category:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{projectCategory?.categoryName || 'N/A'}</span>
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.9rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Department:</strong> {project?.departmentAlias || project?.departmentName || 'N/A'}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Department:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{project?.departmentAlias || project?.departmentName || 'N/A'}</span>
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.9rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Subcounty:</strong> {project?.subcountyNames || 'N/A'}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Subcounty:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{project?.subcountyNames || 'N/A'}</span>
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.9rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Ward:</strong> {project?.wardNames || 'N/A'}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Ward:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{project?.wardNames || 'N/A'}</span>
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.9rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Directorate:</strong> {project?.directorate || 'N/A'}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Directorate:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{project?.directorate || 'N/A'}</span>
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.9rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Principal Investigator:</strong> {project?.principalInvestigator || 'N/A'}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Project Manager:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{project?.principalInvestigator || 'N/A'}</span>
                                 </Typography>
+                                <Divider sx={{ my: 0.3 }} />
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <Typography variant="body1" sx={{ 
+                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                        fontSize: '0.9rem'
+                                    }}>
+                                        <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Public Approval:</strong>
+                                    </Typography>
+                                    {getPublicApprovalStatus(project) && (
+                                        <Chip
+                                            label={getPublicApprovalStatus(project).label}
+                                            icon={getPublicApprovalStatus(project).icon}
+                                            color={getPublicApprovalStatus(project).color}
+                                            size="small"
+                                            sx={{
+                                                fontSize: '0.7rem',
+                                                height: '22px',
+                                                '& .MuiChip-icon': { fontSize: 12 }
+                                            }}
+                                        />
+                                    )}
+                                </Box>
                             </Stack>
                         </Box>
                     </Grid>
                     {/* Second Column: Financial Details */}
                     <Grid item xs={12} md={4}>
                         <Box sx={{
-                            p: 2,
-                            borderRadius: '12px',
-                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
-                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            p: 1,
+                            borderRadius: '10px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : '#F5F5F5', // Light grey background for light mode
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                             height: '100%',
-                            boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px rgba(0, 0, 0, 0.05)` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
                             transition: 'all 0.3s ease-in-out',
                             '&:hover': {
                                 transform: 'translateY(-2px)',
-                                boxShadow: theme.palette.mode === 'light' ? `0 6px 24px ${colors.blueAccent[100]}60` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px rgba(0, 0, 0, 0.08)` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
                                 borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
                             }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 
-                                mb: 1.5,
-                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                mb: 0.4,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
                                 textAlign: 'center',
-                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                pb: 0.5
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                                pb: 0.25,
+                                fontSize: '0.85rem'
                             }}>
                                 Financial Details
                             </Typography>
-                            <Stack spacing={1}>
+                            <Stack spacing={0.3}>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.85rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Start Date:</strong> {formatDate(project?.startDate)}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Start Date:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{formatDate(project?.startDate)}</span>
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.85rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>End Date:</strong> {formatDate(project?.endDate)}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>End Date:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{formatDate(project?.endDate)}</span>
+                                </Typography>
+                                <Divider sx={{ my: 0.5 }} />
+                                <Typography variant="body2" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700], 
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                    mb: 0.25
+                                }}>
+                                    Budget Breakdown
                                 </Typography>
                                 <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[900],
+                                    fontSize: '0.85rem'
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Total Cost:</strong> {formatCurrency(project?.costOfProject)}
+                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600] }}>Total Budget:</strong> <span style={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333', fontWeight: 600 }}>{formatCurrency(totalBudget)}</span>
                                 </Typography>
-                                <Typography variant="body1" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400] 
+                                <Box display="flex" justifyContent="space-between" sx={{ fontSize: '0.8rem' }}>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Contracted:</Typography>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {formatCurrency(contractedAmount)} ({contractPercentage.toFixed(1)}%)
+                                    </Typography>
+                                </Box>
+                                <Box display="flex" justifyContent="space-between" sx={{ fontSize: '0.8rem' }}>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Paid Out:</Typography>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600, color: colors.greenAccent[500] }}>
+                                        {formatCurrency(paidAmount)} ({paymentPercentage.toFixed(1)}%)
+                                    </Typography>
+                                </Box>
+                                <Box display="flex" justifyContent="space-between" sx={{ fontSize: '0.8rem' }}>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Remaining:</Typography>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {formatCurrency(remainingBudget)}
+                                    </Typography>
+                                </Box>
+                                <Divider sx={{ my: 0.5 }} />
+                                <Typography variant="body2" sx={{ 
+                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700], 
+                                    fontWeight: 600,
+                                    fontSize: '0.75rem',
+                                    mb: 0.25
                                 }}>
-                                    <strong style={{ color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400] }}>Paid Out:</strong> {formatCurrency(project?.paidOut)}
+                                    Payment Status
                                 </Typography>
+                                <LinearProgress 
+                                    variant="determinate" 
+                                    value={paymentPercentage}
+                                    sx={{ mb: 0.5, height: 8, borderRadius: 4 }}
+                                />
+                                <Box display="flex" justifyContent="space-between" sx={{ fontSize: '0.8rem', mb: 0.5 }}>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Absorption Rate:</Typography>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600, color: colors.blueAccent[500] }}>
+                                        {absorptionRate.toFixed(1)}%
+                                    </Typography>
+                                </Box>
+                                <Box display="flex" justifyContent="space-between" sx={{ fontSize: '0.8rem' }}>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Contract Coverage:</Typography>
+                                    <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {contractPercentage.toFixed(1)}%
+                                    </Typography>
+                                </Box>
                             </Stack>
                         </Box>
                     </Grid>
                     {/* Third Column: Accomplished Work */}
                     <Grid item xs={12} md={4}>
                         <Box sx={{
-                            p: 2,
-                            borderRadius: '12px',
-                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
-                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                            p: 1,
+                            borderRadius: '10px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : '#F5F5F5', // Light grey background for light mode
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                             height: '100%',
-                            boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px rgba(0, 0, 0, 0.05)` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
                             transition: 'all 0.3s ease-in-out',
                             '&:hover': {
                                 transform: 'translateY(-2px)',
-                                boxShadow: theme.palette.mode === 'light' ? `0 6px 24px ${colors.blueAccent[100]}60` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px rgba(0, 0, 0, 0.08)` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
                                 borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
                             }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 
-                                mb: 1.5,
-                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                mb: 0.4,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
                                 textAlign: 'center',
-                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                pb: 0.5
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                                pb: 0.25,
+                                fontSize: '0.85rem'
                             }}>
                                 Accomplished Work
                             </Typography>
-                            <Stack spacing={1} alignItems="center">
+                            <Stack spacing={0.5} alignItems="center">
                                 <Typography variant="h4" sx={{ 
                                     fontWeight: 'bold', 
                                     color: colors.greenAccent[500],
-                                    textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                                    textShadow: theme.palette.mode === 'dark' ? '1px 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                                    fontSize: '1.75rem'
                                 }}>
                                     {formatCurrency(paymentJustification.totalBudget)}
                                 </Typography>
                                 <Typography variant="body2" sx={{ 
-                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600],
+                                    color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333',
                                     textAlign: 'center',
-                                    mb: 2
+                                    mb: 0.4,
+                                    fontSize: '0.85rem',
+                                    fontWeight: 600
                                 }}>
                                     Total Budget from Completed Activities
                                 </Typography>
@@ -1479,71 +2292,86 @@ function ProjectDetailsPage() {
                     {/* Full-width row for Project Description */}
                     <Grid item xs={12}>
                         <Box sx={{
-                            p: 2,
-                            borderRadius: '8px',
-                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
-                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
-                            mt: 2,
-                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                            p: 1,
+                            borderRadius: '10px',
+                            backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : '#F5F5F5',
+                            border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
+                            mt: 0.5,
+                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px rgba(0, 0, 0, 0.05)` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            transition: 'all 0.3s ease-in-out',
+                            '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: theme.palette.mode === 'light' ? `0 4px 12px rgba(0, 0, 0, 0.08)` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                            }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 
-                                mb: 1.5,
-                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[500],
+                                mb: 0.4,
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[600],
                                 textAlign: 'center',
-                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                pb: 0.5
+                                borderBottom: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
+                                pb: 0.25,
+                                fontSize: '0.85rem'
                             }}>
                                 Project Description
                             </Typography>
-                            <Stack spacing={1.5}>
+                            <Stack spacing={0.5}>
                                 <Box>
                                     <Typography variant="body1" sx={{ 
-                                        mb: 1,
+                                        mb: 0.4,
                                         fontWeight: 'bold',
                                         color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600]
                                     }}>
                                         Objective:
                                     </Typography>
                                     <Typography variant="body1" sx={{ 
-                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
-                                        pl: 2,
+                                        color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333',
+                                        pl: 1,
                                         borderLeft: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                        py: 1
+                                        py: 0.4,
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600
                                     }}>
                                         {project?.objective || 'N/A'}
                                     </Typography>
                                 </Box>
                                 <Box>
                                     <Typography variant="body1" sx={{ 
-                                        mb: 1,
+                                        mb: 0.4,
                                         fontWeight: 'bold',
-                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                                        fontSize: '0.95rem'
                                     }}>
                                         Expected Output:
                                     </Typography>
                                     <Typography variant="body1" sx={{ 
-                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
-                                        pl: 2,
+                                        color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333',
+                                        pl: 1,
                                         borderLeft: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                        py: 1
+                                        py: 0.4,
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600
                                     }}>
                                         {project?.expectedOutput || 'N/A'}
                                     </Typography>
                                 </Box>
                                 <Box>
                                     <Typography variant="body1" sx={{ 
-                                        mb: 1,
+                                        mb: 0.4,
                                         fontWeight: 'bold',
-                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                                        color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                                        fontSize: '0.95rem'
                                     }}>
                                         Expected Outcome:
                                     </Typography>
                                     <Typography variant="body1" sx={{ 
-                                        color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[400],
-                                        pl: 2,
+                                        color: theme.palette.mode === 'dark' ? colors.grey[200] : '#333333',
+                                        pl: 1,
                                         borderLeft: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[400]}`,
-                                        py: 1
+                                        py: 0.4,
+                                        fontSize: '0.9rem',
+                                        fontWeight: 600
                                     }}>
                                         {project?.expectedOutcome || 'N/A'}
                                     </Typography>
@@ -1556,109 +2384,7 @@ function ProjectDetailsPage() {
                     </Box>
                 )}
 
-                {activeTab === 1 && (
-                    <Box>
-                        {/* Financials Tab */}
-                        <Typography variant="h6" sx={{ 
-                            mb: 2, 
-                            fontWeight: 'bold',
-                            color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1
-                        }}>
-                            <MoneyIcon /> Financial Summary
-                        </Typography>
-                        <Grid container spacing={2} sx={{ mb: 3 }}>
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 2, height: '100%' }}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Budget Breakdown
-                                    </Typography>
-                                    <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
-                                        {formatCurrency(totalBudget)}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Total Allocated Budget
-                                    </Typography>
-                                    <Divider sx={{ my: 2 }} />
-                                    <Stack spacing={1}>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body2">Contracted:</Typography>
-                                            <Typography variant="body2" fontWeight="bold">
-                                                {formatCurrency(contractedAmount)} ({contractPercentage.toFixed(1)}%)
-                                            </Typography>
-                                        </Box>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body2">Paid Out:</Typography>
-                                            <Typography variant="body2" fontWeight="bold" color="success.main">
-                                                {formatCurrency(paidAmount)} ({paymentPercentage.toFixed(1)}%)
-                                            </Typography>
-                                        </Box>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body2">Remaining:</Typography>
-                                            <Typography variant="body2" fontWeight="bold">
-                                                {formatCurrency(remainingBudget)}
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 2, height: '100%' }}>
-                                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                        Payment Status
-                                    </Typography>
-                                    <LinearProgress 
-                                        variant="determinate" 
-                                        value={paymentPercentage}
-                                        sx={{ mt: 2, mb: 1, height: 10, borderRadius: 5 }}
-                                    />
-                                    <Typography variant="body2" sx={{ mt: 1 }}>
-                                        {formatCurrency(paidAmount)} of {formatCurrency(contractedAmount)} paid
-                                    </Typography>
-                                    <Divider sx={{ my: 2 }} />
-                                    <Stack spacing={1}>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body2">Absorption Rate:</Typography>
-                                            <Typography variant="body2" fontWeight="bold" color="primary.main">
-                                                {absorptionRate.toFixed(1)}%
-                                            </Typography>
-                                        </Box>
-                                        <Box display="flex" justifyContent="space-between">
-                                            <Typography variant="body2">Contract Coverage:</Typography>
-                                            <Typography variant="body2" fontWeight="bold">
-                                                {contractPercentage.toFixed(1)}%
-                                            </Typography>
-                                        </Box>
-                                    </Stack>
-                                </Paper>
-                            </Grid>
-                        </Grid>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                                Payment Request
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                Total Budget from Completed Activities: {formatCurrency(paymentJustification.totalBudget)}
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                startIcon={<PaidIcon />}
-                                onClick={handleOpenPaymentRequest}
-                                disabled={paymentJustification.accomplishedActivities.length === 0}
-                                sx={{
-                                    backgroundColor: colors.greenAccent[600],
-                                    '&:hover': { backgroundColor: colors.greenAccent[700] }
-                                }}
-                            >
-                                Request Payment
-                            </Button>
-                        </Paper>
-                    </Box>
-                )}
-
-                {activeTab === 2 && (
+                {activeTab === 3 && (
                     <Box>
                         {/* Timeline & Milestones Tab */}
                         {/* Work Plans and Milestones Section (Refactored) */}
@@ -1870,7 +2596,7 @@ function ProjectDetailsPage() {
                                                     }}>
                                                         <Typography variant="body2" sx={{ 
                                                             mb: 2,
-                                                            color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700],
+                                                            color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[800],
                                                             fontWeight: 400,
                                                             lineHeight: 1.6,
                                                             fontSize: '0.9rem'
@@ -1885,7 +2611,7 @@ function ProjectDetailsPage() {
                                                                     color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600] 
                                                                 }} />
                                                                 <Typography variant="body2" sx={{ 
-                                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[800],
                                                                     fontWeight: 500
                                                                 }}>
                                                                     Due Date: {formatDate(milestone.dueDate)}
@@ -1898,7 +2624,7 @@ function ProjectDetailsPage() {
                                                                         color: theme.palette.mode === 'dark' ? colors.greenAccent[400] : colors.greenAccent[600] 
                                                                     }} />
                                                                     <Typography variant="body2" sx={{ 
-                                                                        color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                                                        color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[800],
                                                                         fontWeight: 500
                                                                     }}>
                                                                         Completed: {formatDate(milestone.completedDate)}
@@ -1911,7 +2637,7 @@ function ProjectDetailsPage() {
                                                                     color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600] 
                                                                 }} />
                                                                 <Typography variant="body2" sx={{ 
-                                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[800],
                                                                     fontWeight: 500
                                                                 }}>
                                                                     Progress: {milestone.progress || 0}% (Weight: {milestone.weight || 1.00})
@@ -1987,7 +2713,7 @@ function ProjectDetailsPage() {
                                                                                         fontWeight: 700,
                                                                                         color: theme.palette.mode === 'dark' ? colors.grey[100] : '#000000',
                                                                                         fontSize: '0.95rem',
-                                                                                        mb: 0.5,
+                                                                                        mb: 0.4,
                                                                                         letterSpacing: '0.01em'
                                                                                     }}>
                                                                                         {activity.activityName}
@@ -2155,7 +2881,7 @@ function ProjectDetailsPage() {
                                             }}>
                                                 <Typography variant="h6" sx={{ 
                                                     fontWeight: 'bold',
-                                                    mb: 1,
+                                                    mb: 0.4,
                                                     color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700]
                                                 }}>
                                                     No Milestones Yet
@@ -2294,7 +3020,7 @@ function ProjectDetailsPage() {
                                                                 }}>
                                                                     <Typography variant="body2" sx={{ 
                                                                         mb: 2,
-                                                                        color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700],
+                                                                        color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[800],
                                                                         fontWeight: 400,
                                                                         lineHeight: 1.6,
                                                                         fontSize: '0.9rem'
@@ -2309,7 +3035,7 @@ function ProjectDetailsPage() {
                                                                                 color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600] 
                                                                             }} />
                                                                             <Typography variant="body2" sx={{ 
-                                                                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                                                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[800],
                                                                                 fontWeight: 500
                                                                             }}>
                                                                                 Due Date: {formatDate(milestone.dueDate)}
@@ -2322,7 +3048,7 @@ function ProjectDetailsPage() {
                                                                                     color: theme.palette.mode === 'dark' ? colors.greenAccent[400] : colors.greenAccent[600] 
                                                                                 }} />
                                                                                 <Typography variant="body2" sx={{ 
-                                                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                                                                    color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[800],
                                                                                     fontWeight: 500
                                                                                 }}>
                                                                                     Completed: {formatDate(milestone.completedDate)}
@@ -2335,7 +3061,7 @@ function ProjectDetailsPage() {
                                                                                 color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600] 
                                                                             }} />
                                                                             <Typography variant="body2" sx={{ 
-                                                                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[700],
+                                                                                color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[800],
                                                                                 fontWeight: 500
                                                                             }}>
                                                                                 Progress: {milestone.progress || 0}% (Weight: {milestone.weight || 1.00})
@@ -2411,7 +3137,7 @@ function ProjectDetailsPage() {
                                                                                                     fontWeight: 700,
                                                                                                     color: theme.palette.mode === 'dark' ? colors.grey[100] : '#000000',
                                                                                                     fontSize: '0.95rem',
-                                                                                                    mb: 0.5,
+                                                                                                    mb: 0.4,
                                                                                                     letterSpacing: '0.01em'
                                                                                                 }}>
                                                                                                     {activity.activityName}
@@ -2481,9 +3207,20 @@ function ProjectDetailsPage() {
                     </Box>
                 )}
 
-                {activeTab === 3 && (
+                {activeTab === 4 && (
                     <Box>
-                        {/* Monitoring Tab */}
+                        {/* Gantt Chart Tab */}
+                        <ProjectGanttChart 
+                            milestones={milestones}
+                            activities={milestoneActivities}
+                            projectName={project?.projectName || 'Project'}
+                        />
+                    </Box>
+                )}
+
+                {activeTab === 5 && (
+                    <Box>
+                        {/* M&E Tab */}
                         {/* NEW: Project Monitoring & Observations Section */}
             <Box sx={{ mt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -2648,7 +3385,7 @@ function ProjectDetailsPage() {
                     }}>
                         <Typography variant="h6" sx={{ 
                             fontWeight: 'bold',
-                            mb: 1,
+                            mb: 0.4,
                             color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[600]
                         }}>
                             No Monitoring Records Yet
@@ -2939,24 +3676,14 @@ function ProjectDetailsPage() {
                     </Box>
                 )}
 
-                {activeTab === 4 && (
+                {activeTab === 6 && (
                     <Box>
                         {/* Documents Tab */}
-                        <Typography variant="h6" sx={{ 
-                            mb: 2, 
-                            fontWeight: 'bold',
-                            color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1
-                        }}>
-                            <DescriptionIcon /> Project Documents & Attachments
-                        </Typography>
                         <ProjectDocumentsAttachments projectId={projectId} />
                     </Box>
                 )}
 
-                {activeTab === 5 && (
+                {activeTab === 7 && (
                     <Box>
                         {/* Map Tab */}
                         <ProjectMapEditor 
@@ -2966,30 +3693,31 @@ function ProjectDetailsPage() {
                     </Box>
                 )}
 
-                {activeTab === 6 && (
+                {activeTab === 2 && (
                     <Box>
                         {/* Contractor Tab */}
                         <Typography variant="h6" sx={{ 
-                            mb: 2, 
+                            mb: 0.4, 
                             fontWeight: 'bold',
                             color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1
+                            gap: 1,
+                            fontSize: '1rem'
                         }}>
                             <PeopleIcon /> Contractor & Team Information
                         </Typography>
                         {loadingContractors ? (
-                            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                            <Box display="flex" justifyContent="center" alignItems="center" minHeight="150px">
                                 <CircularProgress />
                             </Box>
                         ) : contractorsError ? (
-                            <Alert severity="error" sx={{ mb: 2 }}>
+                            <Alert severity="error" sx={{ mb: 1 }}>
                                 {contractorsError}
                             </Alert>
                         ) : projectContractors.length === 0 ? (
-                            <Paper sx={{ p: 4, textAlign: 'center' }}>
-                                <Typography variant="body1" color="text.secondary">
+                            <Paper sx={{ p: 1, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                                     No contractors assigned to this project.
                                 </Typography>
                             </Paper>
@@ -2998,18 +3726,19 @@ function ProjectDetailsPage() {
                                 <Paper 
                                     key={contractor.contractorId || index}
                                     sx={{ 
-                                        p: 3, 
-                                        mb: 2,
-                                        borderRadius: '12px',
+                                        p: 1.5, 
+                                        mb: 0.4,
+                                        borderRadius: '10px',
                                         backgroundColor: theme.palette.mode === 'dark' ? '#1F2A40' : colors.grey[50]
                                     }}
                                 >
-                                    <Grid container spacing={3}>
+                                    <Grid container spacing={1.5}>
                                         <Grid item xs={12}>
                                             <Typography variant="h6" sx={{ 
                                                 fontWeight: 'bold',
                                                 color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
-                                                mb: 2
+                                                mb: 0.4,
+                                                fontSize: '0.9rem'
                                             }}>
                                                 {contractor.companyName}
                                             </Typography>
@@ -3052,6 +3781,345 @@ function ProjectDetailsPage() {
                                 </Paper>
                             ))
                         )}
+                    </Box>
+                )}
+
+                {activeTab === 1 && (
+                    <Box>
+                        {/* Teams Tab */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="h6" sx={{ 
+                                fontWeight: 'bold',
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                fontSize: '1rem'
+                            }}>
+                                <GroupIcon /> Project Teams
+                            </Typography>
+                            <Stack direction="row" spacing={0.75}>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<DownloadIcon />}
+                                    onClick={handleDownloadTeamTemplate}
+                                    size="small"
+                                    sx={{ fontSize: '0.75rem', py: 0.4, px: 1 }}
+                                >
+                                    Download Template
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<UploadIcon />}
+                                    onClick={() => document.getElementById('team-upload-input')?.click()}
+                                    size="small"
+                                    sx={{ fontSize: '0.75rem', py: 0.4, px: 1 }}
+                                >
+                                    Upload List
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => setOpenTeamDialog(true)}
+                                    size="small"
+                                    sx={{ fontSize: '0.75rem', py: 0.4, px: 1 }}
+                                >
+                                    Add Member
+                                </Button>
+                                {projectTeams.length > 0 && (
+                                    <>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<DownloadIcon />}
+                                            onClick={handleDownloadTeamsPDF}
+                                            size="small"
+                                            sx={{ fontSize: '0.75rem', py: 0.4, px: 1 }}
+                                        >
+                                            PDF
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            startIcon={<PrintIcon />}
+                                            onClick={handlePrintTeams}
+                                            size="small"
+                                            sx={{ fontSize: '0.75rem', py: 0.4, px: 1 }}
+                                        >
+                                            Print
+                                        </Button>
+                                    </>
+                                )}
+                            </Stack>
+                        </Box>
+                        <input
+                            type="file"
+                            id="team-upload-input"
+                            accept=".csv,.xlsx,.xls"
+                            style={{ display: 'none' }}
+                            onChange={handleTeamFileUpload}
+                        />
+                        {loadingTeams ? (
+                            <Box display="flex" justifyContent="center" alignItems="center" minHeight="150px">
+                                <CircularProgress />
+                            </Box>
+                        ) : teamsError ? (
+                            <Alert severity="error" sx={{ mb: 1 }}>
+                                {teamsError}
+                            </Alert>
+                        ) : projectTeams.length === 0 ? (
+                            <Paper sx={{ p: 1, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                                    No team members assigned to this project.
+                                </Typography>
+                            </Paper>
+                        ) : (
+                            <Box sx={{ mt: 1 }}>
+                                {Object.entries(groupedTeams).map(([teamName, members]) => (
+                                    <Accordion 
+                                        key={teamName} 
+                                        defaultExpanded={Object.keys(groupedTeams).length === 1}
+                                        sx={{ 
+                                            mb: 1,
+                                            '&:before': { display: 'none' },
+                                            boxShadow: theme.palette.mode === 'dark' 
+                                                ? '0 2px 8px rgba(0,0,0,0.3)' 
+                                                : '0 2px 4px rgba(0,0,0,0.1)'
+                                        }}
+                                    >
+                                        <AccordionSummary
+                                            expandIcon={<ExpandMoreIcon />}
+                                            sx={{
+                                                backgroundColor: theme.palette.mode === 'dark' 
+                                                    ? colors.blueAccent[800] 
+                                                    : colors.blueAccent[50],
+                                                borderLeft: `4px solid ${colors.blueAccent[500]}`,
+                                                '&:hover': {
+                                                    backgroundColor: theme.palette.mode === 'dark' 
+                                                        ? colors.blueAccent[700] 
+                                                        : colors.blueAccent[100]
+                                                }
+                                            }}
+                                        >
+                                            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+                                                <Chip 
+                                                    label={teamName} 
+                                                    size="small"
+                                                    sx={{ 
+                                                        fontSize: '0.75rem', 
+                                                        fontWeight: 'bold',
+                                                        backgroundColor: colors.blueAccent[500],
+                                                        color: 'white'
+                                                    }}
+                                                />
+                                                <Typography variant="body2" sx={{ 
+                                                    color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.grey[700],
+                                                    fontWeight: 500
+                                                }}>
+                                                    {members.length} member{members.length !== 1 ? 's' : ''}
+                                                </Typography>
+                                            </Stack>
+                                        </AccordionSummary>
+                                        <AccordionDetails sx={{ p: 0 }}>
+                                            <TableContainer>
+                                                <Table size="small">
+                                                    <TableHead>
+                                                        <TableRow sx={{ backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[100] }}>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Name</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Role</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Email</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Phone</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Date Appointed</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Date Ended</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Status</TableCell>
+                                                            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.8rem', py: 0.5, px: 1 }}>Actions</TableCell>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {members.map((member, index) => (
+                                                            <TableRow key={member.teamMemberId || index} hover>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>{member.name || 'N/A'}</TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>
+                                                                    <Chip 
+                                                                        label={member.role || 'N/A'} 
+                                                                        size="small"
+                                                                        sx={{ fontSize: '0.7rem', height: '20px' }}
+                                                                    />
+                                                                </TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>{member.email || 'N/A'}</TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>{member.phone || 'N/A'}</TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>{formatDate(member.dateAppointed)}</TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>{formatDate(member.dateEnded) || 'Active'}</TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>
+                                                                    <Chip 
+                                                                        label={member.dateEnded ? 'Inactive' : 'Active'} 
+                                                                        size="small"
+                                                                        color={member.dateEnded ? 'default' : 'success'}
+                                                                        sx={{ fontSize: '0.7rem', height: '20px' }}
+                                                                    />
+                                                                </TableCell>
+                                                                <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>
+                                                                    <Stack direction="row" spacing={0.25}>
+                                                                        <IconButton 
+                                                                            size="small" 
+                                                                            onClick={() => handleEditTeam(member)}
+                                                                            sx={{ p: 0.25 }}
+                                                                        >
+                                                                            <EditIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                        <IconButton 
+                                                                            size="small" 
+                                                                            onClick={() => handleDeleteTeam(member.teamMemberId)}
+                                                                            sx={{ p: 0.25 }}
+                                                                            color="error"
+                                                                        >
+                                                                            <DeleteIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    </Stack>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </TableContainer>
+                                        </AccordionDetails>
+                                    </Accordion>
+                                ))}
+                            </Box>
+                        )}
+
+                        {/* Add/Edit Team Member Dialog */}
+                        <Dialog 
+                            open={openTeamDialog} 
+                            onClose={() => {
+                                setOpenTeamDialog(false);
+                                setEditingTeam(null);
+                                setTeamFormData({
+                                    teamName: '',
+                                    name: '',
+                                    role: '',
+                                    email: '',
+                                    phone: '',
+                                    dateAppointed: '',
+                                    dateEnded: '',
+                                    notes: ''
+                                });
+                            }}
+                            maxWidth="sm"
+                            fullWidth
+                        >
+                            <DialogTitle sx={{ fontSize: '1rem', pb: 1 }}>
+                                {editingTeam ? 'Edit Team Member' : 'Add Team Member'}
+                            </DialogTitle>
+                            <DialogContent>
+                                <Stack spacing={0.75} sx={{ mt: 0.25 }}>
+                                    <TextField
+                                        label="Team Name"
+                                        fullWidth
+                                        value={teamFormData.teamName || ''}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, teamName: e.target.value })}
+                                        size="small"
+                                        placeholder="e.g., Inspection Team, Evaluation Committee"
+                                        helperText="Name of the team this member belongs to"
+                                    />
+                                    <TextField
+                                        label="Name"
+                                        fullWidth
+                                        value={teamFormData.name}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, name: e.target.value })}
+                                        size="small"
+                                        required
+                                    />
+                                    <FormControl fullWidth size="small" required>
+                                        <InputLabel>Role</InputLabel>
+                                        <Select
+                                            value={teamFormData.role}
+                                            label="Role"
+                                            onChange={(e) => setTeamFormData({ ...teamFormData, role: e.target.value })}
+                                        >
+                                            <MenuItem value="Project Manager">Project Manager</MenuItem>
+                                            <MenuItem value="Evaluation Committee">Evaluation Committee</MenuItem>
+                                            <MenuItem value="PMC">PMC (Project Management Committee)</MenuItem>
+                                            <MenuItem value="Inspection Team">Inspection Team</MenuItem>
+                                            <MenuItem value="Technical Advisor">Technical Advisor</MenuItem>
+                                            <MenuItem value="Financial Officer">Financial Officer</MenuItem>
+                                            <MenuItem value="Quality Assurance">Quality Assurance</MenuItem>
+                                            <MenuItem value="Safety Officer">Safety Officer</MenuItem>
+                                            <MenuItem value="Other">Other</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    <TextField
+                                        label="Email"
+                                        fullWidth
+                                        type="email"
+                                        value={teamFormData.email}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, email: e.target.value })}
+                                        size="small"
+                                    />
+                                    <TextField
+                                        label="Phone"
+                                        fullWidth
+                                        value={teamFormData.phone}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, phone: e.target.value })}
+                                        size="small"
+                                    />
+                                    <TextField
+                                        label="Date Appointed"
+                                        fullWidth
+                                        type="date"
+                                        value={teamFormData.dateAppointed}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, dateAppointed: e.target.value })}
+                                        size="small"
+                                        InputLabelProps={{ shrink: true }}
+                                        required
+                                    />
+                                    <TextField
+                                        label="Date Ended (if applicable)"
+                                        fullWidth
+                                        type="date"
+                                        value={teamFormData.dateEnded}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, dateEnded: e.target.value })}
+                                        size="small"
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                    <TextField
+                                        label="Notes"
+                                        fullWidth
+                                        multiline
+                                        rows={2}
+                                        value={teamFormData.notes}
+                                        onChange={(e) => setTeamFormData({ ...teamFormData, notes: e.target.value })}
+                                        size="small"
+                                    />
+                                </Stack>
+                            </DialogContent>
+                            <DialogActions sx={{ px: 1.25, pb: 0.75, pt: 0.5 }}>
+                                <Button 
+                                    onClick={() => {
+                                        setOpenTeamDialog(false);
+                                        setEditingTeam(null);
+                                        setTeamFormData({
+                                            name: '',
+                                            role: '',
+                                            email: '',
+                                            phone: '',
+                                            dateAppointed: '',
+                                            dateEnded: '',
+                                            notes: ''
+                                        });
+                                    }}
+                                    size="small"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    onClick={handleSaveTeam} 
+                                    variant="contained"
+                                    disabled={!teamFormData.name || !teamFormData.role || !teamFormData.dateAppointed}
+                                    size="small"
+                                >
+                                    {editingTeam ? 'Update' : 'Add'}
+                                </Button>
+                            </DialogActions>
+                        </Dialog>
                     </Box>
                 )}
             </Paper>

@@ -35,6 +35,7 @@ function ProjectGanttChartPage() {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [milestones, setMilestones] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -52,11 +53,42 @@ function ProjectGanttChartPage() {
       const projectData = await apiService.projects.getProjectById(projectId);
       setProject(projectData);
 
-      const tasksData = await apiService.tasks.getTasksForProject(projectId);
-      setTasks(Array.isArray(tasksData) ? tasksData : []);
-
+      // Fetch milestones
       const milestonesData = await apiService.milestones.getMilestonesForProject(projectId);
-      setMilestones(Array.isArray(milestonesData) ? milestonesData : []);
+      const milestonesArray = Array.isArray(milestonesData) ? milestonesData : [];
+      setMilestones(milestonesArray);
+
+      // Fetch activities for each milestone (only if there are milestones)
+      let milestoneActivitiesResults = [];
+      if (milestonesArray.length > 0) {
+        try {
+          const milestoneActivitiesPromises = milestonesArray.map(m =>
+            apiService.strategy.milestoneActivities.getActivitiesByMilestoneId(m.milestoneId).catch(err => {
+              console.warn(`Error fetching activities for milestone ${m.milestoneId}:`, err);
+              return []; // Return empty array on error
+            })
+          );
+          milestoneActivitiesResults = (await Promise.all(milestoneActivitiesPromises)).flat();
+        } catch (err) {
+          console.warn('Error fetching milestone activities:', err);
+          milestoneActivitiesResults = [];
+        }
+      }
+      setActivities(milestoneActivitiesResults);
+
+      // Convert activities to tasks format for Gantt chart
+      const tasksFromActivities = milestoneActivitiesResults
+        .filter(activity => activity.startDate && activity.endDate) // Only include activities with dates
+        .map(activity => ({
+          taskId: activity.activityId,
+          taskName: activity.activityName || 'Unnamed Activity',
+          startDate: activity.startDate,
+          endDate: activity.endDate,
+          status: activity.activityStatus || 'not_started',
+          progress: activity.percentageComplete || 0,
+          dependencies: []
+        }));
+      setTasks(tasksFromActivities);
     } catch (err) {
       console.error('ProjectGanttChartPage: Error fetching data:', err);
       setError(err.response?.data?.message || err.message || 'Failed to load Gantt chart data.');
@@ -65,6 +97,7 @@ function ProjectGanttChartPage() {
       }
       setTasks([]);
       setMilestones([]);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
@@ -340,7 +373,7 @@ function ProjectGanttChartPage() {
   const handleExportChart = () => {
     const canvas = canvasRef.current;
     if (!canvas || (tasks.length === 0 && milestones.length === 0)) {
-      setSnackbar({ open: true, message: "No data to export.", severity: "warning" });
+      alert("No data to export.");
       return;
     }
     const dataURL = canvas.toDataURL('image/png');
