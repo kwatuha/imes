@@ -2134,10 +2134,10 @@ function ProjectManagementPage() {
                   sx={{ 
                     height: '100%',
                     background: isLight 
-                      ? 'linear-gradient(135deg, #757575 0%, #9e9e9e 100%)'
-                      : `linear-gradient(135deg, ${colors.grey[700]}, ${colors.grey[600]})`,
+                      ? 'linear-gradient(135deg, #FF1493 0%, #FF69B4 100%)'
+                      : `linear-gradient(135deg, #C71585, #FF1493)`,
                     color: isLight ? 'white' : 'inherit',
-                    borderTop: `2px solid ${isLight ? '#616161' : colors.grey[500]}`,
+                    borderTop: `2px solid ${isLight ? '#DC143C' : '#FF1493'}`,
                     border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Other')
                       ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
                       : 'none',
@@ -2147,7 +2147,7 @@ function ProjectManagementPage() {
                     borderRadius: '8px',
                     '&:hover': {
                       transform: 'translateY(-2px) scale(1.02)',
-                      boxShadow: isLight ? '0 4px 12px rgba(117, 117, 117, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                      boxShadow: isLight ? '0 4px 12px rgba(255, 20, 147, 0.4)' : '0 4px 16px rgba(255, 20, 147, 0.3)',
                     }
                   }}
                 >

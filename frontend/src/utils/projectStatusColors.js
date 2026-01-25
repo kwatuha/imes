@@ -11,7 +11,7 @@ const PROJECT_STATUS_COLORS = {
   'Stalled': '#ffa500',         // Orange - Bright Orange
   'Under Procurement': '#9370DB', // MediumSlateBlue - Purple (distinct from Ongoing's blue)
   'Suspended': '#e00202',       // Red
-  'Other': '#CD853F',           // Peru - Warm Brown/Tan (distinct from grays)
+  'Other': '#FF1493',           // DeepPink - Bright Magenta/Pink (stands out to indicate uncategorized projects)
   
   // Legacy statuses (for backward compatibility)
   'At Risk': '#b22222',         // FireBrick - Red
