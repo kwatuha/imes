@@ -794,16 +794,33 @@ function ProjectDetailsPage() {
 
             {/* Consolidated Top Section */}
             <Paper elevation={8} sx={{ 
-                p: 2.5, 
+                p: 3, 
                 mb: 3, 
-                borderRadius: '12px',
+                borderRadius: '16px',
                 background: theme.palette.mode === 'dark'
                     ? `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`
                     : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
                 border: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
                 boxShadow: theme.palette.mode === 'dark'
-                    ? `0 6px 24px rgba(0, 0, 0, 0.25), 0 3px 12px rgba(0, 0, 0, 0.15)`
-                    : `0 6px 24px rgba(0, 0, 0, 0.08), 0 3px 12px rgba(0, 0, 0, 0.04), 0 0 0 1px ${colors.blueAccent[100]}`
+                    ? `0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2)`
+                    : `0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px ${colors.blueAccent[100]}`,
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: `linear-gradient(90deg, ${colors.blueAccent[500]}, ${colors.greenAccent[500]}, ${colors.blueAccent[500]})`,
+                    backgroundSize: '200% 100%',
+                    animation: 'shimmer 3s ease-in-out infinite',
+                    '@keyframes shimmer': {
+                        '0%': { backgroundPosition: '200% 0' },
+                        '100%': { backgroundPosition: '-200% 0' }
+                    }
+                }
             }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -840,21 +857,57 @@ function ProjectDetailsPage() {
                             }}
                         />
                     </Stack>
-                    <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                    <Stack direction="row" spacing={1.5} sx={{ flexShrink: 0 }}>
                         {canReviewSubmissions && (
                             <Tooltip title="Review Contractor Submissions">
-                                <IconButton color="success" onClick={handleOpenReviewPanel}>
+                                <IconButton 
+                                    color="success" 
+                                    onClick={handleOpenReviewPanel}
+                                    sx={{
+                                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.1)',
+                                        '&:hover': {
+                                            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.3)' : 'rgba(76, 175, 80, 0.2)',
+                                            transform: 'scale(1.1)',
+                                            transition: 'all 0.2s ease-in-out'
+                                        },
+                                        transition: 'all 0.2s ease-in-out'
+                                    }}
+                                >
                                     <PaidIcon />
                                 </IconButton>
                             </Tooltip>
                         )}
                         <Tooltip title="View Project Monitoring">
-                            <IconButton color="info" onClick={handleOpenMonitoringModal}>
+                            <IconButton 
+                                color="info" 
+                                onClick={handleOpenMonitoringModal}
+                                sx={{
+                                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(33, 150, 243, 0.2)' : 'rgba(33, 150, 243, 0.1)',
+                                    '&:hover': {
+                                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(33, 150, 243, 0.3)' : 'rgba(33, 150, 243, 0.2)',
+                                        transform: 'scale(1.1)',
+                                        transition: 'all 0.2s ease-in-out'
+                                    },
+                                    transition: 'all 0.2s ease-in-out'
+                                }}
+                            >
                                 <VisibilityIcon />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Manage Project Photos">
-                            <IconButton color="secondary" onClick={handleManagePhotos}>
+                            <IconButton 
+                                color="secondary" 
+                                onClick={handleManagePhotos}
+                                sx={{
+                                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.2)' : 'rgba(156, 39, 176, 0.1)',
+                                    '&:hover': {
+                                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.3)' : 'rgba(156, 39, 176, 0.2)',
+                                        transform: 'scale(1.1)',
+                                        transition: 'all 0.2s ease-in-out'
+                                    },
+                                    transition: 'all 0.2s ease-in-out'
+                                }}
+                            >
                                 <PhotoCameraIcon />
                             </IconButton>
                         </Tooltip>
@@ -874,12 +927,15 @@ function ProjectDetailsPage() {
                         value={Math.min(100, Math.max(0, overallProgress))}
                         sx={{ 
                             flexGrow: 1, 
-                            height: 12, 
-                            borderRadius: 6, 
-                            bgcolor: colors.grey[600],
+                            height: 14, 
+                            borderRadius: 7, 
+                            bgcolor: theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[300],
+                            boxShadow: theme.palette.mode === 'light' ? `inset 0 2px 4px rgba(0, 0, 0, 0.1)` : 'none',
                             '& .MuiLinearProgress-bar': {
-                                borderRadius: 6,
-                                background: `linear-gradient(90deg, ${colors.greenAccent[500]} 0%, ${colors.greenAccent[600]} 100%)`
+                                borderRadius: 7,
+                                background: `linear-gradient(90deg, ${colors.greenAccent[500]} 0%, ${colors.greenAccent[600]} 100%)`,
+                                boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.greenAccent[500]}60` : 'none',
+                                transition: 'width 0.6s ease-in-out'
                             }
                         }}
                     />
@@ -896,11 +952,27 @@ function ProjectDetailsPage() {
                             : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
                         color: 'white',
                         height: '100%',
-                        boxShadow: 3,
-                        transition: 'transform 0.2s ease-in-out',
+                        boxShadow: theme.palette.mode === 'dark' ? 4 : `0 4px 20px rgba(33, 150, 243, 0.2)`,
+                        borderRadius: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                            transition: 'left 0.5s'
+                        },
                         '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 6
+                            transform: 'translateY(-6px) scale(1.02)',
+                            boxShadow: theme.palette.mode === 'dark' ? 8 : `0 8px 32px rgba(33, 150, 243, 0.4)`,
+                            '&::before': {
+                                left: '100%'
+                            }
                         }
                     }}>
                         <CardContent>
@@ -927,11 +999,27 @@ function ProjectDetailsPage() {
                             : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
                         color: 'white',
                         height: '100%',
-                        boxShadow: 3,
-                        transition: 'transform 0.2s ease-in-out',
+                        boxShadow: theme.palette.mode === 'dark' ? 4 : `0 4px 20px rgba(255, 152, 0, 0.2)`,
+                        borderRadius: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                            transition: 'left 0.5s'
+                        },
                         '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 6
+                            transform: 'translateY(-6px) scale(1.02)',
+                            boxShadow: theme.palette.mode === 'dark' ? 8 : `0 8px 32px rgba(255, 152, 0, 0.4)`,
+                            '&::before': {
+                                left: '100%'
+                            }
                         }
                     }}>
                         <CardContent>
@@ -961,11 +1049,27 @@ function ProjectDetailsPage() {
                             : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
                         color: 'white',
                         height: '100%',
-                        boxShadow: 3,
-                        transition: 'transform 0.2s ease-in-out',
+                        boxShadow: theme.palette.mode === 'dark' ? 4 : `0 4px 20px rgba(76, 175, 80, 0.2)`,
+                        borderRadius: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                            transition: 'left 0.5s'
+                        },
                         '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 6
+                            transform: 'translateY(-6px) scale(1.02)',
+                            boxShadow: theme.palette.mode === 'dark' ? 8 : `0 8px 32px rgba(76, 175, 80, 0.4)`,
+                            '&::before': {
+                                left: '100%'
+                            }
                         }
                     }}>
                         <CardContent>
@@ -995,11 +1099,27 @@ function ProjectDetailsPage() {
                             : `linear-gradient(135deg, ${colors.tealAccent?.[800] || colors.greenAccent[800]}, ${colors.tealAccent?.[700] || colors.greenAccent[700]})`,
                         color: 'white',
                         height: '100%',
-                        boxShadow: 3,
-                        transition: 'transform 0.2s ease-in-out',
+                        boxShadow: theme.palette.mode === 'dark' ? 4 : `0 4px 20px rgba(38, 166, 154, 0.2)`,
+                        borderRadius: '12px',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+                            transition: 'left 0.5s'
+                        },
                         '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 6
+                            transform: 'translateY(-6px) scale(1.02)',
+                            boxShadow: theme.palette.mode === 'dark' ? 8 : `0 8px 32px rgba(38, 166, 154, 0.4)`,
+                            '&::before': {
+                                left: '100%'
+                            }
                         }
                     }}>
                         <CardContent>
@@ -1093,13 +1213,16 @@ function ProjectDetailsPage() {
 
             {/* Tabbed Interface */}
             <Paper elevation={6} sx={{ 
-                p: 2, 
+                p: 2.5, 
                 mb: 3, 
-                borderRadius: '12px',
+                borderRadius: '16px',
                 background: theme.palette.mode === 'dark'
                     ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
                     : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
-                border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`
+                border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
+                boxShadow: theme.palette.mode === 'dark'
+                    ? `0 4px 20px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)`
+                    : `0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.03)`
             }}>
                 <Tabs 
                     value={activeTab} 
@@ -1107,15 +1230,31 @@ function ProjectDetailsPage() {
                     variant="scrollable"
                     scrollButtons="auto"
                     sx={{
-                        borderBottom: 1,
-                        borderColor: 'divider',
+                        borderBottom: `2px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                         mb: 3,
                         '& .MuiTab-root': {
                             color: theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[400],
+                            textTransform: 'none',
+                            fontSize: '0.95rem',
+                            fontWeight: 500,
+                            minHeight: 48,
+                            padding: '12px 20px',
+                            transition: 'all 0.2s ease-in-out',
+                            borderRadius: '8px 8px 0 0',
+                            marginRight: 1,
+                            '&:hover': {
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[400] : colors.blueAccent[600]
+                            },
                             '&.Mui-selected': {
-                                color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400],
-                                fontWeight: 'bold'
+                                color: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600],
+                                fontWeight: 'bold',
+                                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(33, 150, 243, 0.08)',
+                                borderBottom: `3px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[600]}`
                             }
+                        },
+                        '& .MuiTabs-indicator': {
+                            display: 'none'
                         }
                     }}
                 >
@@ -1133,16 +1272,22 @@ function ProjectDetailsPage() {
                     <Box>
                         {/* Combined Overview and Description Section */}
             <Paper elevation={6} sx={{ 
-                p: 3, 
+                p: 3.5, 
                 mb: 3, 
-                borderRadius: '12px',
+                borderRadius: '16px',
                 background: theme.palette.mode === 'dark'
                     ? `linear-gradient(135deg, ${colors.primary[400]} 0%, ${colors.primary[500]} 100%)`
                     : `linear-gradient(135deg, ${colors.grey[900]} 0%, ${colors.grey[800]} 100%)`,
                 border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[200]}`,
                 boxShadow: theme.palette.mode === 'dark'
-                    ? `0 4px 20px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)`
-                    : `0 4px 20px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.03), 0 0 0 1px ${colors.blueAccent[50]}`
+                    ? `0 6px 24px rgba(0, 0, 0, 0.25), 0 3px 12px rgba(0, 0, 0, 0.15)`
+                    : `0 6px 24px rgba(0, 0, 0, 0.08), 0 3px 12px rgba(0, 0, 0, 0.04), 0 0 0 1px ${colors.blueAccent[50]}`,
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                    boxShadow: theme.palette.mode === 'dark'
+                        ? `0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2)`
+                        : `0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06)`
+                }
             }}>
                 <Typography variant="h5" sx={{ 
                     display: 'flex', 
@@ -1161,12 +1306,18 @@ function ProjectDetailsPage() {
                     {/* First Column: Key Information */}
                     <Grid item xs={12} md={4}>
                         <Box sx={{
-                            p: 1.5,
-                            borderRadius: '8px',
+                            p: 2,
+                            borderRadius: '12px',
                             backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
                             border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
                             height: '100%',
-                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                            boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            transition: 'all 0.3s ease-in-out',
+                            '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: theme.palette.mode === 'light' ? `0 6px 24px ${colors.blueAccent[100]}60` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                            }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 
@@ -1215,12 +1366,18 @@ function ProjectDetailsPage() {
                     {/* Second Column: Financial Details */}
                     <Grid item xs={12} md={4}>
                         <Box sx={{
-                            p: 1.5,
-                            borderRadius: '8px',
+                            p: 2,
+                            borderRadius: '12px',
                             backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
                             border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
                             height: '100%',
-                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                            boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            transition: 'all 0.3s ease-in-out',
+                            '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: theme.palette.mode === 'light' ? `0 6px 24px ${colors.blueAccent[100]}60` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                            }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 
@@ -1259,12 +1416,18 @@ function ProjectDetailsPage() {
                     {/* Third Column: Accomplished Work */}
                     <Grid item xs={12} md={4}>
                         <Box sx={{
-                            p: 1.5,
-                            borderRadius: '8px',
+                            p: 2,
+                            borderRadius: '12px',
                             backgroundColor: theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[900],
                             border: `1px solid ${theme.palette.mode === 'dark' ? colors.blueAccent[700] : colors.blueAccent[300]}`,
                             height: '100%',
-                            boxShadow: theme.palette.mode === 'light' ? `0 2px 8px ${colors.blueAccent[100]}40` : 'none'
+                            boxShadow: theme.palette.mode === 'light' ? `0 4px 16px ${colors.blueAccent[100]}40` : `0 4px 16px rgba(0, 0, 0, 0.2)`,
+                            transition: 'all 0.3s ease-in-out',
+                            '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: theme.palette.mode === 'light' ? `0 6px 24px ${colors.blueAccent[100]}60` : `0 6px 24px rgba(0, 0, 0, 0.3)`,
+                                borderColor: theme.palette.mode === 'dark' ? colors.blueAccent[500] : colors.blueAccent[400]
+                            }
                         }}>
                             <Typography variant="h6" sx={{ 
                                 fontWeight: 'bold', 

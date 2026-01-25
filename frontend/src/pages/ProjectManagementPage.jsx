@@ -294,13 +294,13 @@ function ProjectManagementPage() {
   
   // Calculate optimal height based on page size
   const calculateGridHeight = () => {
-    const rowHeight = 52; // Standard DataGrid row height
-    const headerHeight = 56; // Column header height
-    const footerHeight = 52; // Pagination footer height
-    const padding = 32; // Extra padding
+    const rowHeight = 48; // Standard DataGrid row height
+    const headerHeight = 52; // Column header height
+    const footerHeight = 48; // Pagination footer height
+    const padding = 24; // Extra padding
     
     const totalHeight = headerHeight + (paginationModel.pageSize * rowHeight) + footerHeight + padding;
-    return Math.max(totalHeight, 400); // Minimum height of 400px
+    return Math.max(totalHeight, 380); // Minimum height of 380px
   };
 
   // Format currency in millions for KPI cards
@@ -1340,8 +1340,8 @@ function ProjectManagementPage() {
   });
 
   return (
-    <Box m="12px">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '10px', flexWrap: 'wrap', gap: 1 }}>
+    <Box m="8px">
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '6px', flexWrap: 'wrap', gap: 0.75 }}>
         <Header title="PROJECTS" subtitle="Registry of Projects" />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           {/* Action Buttons */}
@@ -1396,7 +1396,7 @@ function ProjectManagementPage() {
                       borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
                       color: isLight ? theme.palette.action.disabled : colors.grey[500]
                     },
-                    fontSize: '0.75rem', py: 0.4, px: 1.25
+                    fontSize: '0.7rem', py: 0.3, px: 1
                   }}
                 >
                   {exportingExcel ? 'Exporting...' : 'Export to Excel'}
@@ -1418,7 +1418,7 @@ function ProjectManagementPage() {
                       borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
                       color: isLight ? theme.palette.action.disabled : colors.grey[500]
                     },
-                    fontSize: '0.75rem', py: 0.4, px: 1.25
+                    fontSize: '0.7rem', py: 0.3, px: 1
                   }}
                 >
                   {exportingPdf ? 'Generating PDF...' : 'Export to PDF'}
@@ -1504,7 +1504,7 @@ function ProjectManagementPage() {
 
       {/* Summary Statistics Cards - Show stats for filtered projects (respects search and column filters) */}
       {!loading && !error && projects && projects.length > 0 && (
-        <Grid container spacing={0.75} sx={{ mb: 1, mt: 0.75 }}>
+        <Grid container spacing={0.5} sx={{ mb: 0.75, mt: 0.5 }}>
           <Grid item xs={12} sm={6} md={4} lg={2}>
             <Card 
               sx={{ 
@@ -1523,17 +1523,17 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
+              <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.375}>
+                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
                     Total Projects
                   </Typography>
-                  <AssignmentIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 16 }} />
+                  <AssignmentIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 14 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.1rem', mb: 0.25, lineHeight: 1.2 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0.125, lineHeight: 1.15 }}>
                   {summaryStats.totalProjects.toLocaleString()}
                 </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
+                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem' }}>
                   {summaryStats.completionRate}% completed
                 </Typography>
               </CardContent>
@@ -1653,13 +1653,13 @@ function ProjectManagementPage() {
 
       {/* Distribution Cards - Toggle between Progress and Status */}
       {!loading && !error && projects && projects.length > 0 && (
-        <Box sx={{ mb: 1, mt: 0.75, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Grid container spacing={0.5} sx={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', flex: 1, '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
+        <Box sx={{ mb: 0.75, mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Grid container spacing={0.375} sx={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', flex: 1, '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
 
           {/* Progress View */}
           {distributionView === 'progress' && (
             <>
-              <Grid item sx={{ minWidth: { xs: '140px', sm: '160px', md: '180px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '125px', sm: '145px', md: '165px' }, flex: '0 0 auto' }}>
             <Card 
               onClick={() => handleProgressFilter(0)}
               sx={{ 
@@ -1870,7 +1870,7 @@ function ProjectManagementPage() {
           {distributionView === 'status' && (
             <>
               {/* Completed */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Completed')}
                   sx={{ 
@@ -1913,7 +1913,7 @@ function ProjectManagementPage() {
               </Grid>
 
               {/* Ongoing */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Ongoing')}
                   sx={{ 
@@ -1956,7 +1956,7 @@ function ProjectManagementPage() {
               </Grid>
 
               {/* Not started */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Not started')}
                   sx={{ 
@@ -1999,7 +1999,7 @@ function ProjectManagementPage() {
               </Grid>
 
               {/* Stalled */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Stalled')}
                   sx={{ 
@@ -2042,7 +2042,7 @@ function ProjectManagementPage() {
               </Grid>
 
               {/* Under Procurement */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Under Procurement')}
                   sx={{ 
@@ -2085,7 +2085,7 @@ function ProjectManagementPage() {
               </Grid>
 
               {/* Suspended */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Suspended')}
                   sx={{ 
@@ -2128,7 +2128,7 @@ function ProjectManagementPage() {
               </Grid>
 
               {/* Other */}
-              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+              <Grid item sx={{ minWidth: { xs: '110px', sm: '130px', md: '145px' }, flex: '0 0 auto' }}>
                 <Card 
                   onClick={() => handleStatusFilter('Other')}
                   sx={{ 
@@ -2235,7 +2235,7 @@ function ProjectManagementPage() {
         <Box
           ref={dataGridRef}
           sx={{
-            mt: 2,
+            mt: 1.25,
             backgroundColor: ui.bodyBg,
             borderRadius: '12px',
             overflow: 'hidden',
@@ -2253,9 +2253,9 @@ function ProjectManagementPage() {
             getRowHeight={(params) => {
               // Calculate row height based on project name length
               const projectName = params.row?.projectName || '';
-              const lineHeight = 24; // Approximate line height in pixels
-              const padding = 24; // Top and bottom padding
-              const minHeight = 52;
+              const lineHeight = 22; // Approximate line height in pixels
+              const padding = 20; // Top and bottom padding
+              const minHeight = 48;
               const estimatedLines = Math.ceil(projectName.length / 40); // Rough estimate: ~40 chars per line
               const calculatedHeight = Math.max(minHeight, (estimatedLines * lineHeight) + padding);
               return calculatedHeight;
