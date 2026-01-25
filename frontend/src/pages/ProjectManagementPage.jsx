@@ -14,7 +14,8 @@ import {
   Assignment as AssignmentIcon, AttachMoney as MoneyIcon, CheckCircle as CheckCircleIcon, 
   HourglassEmpty as HourglassIcon, AccountBalance as ContractedIcon, Payment as PaidIcon,
   Search as SearchIcon, Clear as ClearIcon, PlayArrow as PlayArrowIcon, Pause as PauseIcon,
-  Warning as WarningIcon, Cancel as CancelIcon, Schedule as ScheduleIcon, CheckCircleOutline as CheckCircleOutlineIcon
+  Warning as WarningIcon, Cancel as CancelIcon, Schedule as ScheduleIcon, CheckCircleOutline as CheckCircleOutlineIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -139,10 +140,23 @@ function ProjectManagementPage() {
 
   // States for column visibility and menu
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(() => {
-    // First, create default visibility from config (respecting show: false)
+    // Default columns to show: Project Name, Status, Budget, Progress, Department, Fin. Year, Sub-Counties, Wards, Actions
+    const defaultVisibleColumns = [
+      'projectName',
+      'status',
+      'costOfProject', // Budget
+      'overallProgress', // Progress
+      'departmentName', // Department
+      'financialYearName', // Fin. Year
+      'subcountyNames', // Sub-Counties
+      'wardNames', // Wards
+      'actions' // Always visible
+    ];
+    
+    // Create default visibility - only show specified columns
     const defaultVisibility = {};
     projectTableColumnsConfig.forEach(col => {
-      defaultVisibility[col.id] = col.show !== false; // Explicitly set based on show property
+      defaultVisibility[col.id] = defaultVisibleColumns.includes(col.id);
     });
     // Always show actions column
     defaultVisibility['actions'] = true;
@@ -201,6 +215,13 @@ function ProjectManagementPage() {
 
   // State for toggling between progress and status view
   const [distributionView, setDistributionView] = useState('status'); // 'progress' or 'status'
+
+  // State for action menu
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  
+  // State for row action menu (for DataGrid)
+  const [rowActionMenuAnchor, setRowActionMenuAnchor] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
 
   // Handler to filter by progress percentage
   const handleProgressFilter = useCallback((progressValue) => {
@@ -918,9 +939,22 @@ function ProjectManagementPage() {
   };
 
   const handleResetColumns = () => {
+    // Default columns to show: Project Name, Status, Budget, Progress, Department, Fin. Year, Sub-Counties, Wards, Actions
+    const defaultVisibleColumns = [
+      'projectName',
+      'status',
+      'costOfProject', // Budget
+      'overallProgress', // Progress
+      'departmentName', // Department
+      'financialYearName', // Fin. Year
+      'subcountyNames', // Sub-Counties
+      'wardNames', // Wards
+      'actions' // Always visible
+    ];
+    
     const defaultVisibility = {};
     projectTableColumnsConfig.forEach(col => {
-      defaultVisibility[col.id] = col.show !== false; // Explicitly respect show property
+      defaultVisibility[col.id] = defaultVisibleColumns.includes(col.id);
     });
     // Always show actions column
     defaultVisibility['actions'] = true;
@@ -962,7 +996,49 @@ function ProjectManagementPage() {
         break;
       
       case 'projectName':
-        // No special handling needed - DataGrid will use the field mapping automatically
+        dataGridColumn.renderCell = (params) => {
+          if (!params || !params.value) return 'N/A';
+          return (
+            <Box
+              sx={{
+                width: '100%',
+                minHeight: '52px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                py: 1.5,
+                px: 1,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                overflow: 'visible',
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  whiteSpace: 'normal',
+                  wordWrap: 'break-word',
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                  hyphens: 'auto',
+                  lineHeight: 1.5,
+                  width: '100%',
+                  maxWidth: '100%',
+                  overflow: 'visible',
+                  textOverflow: 'clip',
+                  display: 'block',
+                }}
+              >
+                {params.value}
+              </Typography>
+            </Box>
+          );
+        };
+        dataGridColumn.cellClassName = 'project-name-cell';
+        // Set a fixed width to allow proper wrapping
+        if (!dataGridColumn.width) {
+          dataGridColumn.width = 250; // Set a reasonable width for wrapping
+        }
+        dataGridColumn.flex = 0; // Prevent flex from interfering with wrapping
         break;
       case 'status':
         dataGridColumn.renderCell = (params) => {
@@ -1034,6 +1110,13 @@ function ProjectManagementPage() {
         };
         break;
       case 'costOfProject':
+        dataGridColumn.width = 150; // Ensure fixed width
+        dataGridColumn.minWidth = 150;
+        dataGridColumn.renderCell = (params) => {
+          if (!params) return 'N/A';
+          return !isNaN(parseFloat(params.value)) ? currencyFormatter.format(parseFloat(params.value)) : 'N/A';
+        };
+        break;
       case 'paidOut':
         dataGridColumn.renderCell = (params) => {
           if (!params) return 'N/A';
@@ -1077,6 +1160,8 @@ function ProjectManagementPage() {
       case 'overallProgress':
         dataGridColumn.type = 'number';
         dataGridColumn.filterable = true;
+        dataGridColumn.width = 160; // Ensure fixed width
+        dataGridColumn.minWidth = 160;
         dataGridColumn.valueGetter = (params) => {
           if (!params || !params.row) return 0;
           const progress = params.row.overallProgress;
@@ -1092,12 +1177,15 @@ function ProjectManagementPage() {
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: 0.75, 
+              gap: 0.5, 
               width: '100%',
+              maxWidth: '100%',
               height: '100%',
-              py: 0.5
+              py: 0.5,
+              px: 0.5,
+              boxSizing: 'border-box'
             }}>
-              <Box sx={{ flexGrow: 1, minWidth: 50, maxWidth: 70 }}>
+              <Box sx={{ flexGrow: 1, minWidth: 40, maxWidth: 60, flexShrink: 1 }}>
                 <LinearProgress
                   variant="determinate"
                   value={clampedProgress}
@@ -1117,13 +1205,17 @@ function ProjectManagementPage() {
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  minWidth: 38,
+                  minWidth: 35,
+                  maxWidth: 40,
                   textAlign: 'right',
                   fontSize: '0.8125rem',
                   fontWeight: 600,
                   color: isLight ? '#000000' : '#ffffff',
                   lineHeight: 1.2,
-                  flexShrink: 0
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {clampedProgress.toFixed(0)}%
@@ -1196,67 +1288,45 @@ function ProjectManagementPage() {
           const canViewKdsp = checkUserPrivilege(user, 'project.read_kdsp_details');
           
           return (
-          <Stack direction="row" spacing={0.5} justifyContent="flex-end" sx={{ minWidth: '180px' }}>
-            {canAssignContractor && (
-              <Tooltip title="Assign Contractors">
-                <IconButton size="small" sx={{ color: ui.actionIcon }} onClick={() => handleOpenAssignModal(params.row)}>
-                  <GroupAddIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Tooltip title={canUpdate ? "Edit" : "You don't have permission to edit projects"}>
-              <span>
-                <IconButton 
+            <>
+              <Tooltip title="Actions">
+                <IconButton
                   size="small"
-                  sx={{ color: ui.actionIcon }} 
-                  onClick={() => canUpdate && handleOpenFormDialog(params.row)}
-                  disabled={!canUpdate}
+                  onClick={(e) => {
+                    setSelectedRow(params.row);
+                    setRowActionMenuAnchor(e.currentTarget);
+                  }}
+                  sx={{ color: ui.actionIcon }}
                 >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </span>
-              </Tooltip>
-            <Tooltip title={canDelete ? "Delete" : "You don't have permission to delete projects"}>
-              <span>
-                <IconButton 
-                  size="small"
-                  sx={{ color: ui.danger }} 
-                  onClick={() => canDelete && handleDeleteProject(params.row)}
-                  disabled={!canDelete}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </span>
-              </Tooltip>
-            {canViewGantt && (
-              <Tooltip title="Gantt Chart">
-                <IconButton size="small" sx={{ color: ui.actionIcon }} onClick={() => handleViewGanttChart(params.row.id)}>
-                  <GanttChartIcon fontSize="small" />
+                  <MoreVertIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-            )}
-            <Tooltip title="View Details">
-              <IconButton size="small" sx={{ color: ui.actionIcon }} onClick={() => handleViewDetails(params.row.id)}>
-                <ViewDetailsIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {canViewKdsp && (
-              <Tooltip title="View KDSP Details">
-                <Button variant="outlined" onClick={() => handleViewKdspDetails(params.row.id)} size="small" sx={{ whiteSpace: 'nowrap', color: ui.actionIcon, borderColor: ui.actionIcon, fontSize: '0.75rem', py: 0.25, px: 1 }}>
-                  KDSP
-                </Button>
-              </Tooltip>
-            )}
-          </Stack>
+            </>
           );
         };
+        dataGridColumn.renderHeader = () => (
+          <Tooltip title="Actions">
+            <IconButton
+              size="small"
+              sx={{ 
+                color: 'inherit',
+                padding: '4px',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                }
+              }}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        );
         dataGridColumn.sortable = false;
         dataGridColumn.filterable = false;
-        dataGridColumn.headerAlign = 'right';
-        dataGridColumn.align = 'right';
-        // Ensure actions column has proper width
+        dataGridColumn.headerAlign = 'center';
+        dataGridColumn.align = 'center';
+        // Reduce width since we only have one button now and using icon header
         if (!dataGridColumn.width && !dataGridColumn.flex) {
-          dataGridColumn.width = 200;
+          dataGridColumn.width = 50;
         }
         break;
       default:
@@ -2180,6 +2250,16 @@ function ProjectManagementPage() {
             rows={dataGridFilteredProjects || []}
             columns={columns}
             getRowId={(row) => row?.id || Math.random()}
+            getRowHeight={(params) => {
+              // Calculate row height based on project name length
+              const projectName = params.row?.projectName || '';
+              const lineHeight = 24; // Approximate line height in pixels
+              const padding = 24; // Top and bottom padding
+              const minHeight = 52;
+              const estimatedLines = Math.ceil(projectName.length / 40); // Rough estimate: ~40 chars per line
+              const calculatedHeight = Math.max(minHeight, (estimatedLines * lineHeight) + padding);
+              return calculatedHeight;
+            }}
             columnVisibilityModel={{
               ...columnVisibilityModel,
               actions: true, // Always show actions column
@@ -2208,7 +2288,119 @@ function ProjectManagementPage() {
             disableColumnSelector={false}
             disableDensitySelector={false}
             autoHeight={false}
-            sx={{ height: '100%', width: '100%' }}
+            sx={{ 
+              height: '100%', 
+              width: '100%',
+              '& .project-name-cell': {
+                whiteSpace: 'normal !important',
+                wordWrap: 'break-word !important',
+                overflowWrap: 'break-word !important',
+                wordBreak: 'break-word !important',
+                paddingTop: '12px !important',
+                paddingBottom: '12px !important',
+                minHeight: '52px !important',
+                display: 'flex !important',
+                alignItems: 'flex-start !important',
+                overflow: 'visible !important',
+                textOverflow: 'clip !important',
+                boxSizing: 'border-box !important',
+                position: 'relative !important',
+                zIndex: 'auto !important',
+                '& .MuiDataGrid-cellContent': {
+                  overflow: 'visible !important',
+                  textOverflow: 'clip !important',
+                  whiteSpace: 'normal !important',
+                  wordWrap: 'break-word !important',
+                  wordBreak: 'break-word !important',
+                  position: 'relative !important',
+                  zIndex: 'auto !important',
+                },
+                '&:hover': {
+                  overflow: 'visible !important',
+                  zIndex: 'auto !important',
+                  '& .MuiDataGrid-cellContent': {
+                    overflow: 'visible !important',
+                    zIndex: 'auto !important',
+                  }
+                }
+              },
+              '& .MuiDataGrid-row': {
+                maxHeight: 'none !important',
+                '& .MuiDataGrid-cell': {
+                  maxHeight: 'none !important',
+                  overflow: 'visible !important',
+                },
+                '&:hover .MuiDataGrid-cell': {
+                  overflow: 'visible !important',
+                  zIndex: 'auto !important',
+                },
+                '&:hover .project-name-cell': {
+                  overflow: 'visible !important',
+                  zIndex: 'auto !important',
+                  '& .MuiDataGrid-cellContent': {
+                    overflow: 'visible !important',
+                    zIndex: 'auto !important',
+                  }
+                }
+              },
+              '& .MuiDataGrid-cell': {
+                display: 'flex',
+                alignItems: 'center',
+                paddingTop: '8px',
+                paddingBottom: '8px',
+                overflow: 'visible !important',
+                position: 'relative',
+                zIndex: 'auto',
+                '&.project-name-cell': {
+                  alignItems: 'flex-start',
+                  overflow: 'visible !important',
+                  zIndex: 'auto',
+                },
+                '&:hover': {
+                  overflow: 'visible !important',
+                  zIndex: 'auto !important',
+                }
+              },
+              '& .MuiDataGrid-cellContent': {
+                overflow: 'visible !important',
+                textOverflow: 'clip',
+                whiteSpace: 'normal',
+                width: '100%',
+                maxWidth: '100%',
+                wordWrap: 'break-word',
+                wordBreak: 'break-word',
+                position: 'relative',
+                zIndex: 'auto',
+              },
+              '& .project-name-cell .MuiDataGrid-cellContent': {
+                overflow: 'visible !important',
+                textOverflow: 'clip !important',
+                whiteSpace: 'normal !important',
+                wordWrap: 'break-word !important',
+                wordBreak: 'break-word !important',
+                width: '100% !important',
+                maxWidth: '100% !important',
+              },
+              '& .MuiDataGrid-virtualScrollerContent': {
+                '& .MuiDataGrid-row': {
+                  overflow: 'visible !important',
+                  position: 'relative',
+                  '& .MuiDataGrid-cell': {
+                    overflow: 'visible !important',
+                    position: 'relative',
+                    '&:hover': {
+                      overflow: 'visible !important',
+                    }
+                  },
+                  '&:hover': {
+                    overflow: 'visible !important',
+                    '& .MuiDataGrid-cell': {
+                      overflow: 'visible !important',
+                    }
+                  }
+                }
+              }
+            }}
           />
         </Box>
       )}
@@ -2316,6 +2508,113 @@ function ProjectManagementPage() {
             )}
           </>
         )}
+      </Menu>
+
+      {/* Row Action Menu */}
+      <Menu
+        anchorEl={rowActionMenuAnchor}
+        open={Boolean(rowActionMenuAnchor)}
+        onClose={() => {
+          setRowActionMenuAnchor(null);
+          setSelectedRow(null);
+        }}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        {selectedRow && (() => {
+          const canUpdate = checkUserPrivilege(user, 'project.update');
+          const canDelete = checkUserPrivilege(user, 'project.delete');
+          const canAssignContractor = checkUserPrivilege(user, 'projects.assign_contractor');
+          const canViewGantt = checkUserPrivilege(user, 'project.read_gantt_chart');
+          const canViewKdsp = checkUserPrivilege(user, 'project.read_kdsp_details');
+          
+          return (
+            <>
+              {canAssignContractor && (
+                <MenuItem onClick={() => {
+                  handleOpenAssignModal(selectedRow);
+                  setRowActionMenuAnchor(null);
+                  setSelectedRow(null);
+                }}>
+                  <ListItemIcon>
+                    <GroupAddIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Assign Contractors</ListItemText>
+                </MenuItem>
+              )}
+              <MenuItem 
+                onClick={() => {
+                  if (canUpdate) {
+                    handleOpenFormDialog(selectedRow);
+                    setRowActionMenuAnchor(null);
+                    setSelectedRow(null);
+                  }
+                }}
+                disabled={!canUpdate}
+              >
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Edit</ListItemText>
+              </MenuItem>
+              <MenuItem 
+                onClick={() => {
+                  if (canDelete) {
+                    handleDeleteProject(selectedRow);
+                    setRowActionMenuAnchor(null);
+                    setSelectedRow(null);
+                  }
+                }}
+                disabled={!canDelete}
+              >
+                <ListItemIcon>
+                  <DeleteIcon fontSize="small" sx={{ color: ui.danger }} />
+                </ListItemIcon>
+                <ListItemText>Delete</ListItemText>
+              </MenuItem>
+              {canViewGantt && (
+                <MenuItem onClick={() => {
+                  handleViewGanttChart(selectedRow.id);
+                  setRowActionMenuAnchor(null);
+                  setSelectedRow(null);
+                }}>
+                  <ListItemIcon>
+                    <GanttChartIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Gantt Chart</ListItemText>
+                </MenuItem>
+              )}
+              <MenuItem onClick={() => {
+                handleViewDetails(selectedRow.id);
+                setRowActionMenuAnchor(null);
+                setSelectedRow(null);
+              }}>
+                <ListItemIcon>
+                  <ViewDetailsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>View Details</ListItemText>
+              </MenuItem>
+              {canViewKdsp && (
+                <MenuItem onClick={() => {
+                  handleViewKdspDetails(selectedRow.id);
+                  setRowActionMenuAnchor(null);
+                  setSelectedRow(null);
+                }}>
+                  <ListItemIcon>
+                    <ViewDetailsIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>View KDSP Details</ListItemText>
+                </MenuItem>
+              )}
+            </>
+          );
+        })()}
       </Menu>
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
