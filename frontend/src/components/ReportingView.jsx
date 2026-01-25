@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Typography,
@@ -911,16 +911,20 @@ const ReportingView = () => {
     }
     const budgetFormatted = totalBudget >= 1000000 ? `${(totalBudget / 1000000).toFixed(1)}M` : `${(totalBudget / 1000).toFixed(0)}K`;
 
-    // Calculate financial summary from department data
-    const financialSummary = calculateFinancialSummary(dashboardData.projectProgress);
-    
-    // Debug logging to verify calculations
-    console.log('Financial Summary Debug:', {
-        departmentData: dashboardData.projectProgress,
-        totalContracted: financialSummary.totalContracted,
-        totalPaid: financialSummary.totalPaid,
-        absorptionRate: financialSummary.absorptionRate
-    });
+    // Calculate financial summary from department data - use useMemo to ensure it updates when filtered data changes
+    const financialSummary = useMemo(() => {
+        const summary = calculateFinancialSummary(dashboardData.projectProgress);
+        // Debug logging to verify calculations
+        console.log('Financial Summary Debug:', {
+            departmentData: dashboardData.projectProgress,
+            totalContracted: summary.totalContracted,
+            totalPaid: summary.totalPaid,
+            absorptionRate: summary.absorptionRate,
+            filterGlobalSearch: filters.globalSearch,
+            filteredDataLength: dashboardData.projectProgress?.length || 0
+        });
+        return summary;
+    }, [dashboardData.projectProgress, filters.globalSearch]);
     
     const formatCurrency = (amount) => {
         const numAmount = parseFloat(amount) || 0;
@@ -1161,6 +1165,18 @@ const ReportingView = () => {
                         borderRadius: '12px 12px 0 0',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                         minHeight: '40px',
+                        pt: 1,
+                        borderBottom: 'none',
+                        position: 'relative',
+                        '&::after': {
+                            content: '""',
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '1px',
+                            background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
+                        },
                         '& .MuiTab-root': {
                             textTransform: 'none',
                             fontWeight: '600',
@@ -1168,28 +1184,39 @@ const ReportingView = () => {
                             minHeight: '40px',
                             py: 0.5,
                             color: 'text.secondary',
-                            transition: 'all 0.3s ease',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             position: 'relative',
+                            borderRadius: '12px 12px 0 0',
+                            mb: -1,
+                            zIndex: 1,
                             '&:hover': {
                                 color: 'primary.main',
-                                backgroundColor: 'rgba(25, 118, 210, 0.04)',
-                                transform: 'translateY(-1px)'
+                                backgroundColor: 'rgba(25, 118, 210, 0.06)',
+                                transform: 'translateY(-2px)'
                             }
                         },
                         '& .Mui-selected': {
                             color: 'primary.main',
                             fontWeight: '700',
-                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                            '&::after': {
+                            backgroundColor: 'white',
+                            boxShadow: '0 -4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+                            borderTop: '2px solid',
+                            borderLeft: '2px solid',
+                            borderRight: '2px solid',
+                            borderColor: 'rgba(0,0,0,0.06)',
+                            borderBottom: 'none',
+                            '&::before': {
                                 content: '""',
                                 position: 'absolute',
-                                bottom: 0,
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                width: '60%',
+                                top: 0,
+                                left: 0,
+                                right: 0,
                                 height: '3px',
-                                backgroundColor: 'primary.main',
-                                borderRadius: '2px 2px 0 0'
+                                background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)',
+                                borderRadius: '12px 12px 0 0'
+                            },
+                            '&::after': {
+                                display: 'none'
                             }
                         },
                         '& .MuiTabs-indicator': {

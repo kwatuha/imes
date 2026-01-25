@@ -219,11 +219,20 @@ export default function ProjectAnalyticsPage() {
                 flexDirection: 'column', 
                 alignItems: 'center', 
                 justifyContent: 'center', 
-                minHeight: '400px',
-                gap: 2
+                minHeight: '60vh',
+                gap: 3,
+                background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)'
             }}>
-                <CircularProgress size={60} />
-                <Typography variant="h6" color="text.secondary">
+                <CircularProgress 
+                    size={64} 
+                    sx={{ 
+                        color: 'primary.main',
+                        '& .MuiCircularProgress-circle': {
+                            strokeLinecap: 'round'
+                        }
+                    }} 
+                />
+                <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
                     Loading analytics...
                 </Typography>
             </Box>
@@ -231,25 +240,69 @@ export default function ProjectAnalyticsPage() {
     }
 
     return (
-        <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: '100%' }}>
+        <Box sx={{ 
+            p: { xs: 2, sm: 3, md: 4 }, 
+            maxWidth: '100%',
+            background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+            minHeight: '100vh'
+        }}>
             {/* Header */}
             <Box sx={{ 
                 display: 'flex', 
                 justifyContent: 'space-between', 
-                alignItems: 'center',
-                mb: 3,
+                alignItems: 'flex-start',
+                mb: 4,
                 flexWrap: 'wrap',
-                gap: 2
+                gap: 3,
+                pb: 3,
+                borderBottom: '2px solid',
+                borderColor: 'divider'
             }}>
                 <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                        Project Analytics
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Comprehensive project performance metrics and statistics
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                        <Box sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 4px 14px rgba(102, 126, 234, 0.3)'
+                        }}>
+                            <AnalyticsIcon sx={{ color: 'white', fontSize: '2rem' }} />
+                        </Box>
+                        <Box>
+                            <Typography variant="h4" sx={{ 
+                                fontWeight: 700, 
+                                mb: 0.5,
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                backgroundClip: 'text',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                fontSize: { xs: '1.75rem', md: '2.125rem' }
+                            }}>
+                                Project Analytics
+                            </Typography>
+                            <Typography variant="body1" color="text.secondary" sx={{ fontSize: '0.95rem' }}>
+                                Comprehensive project performance metrics and statistics
+                            </Typography>
+                        </Box>
+                    </Box>
                 </Box>
-                <FormControl size="small" sx={{ minWidth: 180 }}>
+                <FormControl 
+                    size="small" 
+                    sx={{ 
+                        minWidth: 200,
+                        '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            backgroundColor: 'white',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                            '&:hover': {
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
+                            }
+                        }
+                    }}
+                >
                     <InputLabel>Time Period</InputLabel>
                     <Select
                         value={months}
@@ -266,37 +319,51 @@ export default function ProjectAnalyticsPage() {
 
             {/* Summary Cards */}
             {summary && (
-                <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid container spacing={3} sx={{ mb: 4 }}>
                     <Grid item xs={12} sm={6} md={3}>
                         <Fade in timeout={800}>
                             <Card sx={{ 
                                 height: '100%',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                border: '1px solid rgba(0,0,0,0.05)',
-                                transition: 'all 0.3s ease',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                color: 'white',
+                                borderRadius: 3,
+                                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25)',
+                                border: 'none',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 0,
+                                    width: '100px',
+                                    height: '100px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '50%',
+                                    transform: 'translate(30px, -30px)'
+                                },
                                 '&:hover': {
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                                    transform: 'translateY(-2px)'
+                                    boxShadow: '0 12px 32px rgba(102, 126, 234, 0.35)',
+                                    transform: 'translateY(-4px) scale(1.02)'
                                 }
                             }}>
-                                <CardHeader
-                                    sx={{ pb: 1 }}
-                                    title={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Business sx={{ color: 'primary.main', fontSize: '1.2rem' }} />
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                                Total Projects
-                                            </Typography>
+                                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                        <Box sx={{
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                            backdropFilter: 'blur(10px)'
+                                        }}>
+                                            <Business sx={{ fontSize: '1.75rem' }} />
                                         </Box>
-                                    }
-                                />
-                                <CardContent>
-                                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                    </Box>
+                                    <Typography variant="h3" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '1.75rem', md: '2.25rem' } }}>
                                         {summary.totalProjects || 0}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        All registered projects
+                                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.875rem' }}>
+                                        Total Projects
                                     </Typography>
                                 </CardContent>
                             </Card>
@@ -307,32 +374,46 @@ export default function ProjectAnalyticsPage() {
                         <Fade in timeout={1000}>
                             <Card sx={{ 
                                 height: '100%',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                border: '1px solid rgba(0,0,0,0.05)',
-                                transition: 'all 0.3s ease',
+                                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                                color: 'white',
+                                borderRadius: 3,
+                                boxShadow: '0 8px 24px rgba(245, 87, 108, 0.25)',
+                                border: 'none',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 0,
+                                    width: '100px',
+                                    height: '100px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '50%',
+                                    transform: 'translate(30px, -30px)'
+                                },
                                 '&:hover': {
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                                    transform: 'translateY(-2px)'
+                                    boxShadow: '0 12px 32px rgba(245, 87, 108, 0.35)',
+                                    transform: 'translateY(-4px) scale(1.02)'
                                 }
                             }}>
-                                <CardHeader
-                                    sx={{ pb: 1 }}
-                                    title={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                                Total Budget
-                                            </Typography>
+                                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                        <Box sx={{
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                            backdropFilter: 'blur(10px)'
+                                        }}>
+                                            <AttachMoney sx={{ fontSize: '1.75rem' }} />
                                         </Box>
-                                    }
-                                />
-                                <CardContent>
-                                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                    </Box>
+                                    <Typography variant="h3" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '1.75rem', md: '2.25rem' } }}>
                                         {formatCurrency(summary.totalBudget || 0)}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        All-time allocated budget
+                                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.875rem' }}>
+                                        Total Budget
                                     </Typography>
                                 </CardContent>
                             </Card>
@@ -343,32 +424,46 @@ export default function ProjectAnalyticsPage() {
                         <Fade in timeout={1200}>
                             <Card sx={{ 
                                 height: '100%',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                border: '1px solid rgba(0,0,0,0.05)',
-                                transition: 'all 0.3s ease',
+                                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                                color: 'white',
+                                borderRadius: 3,
+                                boxShadow: '0 8px 24px rgba(79, 172, 254, 0.25)',
+                                border: 'none',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 0,
+                                    width: '100px',
+                                    height: '100px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '50%',
+                                    transform: 'translate(30px, -30px)'
+                                },
                                 '&:hover': {
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                                    transform: 'translateY(-2px)'
+                                    boxShadow: '0 12px 32px rgba(79, 172, 254, 0.35)',
+                                    transform: 'translateY(-4px) scale(1.02)'
                                 }
                             }}>
-                                <CardHeader
-                                    sx={{ pb: 1 }}
-                                    title={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <TrendingUp sx={{ color: 'warning.main', fontSize: '1.2rem' }} />
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                                Monthly Budget
-                                            </Typography>
+                                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                        <Box sx={{
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                            backdropFilter: 'blur(10px)'
+                                        }}>
+                                            <TrendingUp sx={{ fontSize: '1.75rem' }} />
                                         </Box>
-                                    }
-                                />
-                                <CardContent>
-                                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                    </Box>
+                                    <Typography variant="h3" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '1.75rem', md: '2.25rem' } }}>
                                         {formatCurrency(summary.monthlyBudget || 0)}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Average per month
+                                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.875rem' }}>
+                                        Monthly Budget
                                     </Typography>
                                 </CardContent>
                             </Card>
@@ -379,34 +474,48 @@ export default function ProjectAnalyticsPage() {
                         <Fade in timeout={1400}>
                             <Card sx={{ 
                                 height: '100%',
-                                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                border: '1px solid rgba(0,0,0,0.05)',
-                                transition: 'all 0.3s ease',
+                                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                                color: 'white',
+                                borderRadius: 3,
+                                boxShadow: '0 8px 24px rgba(67, 233, 123, 0.25)',
+                                border: 'none',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 0,
+                                    width: '100px',
+                                    height: '100px',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '50%',
+                                    transform: 'translate(30px, -30px)'
+                                },
                                 '&:hover': {
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                                    transform: 'translateY(-2px)'
+                                    boxShadow: '0 12px 32px rgba(67, 233, 123, 0.35)',
+                                    transform: 'translateY(-4px) scale(1.02)'
                                 }
                             }}>
-                                <CardHeader
-                                    sx={{ pb: 1 }}
-                                    title={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <CheckCircle sx={{ color: 'success.main', fontSize: '1.2rem' }} />
-                                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                                Completed
-                                            </Typography>
+                                <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                                        <Box sx={{
+                                            p: 1.5,
+                                            borderRadius: 2,
+                                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                                            backdropFilter: 'blur(10px)'
+                                        }}>
+                                            <CheckCircle sx={{ fontSize: '1.75rem' }} />
                                         </Box>
-                                    }
-                                />
-                                <CardContent>
-                                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                    </Box>
+                                    <Typography variant="h3" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '1.75rem', md: '2.25rem' } }}>
                                         {summary.completedProjects || 0}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.875rem' }}>
                                         {summary.totalProjects > 0 
-                                            ? `${Math.round((summary.completedProjects / summary.totalProjects) * 100)}% completion rate`
-                                            : 'No projects'
+                                            ? `${Math.round((summary.completedProjects / summary.totalProjects) * 100)}% Completion Rate`
+                                            : 'No Projects'
                                         }
                                     </Typography>
                                 </CardContent>
@@ -418,9 +527,11 @@ export default function ProjectAnalyticsPage() {
 
             {/* Tabbed Analytics Sections */}
             <Card sx={{ 
-                background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                borderRadius: '12px'
+                background: 'white',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+                borderRadius: 4,
+                overflow: 'hidden',
+                border: '1px solid rgba(0,0,0,0.06)'
             }}>
                 <Tabs 
                     value={activeTab} 
@@ -428,12 +539,65 @@ export default function ProjectAnalyticsPage() {
                     variant="scrollable"
                     scrollButtons="auto"
                     sx={{
-                        borderBottom: 1,
-                        borderColor: 'divider',
+                        background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
+                        px: 2,
+                        pt: 1,
+                        // Remove bottom border to eliminate line clutter
+                        borderBottom: 'none',
+                        position: 'relative',
+                        '&::after': {
+                            content: '""',
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '1px',
+                            background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.08) 50%, transparent 100%)'
+                        },
                         '& .MuiTab-root': {
                             textTransform: 'none',
                             fontWeight: 600,
-                            minHeight: 48
+                            minHeight: 64,
+                            fontSize: '0.95rem',
+                            color: 'text.secondary',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            borderRadius: '12px 12px 0 0',
+                            mx: 0.5,
+                            mb: -1, // Overlap with content area to create seamless connection
+                            position: 'relative',
+                            zIndex: 1,
+                            '&:hover': {
+                                backgroundColor: 'rgba(102, 126, 234, 0.06)',
+                                color: 'primary.main',
+                                transform: 'translateY(-2px)'
+                            },
+                            '&.Mui-selected': {
+                                color: 'primary.main',
+                                backgroundColor: 'white',
+                                fontWeight: 700,
+                                boxShadow: '0 -4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+                                // Create seamless connection with content
+                                borderTop: '2px solid',
+                                borderLeft: '2px solid',
+                                borderRight: '2px solid',
+                                borderColor: 'rgba(0,0,0,0.06)',
+                                borderBottom: 'none',
+                                // Add subtle gradient accent at top
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: '3px',
+                                    background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+                                    borderRadius: '12px 12px 0 0'
+                                }
+                            }
+                        },
+                        // Hide the default indicator since we're using custom styling
+                        '& .MuiTabs-indicator': {
+                            display: 'none'
                         }
                     }}
                 >
@@ -444,22 +608,50 @@ export default function ProjectAnalyticsPage() {
                     <Tab icon={<ShowChart />} iconPosition="start" label="Performance Metrics" />
                 </Tabs>
 
-                <Box sx={{ p: 3 }}>
+                <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
                     {/* Project Trends Tab */}
                     {activeTab === 0 && (
                         <Fade in timeout={600}>
                             <Box>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12} md={8}>
-                                        <Card variant="outlined" sx={{ mb: 3 }}>
+                                        <Card sx={{ 
+                                            mb: 3,
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Project Completion Trends"
-                                                subheader="Yearly project completion statistics"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Project Completion Trends
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Yearly project completion statistics
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {projectTrends.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No project trend data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <BarChartIcon sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No project trend data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>
@@ -479,15 +671,42 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12} md={4}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Completion Rate Trend"
-                                                subheader="Percentage completion over time"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Completion Rate Trend
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Percentage completion over time
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {completionTrends.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No completion data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <ShowChart sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No completion data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>
@@ -513,25 +732,50 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Project Trends Summary"
-                                                subheader="Detailed yearly breakdown"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Project Trends Summary
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Detailed yearly breakdown
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
-                                                <TableContainer>
+                                            <CardContent sx={{ pt: 0 }}>
+                                                <TableContainer sx={{ borderRadius: 2, overflow: 'hidden' }}>
                                                     <Table size="small">
                                                         <TableHead>
-                                                            <TableRow>
-                                                                <TableCell><strong>Year</strong></TableCell>
-                                                                <TableCell align="right"><strong>Total Projects</strong></TableCell>
-                                                                <TableCell align="right"><strong>Completed</strong></TableCell>
-                                                                <TableCell align="right"><strong>Completion Rate</strong></TableCell>
+                                                            <TableRow sx={{ backgroundColor: 'rgba(102, 126, 234, 0.08)' }}>
+                                                                <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Year</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Total Projects</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Completed</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Completion Rate</TableCell>
                                                             </TableRow>
                                                         </TableHead>
                                                         <TableBody>
                                                             {projectTrends.map((row, index) => (
-                                                                <TableRow key={index} hover>
+                                                                <TableRow 
+                                                                    key={index} 
+                                                                    hover
+                                                                    sx={{ 
+                                                                        '&:nth-of-type(even)': { backgroundColor: 'rgba(0,0,0,0.02)' },
+                                                                        transition: 'background-color 0.2s ease',
+                                                                        '&:hover': { backgroundColor: 'rgba(102, 126, 234, 0.05)' }
+                                                                    }}
+                                                                >
                                                                     <TableCell>{row.name}</TableCell>
                                                                     <TableCell align="right">{row.totalProjects}</TableCell>
                                                                     <TableCell align="right">{row.completedProjects}</TableCell>
@@ -561,15 +805,43 @@ export default function ProjectAnalyticsPage() {
                             <Box>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12}>
-                                        <Card variant="outlined" sx={{ mb: 3 }}>
+                                        <Card sx={{ 
+                                            mb: 3,
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Financial Performance Trends"
-                                                subheader="Budget vs expenditure over time"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Financial Performance Trends
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Budget vs expenditure over time
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {financialTrends.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No financial trend data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <AttachMoney sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No financial trend data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>
@@ -603,15 +875,42 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12} md={6}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Absorption Rate Trend"
-                                                subheader="Budget absorption percentage"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Absorption Rate Trend
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Budget absorption percentage
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {financialTrends.length === 0 ? (
-                                                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 300, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <BarChartIcon sx={{ fontSize: 40, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={300}>
@@ -629,15 +928,42 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12} md={6}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Budget Allocation by Status"
-                                                subheader="Financial distribution across project statuses"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Budget Allocation by Status
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Financial distribution across project statuses
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {budgetByStatus.length === 0 ? (
-                                                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No budget data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 300, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <PieChartIcon sx={{ fontSize: 40, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No budget data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={300}>
@@ -674,15 +1000,42 @@ export default function ProjectAnalyticsPage() {
                             <Box>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12} md={6}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Project Status Distribution"
-                                                subheader="Projects categorized by status"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Project Status Distribution
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Projects categorized by status
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {statusDistribution.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No status data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <PieChartIcon sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No status data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>
@@ -710,19 +1063,36 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12} md={6}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Status Breakdown"
-                                                subheader="Detailed status statistics"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Status Breakdown
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Detailed status statistics
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
-                                                <TableContainer>
+                                            <CardContent sx={{ pt: 0 }}>
+                                                <TableContainer sx={{ borderRadius: 2, overflow: 'hidden' }}>
                                                     <Table size="small">
                                                         <TableHead>
-                                                            <TableRow>
-                                                                <TableCell><strong>Status</strong></TableCell>
-                                                                <TableCell align="right"><strong>Count</strong></TableCell>
-                                                                <TableCell align="right"><strong>Percentage</strong></TableCell>
+                                                            <TableRow sx={{ backgroundColor: 'rgba(102, 126, 234, 0.08)' }}>
+                                                                <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Status</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Count</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Percentage</TableCell>
                                                             </TableRow>
                                                         </TableHead>
                                                         <TableBody>
@@ -732,7 +1102,15 @@ export default function ProjectAnalyticsPage() {
                                                                     const total = statusDistribution.reduce((sum, item) => sum + item.value, 0);
                                                                     const percentage = total > 0 ? (row.value / total * 100).toFixed(1) : 0;
                                                                     return (
-                                                                        <TableRow key={index} hover>
+                                                                        <TableRow 
+                                                                            key={index} 
+                                                                            hover
+                                                                            sx={{ 
+                                                                                '&:nth-of-type(even)': { backgroundColor: 'rgba(0,0,0,0.02)' },
+                                                                                transition: 'background-color 0.2s ease',
+                                                                                '&:hover': { backgroundColor: 'rgba(102, 126, 234, 0.05)' }
+                                                                            }}
+                                                                        >
                                                                             <TableCell>
                                                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                                                     <Box 
@@ -774,15 +1152,43 @@ export default function ProjectAnalyticsPage() {
                             <Box>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12}>
-                                        <Card variant="outlined" sx={{ mb: 3 }}>
+                                        <Card sx={{ 
+                                            mb: 3,
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Department Project Distribution"
-                                                subheader="Projects and budget by department"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Department Project Distribution
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Projects and budget by department
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {departmentData.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No department data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <Business sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No department data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>
@@ -802,29 +1208,54 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Department Performance Details"
-                                                subheader="Comprehensive department statistics"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Department Performance Details
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Comprehensive department statistics
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
-                                                <TableContainer>
+                                            <CardContent sx={{ pt: 0 }}>
+                                                <TableContainer sx={{ borderRadius: 2, overflow: 'hidden' }}>
                                                     <Table size="small">
                                                         <TableHead>
-                                                            <TableRow>
-                                                                <TableCell><strong>Department</strong></TableCell>
-                                                                <TableCell align="right"><strong>Projects</strong></TableCell>
-                                                                <TableCell align="right"><strong>Budget</strong></TableCell>
-                                                                <TableCell align="right"><strong>Paid</strong></TableCell>
-                                                                <TableCell align="right"><strong>Progress</strong></TableCell>
+                                                            <TableRow sx={{ backgroundColor: 'rgba(102, 126, 234, 0.08)' }}>
+                                                                <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Department</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Projects</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Budget</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Paid</TableCell>
+                                                                <TableCell align="right" sx={{ fontWeight: 700, color: 'text.primary' }}>Progress</TableCell>
                                                             </TableRow>
                                                         </TableHead>
                                                         <TableBody>
                                                             {departmentData
                                                                 .sort((a, b) => b.projects - a.projects)
                                                                 .map((row, index) => (
-                                                                    <TableRow key={index} hover>
-                                                                        <TableCell><strong>{row.name}</strong></TableCell>
+                                                                    <TableRow 
+                                                                        key={index} 
+                                                                        hover
+                                                                        sx={{ 
+                                                                            '&:nth-of-type(even)': { backgroundColor: 'rgba(0,0,0,0.02)' },
+                                                                            transition: 'background-color 0.2s ease',
+                                                                            '&:hover': { backgroundColor: 'rgba(102, 126, 234, 0.05)' }
+                                                                        }}
+                                                                    >
+                                                                        <TableCell sx={{ fontWeight: 600 }}>{row.name}</TableCell>
                                                                         <TableCell align="right">{row.projects}</TableCell>
                                                                         <TableCell align="right">{formatCurrency(row.budget)}</TableCell>
                                                                         <TableCell align="right">{formatCurrency(row.paid)}</TableCell>
@@ -854,15 +1285,42 @@ export default function ProjectAnalyticsPage() {
                             <Box>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12} md={6}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Department Progress"
-                                                subheader="Completion progress by department"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Department Progress
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Completion progress by department
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {departmentPerformance.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No performance data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <Assessment sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No performance data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>
@@ -883,15 +1341,42 @@ export default function ProjectAnalyticsPage() {
                                     </Grid>
 
                                     <Grid item xs={12} md={6}>
-                                        <Card variant="outlined">
+                                        <Card sx={{ 
+                                            borderRadius: 3,
+                                            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                                            border: '1px solid rgba(0,0,0,0.06)',
+                                            transition: 'all 0.3s ease',
+                                            '&:hover': {
+                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
+                                            }
+                                        }}>
                                             <CardHeader
-                                                title="Budget Utilization"
-                                                subheader="Budget absorption by department"
+                                                title={
+                                                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                        Budget Utilization
+                                                    </Typography>
+                                                }
+                                                subheader={
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Budget absorption by department
+                                                    </Typography>
+                                                }
+                                                sx={{ pb: 1 }}
                                             />
-                                            <CardContent>
+                                            <CardContent sx={{ pt: 0 }}>
                                                 {departmentPerformance.length === 0 ? (
-                                                    <Box sx={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Typography color="text.secondary">No utilization data available</Typography>
+                                                    <Box sx={{ 
+                                                        height: 400, 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        gap: 2
+                                                    }}>
+                                                        <TrendingUp sx={{ fontSize: 48, color: 'text.disabled', opacity: 0.5 }} />
+                                                        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            No utilization data available
+                                                        </Typography>
                                                     </Box>
                                                 ) : (
                                                     <ResponsiveContainer width="100%" height={400}>

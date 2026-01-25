@@ -17,10 +17,12 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import LockIcon from "@mui/icons-material/Lock";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useAuth } from '../context/AuthContext';
 import { usePageTitle } from '../context/PageTitleContext';
 import { useProfileModal } from '../context/ProfileModalContext';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 const Topbar = () => {
   const theme = useTheme();
@@ -28,6 +30,7 @@ const Topbar = () => {
   const { pageTitle, pageSubtitle } = usePageTitle();
   const { openModal: openProfileModal } = useProfileModal();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const handleClick = (event) => {
@@ -46,6 +49,11 @@ const Topbar = () => {
   const handleSettingsClick = () => {
     // TODO: Implement settings modal or navigation
     console.log('Settings clicked');
+    handleClose();
+  };
+
+  const handleChangePasswordClick = () => {
+    setChangePasswordOpen(true);
     handleClose();
   };
 
@@ -206,7 +214,22 @@ const Topbar = () => {
             </ListItemIcon>
             <ListItemText>Profile Settings</ListItemText>
           </MenuItem>
+          
+          {/* CHANGE PASSWORD */}
+          <MenuItem onClick={handleChangePasswordClick}>
+            <ListItemIcon>
+              <LockIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Change Password</ListItemText>
+          </MenuItem>
         </Menu>
+        
+        {/* Change Password Modal */}
+        <ChangePasswordModal
+          open={changePasswordOpen}
+          onClose={() => setChangePasswordOpen(false)}
+          userId={user?.userId || user?.id}
+        />
       </Box>
     </Box>
   );
