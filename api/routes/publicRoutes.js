@@ -25,21 +25,42 @@ const normalizeStatusForMatching = (status) => {
     if (normalized.includes('completed') || normalized === 'complete' || normalized === 'done') {
         return 'completed';
     }
-    // "on-going" or "ongoing" -> "ongoing"
-    if (normalized.includes('ongoing') || normalized.includes('on-going')) {
+    // "on-going", "ongoing", "on going", "in progress", "inprogress", "initiated" -> "ongoing"
+    // Note: "initiated" means the project has started, so it's "ongoing"
+    // But "to be initiated" means not started yet
+    if (normalized.includes('ongoing') || 
+        normalized.includes('on-going') || 
+        normalized.includes('on going') ||
+        normalized.includes('in progress') ||
+        normalized === 'inprogress' ||
+        normalized.includes('inprogress') ||
+        (normalized.includes('initiated') && !normalized.includes('to be initiated') && !normalized.includes('to be'))) {
         return 'ongoing';
     }
     // "procurement" or "under procurement" -> "under procurement"
     if (normalized.includes('procurement') || normalized.includes('under procurement')) {
         return 'under procurement';
     }
-    // "not started" or "notstarted" -> "not started"
-    if (normalized.includes('not started') || normalized.includes('notstarted')) {
+    // "not started", "notstarted", "not-started" -> "not started"
+    if (normalized.includes('not started') || normalized.includes('notstarted') || normalized.includes('not-started')) {
+        return 'not started';
+    }
+    // "to be initiated" -> "not started"
+    if ((normalized.includes('to be initiated') || (normalized.includes('to be') && normalized.includes('initiated'))) && 
+        !normalized.includes('completed')) {
+        return 'not started';
+    }
+    // "to be" (without initiated) -> "not started"
+    if (normalized.includes('to be') && !normalized.includes('completed') && !normalized.includes('initiated')) {
         return 'not started';
     }
     // "stalled" -> "stalled"
     if (normalized.includes('stalled')) {
         return 'stalled';
+    }
+    // "suspended" -> "suspended"
+    if (normalized.includes('suspended')) {
+        return 'suspended';
     }
     
     return normalized;
@@ -48,7 +69,7 @@ const normalizeStatusForMatching = (status) => {
 /**
  * Check if a status matches a category (case-insensitive, handles variations)
  * @param {string} status - The project status
- * @param {string} category - The category to match against ('Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement')
+ * @param {string} category - The category to match against ('Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement', 'Suspended')
  * @returns {boolean}
  */
 const matchesStatusCategory = (status, category) => {
@@ -63,7 +84,7 @@ const matchesStatusCategory = (status, category) => {
  * @returns {boolean}
  */
 const isMainCategoryStatus = (status) => {
-    const categories = ['Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement'];
+    const categories = ['Completed', 'Ongoing', 'Stalled', 'Not Started', 'Under Procurement', 'Suspended'];
     return categories.some(cat => matchesStatusCategory(status, cat));
 };
 
@@ -141,6 +162,8 @@ router.get('/stats/overview', async (req, res) => {
         let under_procurement_budget = 0;
         let stalled_projects = 0;
         let stalled_budget = 0;
+        let suspended_projects = 0;
+        let suspended_budget = 0;
         let other_projects = 0;
         let other_budget = 0;
         let total_budget = 0;
@@ -165,6 +188,9 @@ router.get('/stats/overview', async (req, res) => {
             } else if (matchesStatusCategory(status, 'Stalled')) {
                 stalled_projects++;
                 stalled_budget += budget;
+            } else if (matchesStatusCategory(status, 'Suspended')) {
+                suspended_projects++;
+                suspended_budget += budget;
             } else {
                 // Other category - any status that doesn't match the main categories
                 other_projects++;
@@ -185,6 +211,8 @@ router.get('/stats/overview', async (req, res) => {
             under_procurement_budget: under_procurement_budget,
             stalled_projects: stalled_projects,
             stalled_budget: stalled_budget,
+            suspended_projects: suspended_projects,
+            suspended_budget: suspended_budget,
             other_projects: other_projects,
             other_budget: other_budget
         };
@@ -267,22 +295,30 @@ router.get('/projects', async (req, res) => {
                 queryParams.push('%phase%');
             } else if (status === 'Other') {
                 // Other category: projects that don't match any main category
-                // Exclude projects that match main categories
+                // Exclude projects that match main categories (including Suspended)
                 whereConditions.push(`(
                     (LOWER(p.status) NOT LIKE '%completed%') AND
-                    (LOWER(p.status) NOT LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%on-going%' AND LOWER(p.status) NOT LIKE '%on going%') AND
+                    (LOWER(p.status) NOT LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%on-going%' AND LOWER(p.status) NOT LIKE '%on going%' AND LOWER(p.status) NOT LIKE '%in progress%' AND LOWER(p.status) NOT LIKE '%inprogress%' AND (LOWER(p.status) NOT LIKE '%initiated%' OR LOWER(p.status) LIKE '%to be initiated%')) AND
                     (LOWER(p.status) NOT LIKE '%procurement%' AND LOWER(p.status) NOT LIKE '%under procurement%') AND
                     (LOWER(p.status) NOT LIKE '%not started%' AND LOWER(p.status) NOT LIKE '%notstarted%' AND LOWER(p.status) NOT LIKE '%not-started%') AND
                     (LOWER(p.status) NOT LIKE '%stalled%') AND
+                    (LOWER(p.status) NOT LIKE '%suspended%') AND
                     p.status IS NOT NULL AND p.status != ''
                 )`);
                 needsPostFiltering = true; // We'll do additional filtering in JavaScript for exact matching
+            } else if (status === 'Suspended') {
+                whereConditions.push('LOWER(p.status) LIKE ?');
+                queryParams.push('%suspended%');
             } else {
                 // Use normalized matching for main categories
                 const statusLower = status.toLowerCase();
-                if (statusLower.includes('ongoing') || statusLower.includes('on-going')) {
-                    whereConditions.push('(LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ?)');
-                    queryParams.push('%ongoing%', '%on-going%', '%on going%');
+                if (statusLower.includes('ongoing') || statusLower.includes('on-going') || statusLower.includes('in progress') || statusLower.includes('inprogress') || statusLower.includes('initiated')) {
+                    // Include "initiated" but exclude "to be initiated"
+                    whereConditions.push(`(
+                        (LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ?) OR
+                        (LOWER(p.status) LIKE ? AND LOWER(p.status) NOT LIKE ? AND LOWER(p.status) NOT LIKE ?)
+                    )`);
+                    queryParams.push('%ongoing%', '%on-going%', '%on going%', '%in progress%', '%inprogress%', '%initiated%', '%to be initiated%', '%to be%');
                 } else if (statusLower.includes('procurement')) {
                     whereConditions.push('(LOWER(p.status) LIKE ? OR LOWER(p.status) LIKE ?)');
                     queryParams.push('%procurement%', '%under procurement%');
@@ -292,14 +328,17 @@ router.get('/projects', async (req, res) => {
                 } else if (statusLower.includes('completed')) {
                     whereConditions.push('LOWER(p.status) LIKE ?');
                     queryParams.push('%completed%');
-                } else if (statusLower.includes('stalled')) {
-                    whereConditions.push('LOWER(p.status) LIKE ?');
-                    queryParams.push('%stalled%');
-                } else {
-                    // Fallback to exact match
-                    whereConditions.push('p.status = ?');
-                    queryParams.push(status);
-                }
+            } else if (statusLower.includes('stalled')) {
+                whereConditions.push('LOWER(p.status) LIKE ?');
+                queryParams.push('%stalled%');
+            } else if (statusLower.includes('suspended')) {
+                whereConditions.push('LOWER(p.status) LIKE ?');
+                queryParams.push('%suspended%');
+            } else {
+                // Fallback to exact match
+                whereConditions.push('p.status = ?');
+                queryParams.push(status);
+            }
             }
         }
 
@@ -715,6 +754,7 @@ router.get('/stats/by-department', async (req, res) => {
                     stalled_projects: 0,
                     not_started_projects: 0,
                     under_procurement_projects: 0,
+                    suspended_projects: 0,
                     other_projects: 0
                 });
             }
@@ -748,6 +788,8 @@ router.get('/stats/by-department', async (req, res) => {
                     dept.under_procurement_projects++;
                 } else if (matchesStatusCategory(status, 'Stalled')) {
                     dept.stalled_projects++;
+                } else if (matchesStatusCategory(status, 'Suspended')) {
+                    dept.suspended_projects++;
                 } else {
                     // Other category
                     dept.other_projects++;

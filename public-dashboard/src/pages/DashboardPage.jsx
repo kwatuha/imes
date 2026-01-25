@@ -60,10 +60,12 @@ import YearlyTrendsTable from '../components/YearlyTrendsTable';
 import FilterBar from '../components/FilterBar';
 import ProjectsModal from '../components/ProjectsModal';
 import { getOverviewStats, getFinancialYears } from '../services/publicApi';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, getStatusColor } from '../utils/formatters';
 
-// Chart colors
-const COLORS = ['#4caf50', '#ff9800', '#f44336', '#9e9e9e', '#2196f3'];
+// Chart colors - using normalized status colors for consistency
+const getStatusColorForChart = (statusName) => {
+  return getStatusColor(statusName);
+};
 
 const DashboardPage = () => {
   const [searchParams] = useSearchParams();
@@ -228,6 +230,14 @@ const DashboardPage = () => {
       onClick: () => handleStatClick('status', 'Under Procurement', 'Under Procurement')
     },
     {
+      title: 'Suspended Projects',
+      count: stats?.suspended_projects || 0,
+      budget: stats?.suspended_budget || 0,
+      color: '#e00202',
+      icon: Warning,
+      onClick: () => handleStatClick('status', 'Suspended', 'Suspended Projects')
+    },
+    {
       title: 'Other Projects',
       count: stats?.other_projects || 0,
       budget: stats?.other_budget || 0,
@@ -238,12 +248,12 @@ const DashboardPage = () => {
   ];
 
   return (
-    <Container maxWidth="xl" sx={{ py: 1.5 }}>
+    <Container maxWidth="xl" sx={{ py: 0.75 }}>
       {/* Header */}
-      <Box sx={{ mb: 1 }}>
-        <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
-          <DashboardIcon sx={{ fontSize: 28, color: 'primary.main' }} />
-        <Typography variant="h5" fontWeight="bold">
+      <Box sx={{ mb: 0.5 }}>
+        <Box display="flex" alignItems="center" gap={1} mb={0.25}>
+          <DashboardIcon sx={{ fontSize: 24, color: 'primary.main' }} />
+        <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
           Kisumu County Public Dashboard
         </Typography>
         </Box>
@@ -259,18 +269,18 @@ const DashboardPage = () => {
       />
 
       {/* Selected Financial Year Title */}
-      <Box sx={{ mb: 1.5 }}>
-        <Typography variant="h6" fontWeight="bold" color="primary">
+      <Box sx={{ mb: 0.75 }}>
+        <Typography variant="subtitle1" fontWeight="bold" color="primary" sx={{ fontSize: '0.95rem' }}>
           {selectedFinYear ? `${selectedFinYear.name} FY` : 'All Financial Years'} Public Dashboard
         </Typography>
       </Box>
 
       {/* Quick Stats Section */}
-      <Box sx={{ mb: 2.5 }}>
-        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
+      <Box sx={{ mb: 1.5 }}>
+        <Typography variant="body1" fontWeight="bold" gutterBottom sx={{ mb: 0.5, fontSize: '0.9rem' }}>
           Quick Stats
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block', fontSize: '0.7rem' }}>
           Click on any statistic card below to view detailed project information
         </Typography>
         <Box sx={{ 
@@ -280,7 +290,7 @@ const DashboardPage = () => {
             sm: 'repeat(2, 1fr)', 
             md: 'repeat(5, 1fr)' 
           }, 
-          gap: 2 
+          gap: 1.25 
         }}>
           {statsCards.map((card, index) => (
             <StatCard key={index} {...card} />
@@ -289,35 +299,35 @@ const DashboardPage = () => {
       </Box>
 
       {/* Analytics Dashboard Section */}
-      <Box sx={{ mb: 2.5 }}>
-        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-          <BarChartIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: 20 }} />
+      <Box sx={{ mb: 1.5 }}>
+        <Typography variant="body1" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.9rem' }}>
+          <BarChartIcon sx={{ mr: 0.75, verticalAlign: 'middle', fontSize: 18 }} />
           Performance Analytics
         </Typography>
         
-        <Grid container spacing={2}>
+        <Grid container spacing={1.5}>
           {/* Project Completion Rate */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
-              <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <CheckCircle color="success" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight="bold">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" mb={1}>
+                  <CheckCircle color="success" sx={{ mr: 0.75, fontSize: 20 }} />
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ fontSize: '0.9rem' }}>
                     Project Completion Rate
                   </Typography>
                 </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="h3" color="success.main" fontWeight="bold">
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="h4" color="success.main" fontWeight="bold" sx={{ fontSize: '1.75rem' }}>
                     {stats && stats.total_projects > 0 ? Math.round((stats.completed_projects / stats.total_projects) * 100) : 0}%
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                     {stats?.completed_projects || 0} of {stats?.total_projects || 0} projects completed
                   </Typography>
                 </Box>
                 <LinearProgress 
                   variant="determinate" 
                   value={stats && stats.total_projects > 0 ? (stats.completed_projects / stats.total_projects) * 100 : 0}
-                  sx={{ height: 8, borderRadius: 4 }}
+                  sx={{ height: 6, borderRadius: 3 }}
                 />
               </CardContent>
             </Card>
@@ -326,25 +336,25 @@ const DashboardPage = () => {
           {/* Budget Utilization */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
-              <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <TrendingUp color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight="bold">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" mb={1}>
+                  <TrendingUp color="primary" sx={{ mr: 0.75, fontSize: 20 }} />
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ fontSize: '0.9rem' }}>
                     Budget Utilization
                   </Typography>
                 </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="h3" color="primary.main" fontWeight="bold">
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="h4" color="primary.main" fontWeight="bold" sx={{ fontSize: '1.75rem' }}>
                     {stats && stats.total_budget > 0 ? Math.round((stats.completed_budget / stats.total_budget) * 100) : 0}%
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                     {formatCurrency(stats?.completed_budget || 0)} of {formatCurrency(stats?.total_budget || 0)}
                   </Typography>
                 </Box>
                 <LinearProgress 
                   variant="determinate" 
                   value={stats && stats.total_budget > 0 ? (stats.completed_budget / stats.total_budget) * 100 : 0}
-                  sx={{ height: 8, borderRadius: 4 }}
+                  sx={{ height: 6, borderRadius: 3 }}
                 />
               </CardContent>
             </Card>
@@ -353,54 +363,63 @@ const DashboardPage = () => {
           {/* Project Status Distribution */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
-              <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <PieChart color="info" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight="bold">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" mb={1}>
+                  <PieChart color="info" sx={{ mr: 0.75, fontSize: 20 }} />
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ fontSize: '0.9rem' }}>
                     Project Status Distribution
                   </Typography>
                 </Box>
-                <List dense>
-                  <ListItem>
-                    <ListItemIcon>
-                      <CheckCircle color="success" />
+                <List dense sx={{ py: 0 }}>
+                  <ListItem sx={{ py: 0.5, px: 0 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <CheckCircle color="success" sx={{ fontSize: 18 }} />
                     </ListItemIcon>
                     <ListItemText 
                       primary="Completed" 
                       secondary={`${stats?.completed_projects || 0} projects`}
+                      primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                      secondaryTypographyProps={{ sx: { fontSize: '0.7rem' } }}
                     />
                     <Chip 
                       label={`${stats && stats.total_projects > 0 ? Math.round((stats.completed_projects / stats.total_projects) * 100) : 0}%`}
                       color="success" 
                       size="small"
+                      sx={{ height: 20, fontSize: '0.7rem' }}
                     />
                   </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Schedule color="warning" />
+                  <ListItem sx={{ py: 0.5, px: 0 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <Schedule color="warning" sx={{ fontSize: 18 }} />
                     </ListItemIcon>
                     <ListItemText 
                       primary="Ongoing" 
                       secondary={`${stats?.ongoing_projects || 0} projects`}
+                      primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                      secondaryTypographyProps={{ sx: { fontSize: '0.7rem' } }}
                     />
                     <Chip 
                       label={`${stats && stats.total_projects > 0 ? Math.round((stats.ongoing_projects / stats.total_projects) * 100) : 0}%`}
                       color="warning" 
                       size="small"
+                      sx={{ height: 20, fontSize: '0.7rem' }}
                     />
                   </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Warning color="error" />
+                  <ListItem sx={{ py: 0.5, px: 0 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <Warning color="error" sx={{ fontSize: 18 }} />
                     </ListItemIcon>
                     <ListItemText 
                       primary="Stalled" 
                       secondary={`${stats?.stalled_projects || 0} projects`}
+                      primaryTypographyProps={{ sx: { fontSize: '0.85rem' } }}
+                      secondaryTypographyProps={{ sx: { fontSize: '0.7rem' } }}
                     />
                     <Chip 
                       label={`${stats && stats.total_projects > 0 ? Math.round((stats.stalled_projects / stats.total_projects) * 100) : 0}%`}
                       color="error" 
                       size="small"
+                      sx={{ height: 20, fontSize: '0.7rem' }}
                     />
                   </ListItem>
                 </List>
@@ -411,50 +430,50 @@ const DashboardPage = () => {
           {/* Performance Metrics */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
-              <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <Star color="secondary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight="bold">
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" mb={1}>
+                  <Star color="secondary" sx={{ mr: 0.75, fontSize: 20 }} />
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ fontSize: '0.9rem' }}>
                     Performance Metrics
                   </Typography>
                 </Box>
-                <Grid container spacing={2}>
+                <Grid container spacing={1.5}>
                   <Grid item xs={6}>
                     <Box textAlign="center">
-                      <Typography variant="h4" color="success.main" fontWeight="bold">
+                      <Typography variant="h5" color="success.main" fontWeight="bold" sx={{ fontSize: '1.5rem' }}>
                         {stats && stats.total_projects > 0 ? Math.round((stats.completed_projects / stats.total_projects) * 100) : 0}%
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         Success Rate
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6}>
                     <Box textAlign="center">
-                      <Typography variant="h4" color="primary.main" fontWeight="bold">
+                      <Typography variant="h5" color="primary.main" fontWeight="bold" sx={{ fontSize: '1.5rem' }}>
                         {stats && stats.total_budget > 0 ? Math.round((stats.completed_budget / stats.total_budget) * 100) : 0}%
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         Budget Efficiency
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6}>
                     <Box textAlign="center">
-                      <Typography variant="h4" color="info.main" fontWeight="bold">
+                      <Typography variant="h5" color="info.main" fontWeight="bold" sx={{ fontSize: '1.5rem' }}>
                         {stats?.total_budget && stats?.total_projects > 0 ? formatCurrency(stats.total_budget / stats.total_projects) : 'N/A'}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         Avg Project Value
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6}>
                     <Box textAlign="center">
-                      <Typography variant="h4" color="warning.main" fontWeight="bold">
+                      <Typography variant="h5" color="warning.main" fontWeight="bold" sx={{ fontSize: '1.5rem' }}>
                         {stats?.total_projects || 0}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         Total Projects
                       </Typography>
                     </Box>
@@ -467,21 +486,21 @@ const DashboardPage = () => {
       </Box>
 
       {/* Charts Section */}
-      <Box sx={{ mb: 2.5 }}>
-        <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-          <Timeline sx={{ mr: 1, verticalAlign: 'middle', fontSize: 20 }} />
+      <Box sx={{ mb: 1.5 }}>
+        <Typography variant="body1" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.9rem' }}>
+          <Timeline sx={{ mr: 0.75, verticalAlign: 'middle', fontSize: 18 }} />
           Visual Analytics
         </Typography>
         
-        <Grid container spacing={2}>
+        <Grid container spacing={1.5}>
           {/* Project Status Pie Chart */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ fontSize: '0.9rem', mb: 0.75 }}>
                   Project Status Distribution
                 </Typography>
-                <Box sx={{ height: 300 }}>
+                <Box sx={{ height: 250 }}>
                   {stats ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -491,12 +510,13 @@ const DashboardPage = () => {
                             { name: 'Ongoing', value: stats.ongoing_projects || 0 },
                             { name: 'Stalled', value: stats.stalled_projects || 0 },
                             { name: 'Not Started', value: stats.not_started_projects || 0 },
-                            { name: 'Under Procurement', value: stats.under_procurement_projects || 0 }
+                            { name: 'Under Procurement', value: stats.under_procurement_projects || 0 },
+                            { name: 'Suspended', value: stats.suspended_projects || 0 },
+                            { name: 'Other', value: stats.other_projects || 0 }
                           ]}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
@@ -506,9 +526,11 @@ const DashboardPage = () => {
                             { name: 'Ongoing', value: stats.ongoing_projects || 0 },
                             { name: 'Stalled', value: stats.stalled_projects || 0 },
                             { name: 'Not Started', value: stats.not_started_projects || 0 },
-                            { name: 'Under Procurement', value: stats.under_procurement_projects || 0 }
+                            { name: 'Under Procurement', value: stats.under_procurement_projects || 0 },
+                            { name: 'Suspended', value: stats.suspended_projects || 0 },
+                            { name: 'Other', value: stats.other_projects || 0 }
                           ].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell key={`cell-${index}`} fill={getStatusColorForChart(entry.name)} />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -528,11 +550,11 @@ const DashboardPage = () => {
           {/* Budget Allocation Bar Chart */}
           <Grid item xs={12} md={6}>
             <Card elevation={2}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ fontSize: '0.9rem', mb: 0.75 }}>
                   Budget Allocation by Status
                 </Typography>
-                <Box sx={{ height: 300 }}>
+                <Box sx={{ height: 250 }}>
                   {stats ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -541,20 +563,34 @@ const DashboardPage = () => {
                           { name: 'Ongoing', budget: stats.ongoing_budget || 0 },
                           { name: 'Stalled', budget: stats.stalled_budget || 0 },
                           { name: 'Not Started', budget: stats.not_started_budget || 0 },
-                          { name: 'Under Procurement', budget: stats.under_procurement_budget || 0 }
+                          { name: 'Under Procurement', budget: stats.under_procurement_budget || 0 },
+                          { name: 'Suspended', budget: stats.suspended_budget || 0 },
+                          { name: 'Other', budget: stats.other_budget || 0 }
                         ]}
                         margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
+                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                         <YAxis tickFormatter={(value) => formatCurrency(value)} />
                         <Tooltip formatter={(value) => [formatCurrency(value), 'Budget']} />
-                        <Bar dataKey="budget" fill="#8884d8" />
+                        <Bar dataKey="budget">
+                          {[
+                            { name: 'Completed' },
+                            { name: 'Ongoing' },
+                            { name: 'Stalled' },
+                            { name: 'Not Started' },
+                            { name: 'Under Procurement' },
+                            { name: 'Suspended' },
+                            { name: 'Other' }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={getStatusColorForChart(entry.name)} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <CircularProgress />
+                    <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CircularProgress size={24} />
                     </Box>
                   )}
                 </Box>
@@ -565,11 +601,11 @@ const DashboardPage = () => {
           {/* Project vs Budget Efficiency Chart */}
           <Grid item xs={12}>
             <Card elevation={2}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ fontSize: '0.9rem', mb: 0.75 }}>
                   Project Count vs Budget Efficiency
                 </Typography>
-                <Box sx={{ height: 300 }}>
+                <Box sx={{ height: 250 }}>
                   {stats ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -598,23 +634,45 @@ const DashboardPage = () => {
                             name: 'Under Procurement', 
                             projects: stats.under_procurement_projects || 0,
                             budgetPercent: stats.total_budget > 0 ? ((stats.under_procurement_budget / stats.total_budget) * 100) : 0
+                          },
+                          { 
+                            name: 'Suspended', 
+                            projects: stats.suspended_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.suspended_budget / stats.total_budget) * 100) : 0
+                          },
+                          { 
+                            name: 'Other', 
+                            projects: stats.other_projects || 0,
+                            budgetPercent: stats.total_budget > 0 ? ((stats.other_budget / stats.total_budget) * 100) : 0
                           }
                         ]}
                         margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
+                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                         <YAxis yAxisId="left" />
                         <YAxis yAxisId="right" orientation="right" />
                         <Tooltip />
                         <Legend />
-                        <Bar yAxisId="left" dataKey="projects" fill="#8884d8" name="Project Count" />
+                        <Bar yAxisId="left" dataKey="projects" name="Project Count">
+                          {[
+                            { name: 'Completed' },
+                            { name: 'Ongoing' },
+                            { name: 'Stalled' },
+                            { name: 'Not Started' },
+                            { name: 'Under Procurement' },
+                            { name: 'Suspended' },
+                            { name: 'Other' }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={getStatusColorForChart(entry.name)} />
+                          ))}
+                        </Bar>
                         <Bar yAxisId="right" dataKey="budgetPercent" fill="#82ca9d" name="Budget %" />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <CircularProgress />
+                    <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CircularProgress size={24} />
                     </Box>
                   )}
                 </Box>
@@ -624,10 +682,10 @@ const DashboardPage = () => {
         </Grid>
       </Box>
 
-      <Divider sx={{ my: 2.5 }} />
+      <Divider sx={{ my: 1.5 }} />
 
       {/* Detailed Breakdown Tabs */}
-      <Paper sx={{ mb: 2.5, borderRadius: 2 }} elevation={2}>
+      <Paper sx={{ mb: 1.5, borderRadius: 2 }} elevation={2}>
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
@@ -635,18 +693,22 @@ const DashboardPage = () => {
           sx={{
             borderBottom: 1,
             borderColor: 'divider',
+            minHeight: 40,
             '& .MuiTab-root': {
-              fontWeight: 600
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              minHeight: 40,
+              py: 0.75
             }
           }}
         >
-          <Tab icon={<Business />} label="By Department" iconPosition="start" />
-          <Tab icon={<LocationOn />} label="By Sub-County" iconPosition="start" />
-          <Tab icon={<LocationCity />} label="By Ward" iconPosition="start" />
-          <Tab icon={<TrendingUp />} label="Yearly Trends" iconPosition="start" />
+          <Tab icon={<Business sx={{ fontSize: 18 }} />} label="By Department" iconPosition="start" />
+          <Tab icon={<LocationOn sx={{ fontSize: 18 }} />} label="By Sub-County" iconPosition="start" />
+          <Tab icon={<LocationCity sx={{ fontSize: 18 }} />} label="By Ward" iconPosition="start" />
+          <Tab icon={<TrendingUp sx={{ fontSize: 18 }} />} label="Yearly Trends" iconPosition="start" />
         </Tabs>
 
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 1.5 }}>
           {activeTab === 0 && (
             <DepartmentSummaryTable finYearId={selectedFinYear === null ? null : selectedFinYear?.id} filters={filters} />
           )}
@@ -665,14 +727,14 @@ const DashboardPage = () => {
       {/* Footer Note */}
       <Paper
         sx={{
-          p: 3,
-          mt: 4,
+          p: 1.5,
+          mt: 2,
           borderRadius: 2,
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white'
         }}
       >
-        <Typography variant="body2" textAlign="center">
+        <Typography variant="caption" textAlign="center" sx={{ fontSize: '0.75rem' }}>
           For detailed project information and photos, visit the{' '}
           <strong>Projects Gallery</strong>
         </Typography>

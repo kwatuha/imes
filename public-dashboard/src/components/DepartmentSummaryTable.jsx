@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material';
 import DepartmentProjectsModal from './DepartmentProjectsModal';
 import { getDepartmentStats } from '../services/publicApi';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, getStatusColor } from '../utils/formatters';
 
 const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
   const theme = useTheme();
@@ -63,16 +63,7 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
     setSelectedDepartment(null);
   };
 
-  const getStatusColor = (status) => {
-    const statusColors = {
-      'Completed': '#4caf50',
-      'Ongoing': '#2196f3',
-      'Stalled': '#f44336',
-      'Not Started': '#ff9800',
-      'Under Procurement': '#9c27b0'
-    };
-    return statusColors[status] || '#757575';
-  };
+  // Use the normalized status color from formatters
 
   if (loading) {
     return (
@@ -108,10 +99,11 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
     stalled: acc.stalled + (dept.stalled_projects || 0),
     notStarted: acc.notStarted + (dept.not_started_projects || 0),
     underProcurement: acc.underProcurement + (dept.under_procurement_projects || 0),
+    suspended: acc.suspended + (dept.suspended_projects || 0),
     other: acc.other + (dept.other_projects || 0),
     total: acc.total + (dept.total_projects || 0),
     budget: acc.budget + (parseFloat(dept.total_budget) || 0)
-  }), { completed: 0, ongoing: 0, stalled: 0, notStarted: 0, underProcurement: 0, other: 0, total: 0, budget: 0 });
+  }), { completed: 0, ongoing: 0, stalled: 0, notStarted: 0, underProcurement: 0, suspended: 0, other: 0, total: 0, budget: 0 });
 
   return (
     <>
@@ -149,6 +141,7 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
               <TableCell align="center">Stalled</TableCell>
               <TableCell align="center">Not Started</TableCell>
               <TableCell align="center">Under Procurement</TableCell>
+              <TableCell align="center">Suspended</TableCell>
               <TableCell align="center">Other</TableCell>
               <TableCell align="center">All Projects</TableCell>
               <TableCell align="right">Total Budget</TableCell>
@@ -242,6 +235,17 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
                 </TableCell>
                 <TableCell align="center">
                   <Chip
+                    label={dept.suspended_projects || 0}
+                    size="small"
+                    sx={{
+                      backgroundColor: alpha(getStatusColor('Suspended'), 0.1),
+                      color: getStatusColor('Suspended'),
+                      fontWeight: 'bold'
+                    }}
+                  />
+                </TableCell>
+                <TableCell align="center">
+                  <Chip
                     label={dept.other_projects || 0}
                     size="small"
                     sx={{
@@ -296,6 +300,7 @@ const DepartmentSummaryTable = ({ finYearId, filters = {} }) => {
               <TableCell align="center">{totals.stalled}</TableCell>
               <TableCell align="center">{totals.notStarted}</TableCell>
               <TableCell align="center">{totals.underProcurement}</TableCell>
+              <TableCell align="center">{totals.suspended}</TableCell>
               <TableCell align="center">{totals.other}</TableCell>
               <TableCell align="center">
                 <Typography variant="body1" fontWeight="bold" color="primary">
