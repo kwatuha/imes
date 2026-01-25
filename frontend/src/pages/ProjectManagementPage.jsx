@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Menu, MenuItem, ListItemIcon, Checkbox, ListItemText, Box, Typography, Button, CircularProgress, IconButton,
   Snackbar, Alert, Stack, useTheme, Tooltip, Grid, Card, CardContent, TextField, InputAdornment, Chip,
-  Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress,
+  Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress, ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import { DataGrid } from "@mui/x-data-grid";
 import { getThemedDataGridSx } from '../utils/dataGridTheme';
@@ -23,6 +23,7 @@ import autoTable from 'jspdf-autotable';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { checkUserPrivilege, currencyFormatter, getProjectStatusBackgroundColor, getProjectStatusTextColor, formatStatus } from '../utils/tableHelpers';
+import { normalizeProjectStatus } from '../utils/projectStatusNormalizer';
 import projectTableColumnsConfig from '../configs/projectTableConfig';
 import apiService from '../api';
 import { tokens } from "./dashboard/theme"; // Import tokens for color styling
@@ -198,6 +199,9 @@ function ProjectManagementPage() {
   // State for DataGrid filter model (column filters)
   const [filterModel, setFilterModel] = useState({ items: [] });
 
+  // State for toggling between progress and status view
+  const [distributionView, setDistributionView] = useState('status'); // 'progress' or 'status'
+
   // Handler to filter by progress percentage
   const handleProgressFilter = useCallback((progressValue) => {
     // Check if the same filter is already active, if so, clear it
@@ -206,7 +210,6 @@ function ProjectManagementPage() {
       // Clear the filter
       setFilterModel({ items: [] });
     } else {
-      // Set the filter - ensure value is a number
       // Set the filter - ensure value is a number
       setFilterModel({
         items: [
@@ -220,6 +223,49 @@ function ProjectManagementPage() {
       });
     }
   }, [filterModel]);
+
+  // Handler to filter by normalized status
+  const handleStatusFilter = useCallback((normalizedStatus) => {
+    // Check if we're already filtering by this normalized status
+    // Check if any of the current status filters match this normalized status
+    const currentStatusFilters = filterModel.items?.filter(item => item.field === 'status') || [];
+    const isCurrentlyFiltered = currentStatusFilters.length > 0 && 
+      currentStatusFilters.some(filterItem => {
+        // Check if this filter's value normalizes to the selected normalized status
+        return normalizeProjectStatus(filterItem.value) === normalizedStatus;
+      });
+    
+    if (isCurrentlyFiltered) {
+      // Clear the filter
+      setFilterModel({ items: [] });
+    } else {
+      // Find all original statuses that normalize to this status
+      const matchingStatuses = [];
+      if (projects && projects.length > 0) {
+        projects.forEach(p => {
+          if (p.status && normalizeProjectStatus(p.status) === normalizedStatus) {
+            if (!matchingStatuses.includes(p.status)) {
+              matchingStatuses.push(p.status);
+            }
+          }
+        });
+      }
+
+      // If we have matching statuses, create filters for each
+      // Note: DataGrid doesn't support OR filters directly, so we'll filter in dataGridFilteredProjects
+      // For now, we'll store the normalized status in a custom filter item
+      if (matchingStatuses.length > 0) {
+        setFilterModel({
+          items: matchingStatuses.map((status, idx) => ({
+            id: `status-${idx}`,
+            field: 'status',
+            operator: 'equals',
+            value: status,
+          }))
+        });
+      }
+    }
+  }, [filterModel, projects]);
   
   // State for export loading
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -236,6 +282,15 @@ function ProjectManagementPage() {
     return Math.max(totalHeight, 400); // Minimum height of 400px
   };
 
+  // Format currency in millions for KPI cards
+  const formatCurrencyInMillions = (amount) => {
+    if (!amount || isNaN(amount) || amount === 0) return 'KES 0M';
+    const millions = amount / 1000000;
+    // Format with 1-2 decimal places, removing trailing zeros
+    const formatted = millions.toFixed(2).replace(/\.?0+$/, '');
+    return `KES ${formatted}M`;
+  };
+
   // Apply DataGrid column filters to filtered projects
   const dataGridFilteredProjects = useMemo(() => {
     if (!filteredProjects || filteredProjects.length === 0) {
@@ -247,109 +302,133 @@ function ProjectManagementPage() {
       return filteredProjects;
     }
 
-    // Apply column filters
-    const filtered = filteredProjects.filter(project => {
-      return filterModel.items.every(filterItem => {
-        const { field, operator, value } = filterItem;
-        const projectValue = project[field];
+    // Helper function to check if a filter matches
+    const checkFilterMatch = (projectValue, operator, value, field) => {
+      if (value === null || value === undefined || value === '') {
+        return true; // Empty filter means no filter
+      }
 
-        if (value === null || value === undefined || value === '') {
-          return true; // Empty filter means no filter
+      // Handle numeric fields differently
+      if (field === 'overallProgress' || field === 'costOfProject' || field === 'paidOut' || field === 'Contracted' || field === 'id') {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) {
+          return false;
         }
-
-        // Handle numeric fields differently
-        if (field === 'overallProgress' || field === 'costOfProject' || field === 'paidOut' || field === 'Contracted' || field === 'id') {
-          const numValue = parseFloat(value);
-          if (isNaN(numValue)) {
-            return false;
-          }
-          
-          // Handle null/undefined project values
-          let numProjectValue;
-          if (projectValue === null || projectValue === undefined || projectValue === '') {
-            // For overallProgress, treat null/undefined as 0
-            numProjectValue = 0;
-          } else {
-            numProjectValue = parseFloat(projectValue);
-            if (isNaN(numProjectValue)) {
-              // If parsing fails, try to handle it
-              if (field === 'overallProgress') {
-                numProjectValue = 0; // Default to 0 for invalid overallProgress
-              } else {
-                return false;
-              }
+        
+        // Handle null/undefined project values
+        let numProjectValue;
+        if (projectValue === null || projectValue === undefined || projectValue === '') {
+          // For overallProgress, treat null/undefined as 0
+          numProjectValue = 0;
+        } else {
+          numProjectValue = parseFloat(projectValue);
+          if (isNaN(numProjectValue)) {
+            // If parsing fails, try to handle it
+            if (field === 'overallProgress') {
+              numProjectValue = 0; // Default to 0 for invalid overallProgress
+            } else {
+              return false;
             }
           }
+        }
+        
+        // For overallProgress, ensure we're comparing integers (0, 25, 50, 75, 100)
+        if (field === 'overallProgress') {
+          numProjectValue = Math.round(numProjectValue);
+          const roundedValue = Math.round(numValue);
+          const matches = numProjectValue === roundedValue;
           
-          // For overallProgress, ensure we're comparing integers (0, 25, 50, 75, 100)
-          if (field === 'overallProgress') {
-            numProjectValue = Math.round(numProjectValue);
-            const roundedValue = Math.round(numValue);
-            const matches = numProjectValue === roundedValue;
-            
-            // For overallProgress, only use equality operator
-            if (operator === '=' || operator === 'equals') {
-              return matches;
-            }
-            // For other operators, use the rounded values
-            switch (operator) {
-              case '>':
-                return numProjectValue > roundedValue;
-              case '<':
-                return numProjectValue < roundedValue;
-              case '>=':
-                return numProjectValue >= roundedValue;
-              case '<=':
-                return numProjectValue <= roundedValue;
-              default:
-                return matches;
-            }
+          // For overallProgress, only use equality operator
+          if (operator === '=' || operator === 'equals') {
+            return matches;
           }
-          
-          // For other numeric fields, use standard comparison
+          // For other operators, use the rounded values
           switch (operator) {
-            case '=':
-            case 'equals':
-              return numProjectValue === numValue;
             case '>':
-              return numProjectValue > numValue;
+              return numProjectValue > roundedValue;
             case '<':
-              return numProjectValue < numValue;
+              return numProjectValue < roundedValue;
             case '>=':
-              return numProjectValue >= numValue;
+              return numProjectValue >= roundedValue;
             case '<=':
-              return numProjectValue <= numValue;
+              return numProjectValue <= roundedValue;
             default:
-              return numProjectValue === numValue;
+              return matches;
           }
         }
-
-        const filterValue = String(value).toLowerCase();
-        const projectValueStr = projectValue ? String(projectValue).toLowerCase() : '';
-
+        
+        // For other numeric fields, use standard comparison
         switch (operator) {
           case '=':
           case 'equals':
-            return projectValueStr === filterValue;
-          case 'contains':
-            return projectValueStr.includes(filterValue);
-          case 'equals':
-            return projectValueStr === filterValue;
-          case 'startsWith':
-            return projectValueStr.startsWith(filterValue);
-          case 'endsWith':
-            return projectValueStr.endsWith(filterValue);
-          case 'is':
-            return projectValueStr === filterValue;
-          case 'isNot':
-            return projectValueStr !== filterValue;
-          case 'isEmpty':
-            return !projectValue || projectValueStr === '';
-          case 'isNotEmpty':
-            return projectValue && projectValueStr !== '';
+            return numProjectValue === numValue;
+          case '>':
+            return numProjectValue > numValue;
+          case '<':
+            return numProjectValue < numValue;
+          case '>=':
+            return numProjectValue >= numValue;
+          case '<=':
+            return numProjectValue <= numValue;
           default:
-            return projectValueStr.includes(filterValue);
+            return numProjectValue === numValue;
         }
+      }
+
+      const filterValue = String(value).toLowerCase();
+      const projectValueStr = projectValue ? String(projectValue).toLowerCase() : '';
+
+      switch (operator) {
+        case '=':
+        case 'equals':
+          return projectValueStr === filterValue;
+        case 'contains':
+          return projectValueStr.includes(filterValue);
+        case 'startsWith':
+          return projectValueStr.startsWith(filterValue);
+        case 'endsWith':
+          return projectValueStr.endsWith(filterValue);
+        case 'is':
+          return projectValueStr === filterValue;
+        case 'isNot':
+          return projectValueStr !== filterValue;
+        case 'isEmpty':
+          return !projectValue || projectValueStr === '';
+        case 'isNotEmpty':
+          return projectValue && projectValueStr !== '';
+        default:
+          return projectValueStr.includes(filterValue);
+      }
+    };
+
+    // Apply column filters
+    const filtered = filteredProjects.filter(project => {
+      // Group filters by field to handle OR logic for status filters
+      const filtersByField = {};
+      filterModel.items.forEach(filterItem => {
+        if (!filtersByField[filterItem.field]) {
+          filtersByField[filterItem.field] = [];
+        }
+        filtersByField[filterItem.field].push(filterItem);
+      });
+
+      // Check each field group
+      return Object.keys(filtersByField).every(field => {
+        const fieldFilters = filtersByField[field];
+        // For status field with multiple values, use OR logic
+        if (field === 'status' && fieldFilters.length > 1) {
+          return fieldFilters.some(filterItem => {
+            const { operator, value } = filterItem;
+            const projectValue = project[field];
+            return checkFilterMatch(projectValue, operator, value, field);
+          });
+        }
+        // For other fields or single status filter, use AND logic
+        return fieldFilters.every(filterItem => {
+          const { operator, value } = filterItem;
+          const projectValue = project[field];
+          return checkFilterMatch(projectValue, operator, value, field);
+        });
       });
     });
     
@@ -404,13 +483,16 @@ function ProjectManagementPage() {
       return sum + paid;
     }, 0);
 
-    const completedProjects = projectsToUse.filter(p => 
-      p.status === 'Completed' || p.status === 'Closed'
-    ).length;
+    // Use normalized status for accurate categorization
+    const completedProjects = projectsToUse.filter(p => {
+      const normalized = normalizeProjectStatus(p.status);
+      return normalized === 'Completed';
+    }).length;
 
-    const inProgressProjects = projectsToUse.filter(p => 
-      p.status === 'In Progress' || p.status === 'Planning' || p.status === 'Initiated'
-    ).length;
+    const inProgressProjects = projectsToUse.filter(p => {
+      const normalized = normalizeProjectStatus(p.status);
+      return normalized === 'Ongoing';
+    }).length;
 
     const completionRate = projectsToUse.length > 0 
       ? Math.round((completedProjects / projectsToUse.length) * 100) 
@@ -440,6 +522,26 @@ function ProjectManagementPage() {
       }
     });
 
+    // Calculate normalized status statistics
+    const statusStats = {
+      'Completed': 0,
+      'Ongoing': 0,
+      'Not started': 0,
+      'Stalled': 0,
+      'Under Procurement': 0,
+      'Suspended': 0,
+      'Other': 0
+    };
+
+    projectsToUse.forEach(p => {
+      const normalized = normalizeProjectStatus(p.status);
+      if (statusStats.hasOwnProperty(normalized)) {
+        statusStats[normalized]++;
+      } else {
+        statusStats['Other']++;
+      }
+    });
+
     return {
       totalProjects: projectsToUse.length,
       totalBudget,
@@ -449,6 +551,7 @@ function ProjectManagementPage() {
       totalPaidOut,
       completionRate,
       progressStats,
+      statusStats,
     };
   }, [dataGridFilteredProjects]);
 
@@ -1167,159 +1270,171 @@ function ProjectManagementPage() {
   });
 
   return (
-    <Box m="20px">
-      <Header title="PROJECTS" subtitle="Registry of Projects" />
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-          {hasPrivilege('projectcategory.read_all') && (
+    <Box m="12px">
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '10px', flexWrap: 'wrap', gap: 1 }}>
+        <Header title="PROJECTS" subtitle="Registry of Projects" />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          {/* Action Buttons */}
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+            {hasPrivilege('projectcategory.read_all') && (
               <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<CategoryIcon sx={{ fontSize: 18 }} />}
-                  onClick={() => navigate('/settings/project-categories')}
-                  sx={{ borderColor: ui.primaryOutline, color: ui.primaryOutline, '&:hover': { backgroundColor: ui.primaryOutlineHoverBg }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: ui.elevatedShadow, fontSize: '0.8125rem', py: 0.5, px: 1.5 }}
-              >
-                  Manage Categories
-              </Button>
-          )}
-          <Button variant="outlined" size="small" startIcon={<SettingsIcon sx={{ fontSize: 18 }} />} onClick={handleResetColumns}
-            sx={{ color: isLight ? theme.palette.text.primary : colors.grey[100], borderColor: isLight ? theme.palette.divider : colors.grey[400], '&:hover': { backgroundColor: isLight ? theme.palette.action.hover : colors.primary[500], borderColor: isLight ? theme.palette.text.primary : colors.grey[100] }, fontSize: '0.8125rem', py: 0.5, px: 1.5 }}
-          >Reset to Defaults</Button>
-          {checkUserPrivilege(user, 'project.create') && (
-            <Button variant="contained" size="small" startIcon={<AddIcon sx={{ fontSize: 18 }} />} onClick={() => handleOpenFormDialog()}
-              sx={{ backgroundColor: isLight ? theme.palette.success.main : colors.greenAccent[600], '&:hover': { backgroundColor: isLight ? theme.palette.success.dark : colors.greenAccent[700] }, color: '#fff', fontSize: '0.8125rem', py: 0.5, px: 1.5 }}
-            >
-              Add New Project
-            </Button>
-          )}
-          {filteredProjects && filteredProjects.length > 0 && (
-            <>
-              <Button 
-                variant="outlined" 
-                size="small"
-                startIcon={exportingExcel ? <CircularProgress size={16} color="inherit" /> : <FileDownloadIcon sx={{ fontSize: 18 }} />}
-                onClick={handleExportToExcel}
-                disabled={exportingExcel || exportingPdf || loading}
-                sx={{ 
-                  color: isLight ? '#276E4B' : colors.greenAccent[500], 
-                  borderColor: isLight ? '#276E4B' : colors.greenAccent[500], 
-                  '&:hover': { 
-                    backgroundColor: isLight ? '#E8F5E9' : colors.greenAccent[600], 
-                    borderColor: isLight ? '#276E4B' : colors.greenAccent[400] 
-                  },
-                  '&:disabled': {
-                    borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
-                    color: isLight ? theme.palette.action.disabled : colors.grey[500]
-                  },
-                  fontSize: '0.8125rem', py: 0.5, px: 1.5
-                }}
-              >
-                {exportingExcel ? 'Exporting...' : 'Export to Excel'}
-              </Button>
-              <Button 
-                variant="outlined" 
-                size="small"
-                startIcon={exportingPdf ? <CircularProgress size={16} color="inherit" /> : <PictureAsPdfIcon sx={{ fontSize: 18 }} />}
-                onClick={handleExportToPDF}
-                disabled={exportingExcel || exportingPdf || loading}
-                sx={{ 
-                  color: isLight ? '#E11D48' : colors.redAccent[500], 
-                  borderColor: isLight ? '#E11D48' : colors.redAccent[500], 
-                  '&:hover': { 
-                    backgroundColor: isLight ? '#FFEBEE' : colors.redAccent[600], 
-                    borderColor: isLight ? '#E11D48' : colors.redAccent[400] 
-                  },
-                  '&:disabled': {
-                    borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
-                    color: isLight ? theme.palette.action.disabled : colors.grey[500]
-                  },
-                  fontSize: '0.8125rem', py: 0.5, px: 1.5
-                }}
-              >
-                {exportingPdf ? 'Generating PDF...' : 'Export to PDF'}
-              </Button>
-            </>
-          )}
-        </Stack>
-      </Box>
-
-      {/* Global Search Bar */}
-      <Box sx={{ mb: 1.5, mt: 1.5 }}>
-        <TextField
-          fullWidth
-          placeholder="Search projects by name, ID, department, location, status, progress, or description..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          variant="outlined"
-          size="small"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: isLight ? colors.grey[600] : colors.grey[300], fontSize: 20 }} />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery && (
-              <InputAdornment position="end">
-                <IconButton
-                  onClick={() => setSearchQuery('')}
-                  edge="end"
-                  size="small"
-                  sx={{ color: isLight ? colors.grey[600] : colors.grey[300] }}
-                >
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              backgroundColor: isLight ? theme.palette.background.paper : colors.primary[500],
-              borderRadius: '8px',
-              height: '36px',
-              '&:hover': {
-                backgroundColor: isLight ? theme.palette.action.hover : colors.primary[600],
-              },
-              '&.Mui-focused': {
-                backgroundColor: isLight ? theme.palette.background.paper : colors.primary[500],
-                boxShadow: `0 0 0 2px ${colors.blueAccent[500]}40`,
-              },
-            },
-            '& .MuiOutlinedInput-input': {
-              color: isLight ? theme.palette.text.primary : colors.grey[100],
-              py: 0.75,
-              fontSize: '0.875rem',
-            },
-          }}
-        />
-        {(searchQuery || (filterModel.items && filterModel.items.length > 0)) && (
-          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip
-              label={`${dataGridFilteredProjects.length} project${dataGridFilteredProjects.length !== 1 ? 's' : ''} found`}
-              size="small"
-              sx={{
-                backgroundColor: colors.blueAccent[500],
-                color: '#fff',
-                fontWeight: 600,
-              }}
-            />
-            {dataGridFilteredProjects.length !== projects.length && (
-              <Chip
-                label={`Filtered from ${projects.length} total`}
-                size="small"
                 variant="outlined"
+                size="small"
+                startIcon={<CategoryIcon sx={{ fontSize: 16 }} />}
+                onClick={() => navigate('/settings/project-categories')}
+                sx={{ borderColor: ui.primaryOutline, color: ui.primaryOutline, '&:hover': { backgroundColor: ui.primaryOutlineHoverBg }, fontWeight: 'semibold', borderRadius: '6px', boxShadow: ui.elevatedShadow, fontSize: '0.75rem', py: 0.4, px: 1.25 }}
+              >
+                Manage Categories
+              </Button>
+            )}
+            <Button 
+              variant="outlined" 
+              size="small" 
+              startIcon={<SettingsIcon sx={{ fontSize: 16 }} />} 
+              onClick={handleResetColumns}
+              sx={{ color: isLight ? theme.palette.text.primary : colors.grey[100], borderColor: isLight ? theme.palette.divider : colors.grey[400], '&:hover': { backgroundColor: isLight ? theme.palette.action.hover : colors.primary[500], borderColor: isLight ? theme.palette.text.primary : colors.grey[100] }, fontSize: '0.75rem', py: 0.4, px: 1.25 }}
+            >
+              Reset to Defaults
+            </Button>
+            {checkUserPrivilege(user, 'project.create') && (
+              <Button 
+                variant="contained" 
+                size="small" 
+                startIcon={<AddIcon sx={{ fontSize: 16 }} />} 
+                onClick={() => handleOpenFormDialog()}
+                sx={{ backgroundColor: isLight ? theme.palette.success.main : colors.greenAccent[600], '&:hover': { backgroundColor: isLight ? theme.palette.success.dark : colors.greenAccent[700] }, color: '#fff', fontSize: '0.75rem', py: 0.4, px: 1.25 }}
+              >
+                Add New Project
+              </Button>
+            )}
+            {filteredProjects && filteredProjects.length > 0 && (
+              <>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  startIcon={exportingExcel ? <CircularProgress size={14} color="inherit" /> : <FileDownloadIcon sx={{ fontSize: 16 }} />}
+                  onClick={handleExportToExcel}
+                  disabled={exportingExcel || exportingPdf || loading}
+                  sx={{ 
+                    color: isLight ? '#276E4B' : colors.greenAccent[500], 
+                    borderColor: isLight ? '#276E4B' : colors.greenAccent[500], 
+                    '&:hover': { 
+                      backgroundColor: isLight ? '#E8F5E9' : colors.greenAccent[600], 
+                      borderColor: isLight ? '#276E4B' : colors.greenAccent[400] 
+                    },
+                    '&:disabled': {
+                      borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
+                      color: isLight ? theme.palette.action.disabled : colors.grey[500]
+                    },
+                    fontSize: '0.75rem', py: 0.4, px: 1.25
+                  }}
+                >
+                  {exportingExcel ? 'Exporting...' : 'Export to Excel'}
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  startIcon={exportingPdf ? <CircularProgress size={14} color="inherit" /> : <PictureAsPdfIcon sx={{ fontSize: 16 }} />}
+                  onClick={handleExportToPDF}
+                  disabled={exportingExcel || exportingPdf || loading}
+                  sx={{ 
+                    color: isLight ? '#E11D48' : colors.redAccent[500], 
+                    borderColor: isLight ? '#E11D48' : colors.redAccent[500], 
+                    '&:hover': { 
+                      backgroundColor: isLight ? '#FFEBEE' : colors.redAccent[600], 
+                      borderColor: isLight ? '#E11D48' : colors.redAccent[400] 
+                    },
+                    '&:disabled': {
+                      borderColor: isLight ? theme.palette.action.disabled : colors.grey[700],
+                      color: isLight ? theme.palette.action.disabled : colors.grey[500]
+                    },
+                    fontSize: '0.75rem', py: 0.4, px: 1.25
+                  }}
+                >
+                  {exportingPdf ? 'Generating PDF...' : 'Export to PDF'}
+                </Button>
+              </>
+            )}
+          </Stack>
+          {/* Global Search Bar */}
+          <TextField
+            placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            variant="outlined"
+            size="small"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: isLight ? colors.grey[600] : colors.grey[300], fontSize: 18 }} />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setSearchQuery('')}
+                    edge="end"
+                    size="small"
+                    sx={{ color: isLight ? colors.grey[600] : colors.grey[300] }}
+                  >
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: { xs: '100%', sm: '200px', md: '250px' },
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: isLight ? theme.palette.background.paper : colors.primary[500],
+                borderRadius: '6px',
+                height: '32px',
+                '&:hover': {
+                  backgroundColor: isLight ? theme.palette.action.hover : colors.primary[600],
+                },
+                '&.Mui-focused': {
+                  backgroundColor: isLight ? theme.palette.background.paper : colors.primary[500],
+                  boxShadow: `0 0 0 2px ${colors.blueAccent[500]}40`,
+                },
+              },
+              '& .MuiOutlinedInput-input': {
+                color: isLight ? theme.palette.text.primary : colors.grey[100],
+                py: 0.75,
+                fontSize: '0.875rem',
+              },
+            }}
+          />
+          {(searchQuery || (filterModel.items && filterModel.items.length > 0)) && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+              <Chip
+                label={`${dataGridFilteredProjects.length} project${dataGridFilteredProjects.length !== 1 ? 's' : ''} found`}
+                size="small"
                 sx={{
-                  borderColor: colors.blueAccent[500],
-                  color: isLight ? colors.blueAccent[700] : colors.blueAccent[300],
+                  backgroundColor: colors.blueAccent[500],
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
                 }}
               />
-            )}
-          </Box>
-        )}
+              {dataGridFilteredProjects.length !== projects.length && (
+                <Chip
+                  label={`Filtered from ${projects.length} total`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: colors.blueAccent[500],
+                    color: isLight ? colors.blueAccent[700] : colors.blueAccent[300],
+                    fontSize: '0.7rem',
+                  }}
+                />
+              )}
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* Summary Statistics Cards - Show stats for filtered projects (respects search and column filters) */}
       {!loading && !error && projects && projects.length > 0 && (
-        <Grid container spacing={1} sx={{ mb: 1.5, mt: 1 }}>
+        <Grid container spacing={0.75} sx={{ mb: 1, mt: 0.75 }}>
           <Grid item xs={12} sm={6} md={4} lg={2}>
             <Card 
               sx={{ 
@@ -1328,7 +1443,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)'
                   : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
                 border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
@@ -1338,14 +1453,14 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Total Projects
                   </Typography>
-                  <AssignmentIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 18 }} />
+                  <AssignmentIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 16 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.1rem', mb: 0.25, lineHeight: 1.2 }}>
                   {summaryStats.totalProjects.toLocaleString()}
                 </Typography>
                 <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
@@ -1363,7 +1478,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)'
                   : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
                 border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
@@ -1373,15 +1488,15 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Total Budget
                   </Typography>
-                  <MoneyIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 18 }} />
+                  <MoneyIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 16 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {currencyFormatter.format(summaryStats.totalBudget)}
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.1rem', mb: 0.25, lineHeight: 1.2 }}>
+                  {formatCurrencyInMillions(summaryStats.totalBudget)}
                 </Typography>
                 <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   Allocated funds
@@ -1395,82 +1510,10 @@ function ProjectManagementPage() {
               sx={{ 
                 height: '100%',
                 background: isLight 
-                  ? 'linear-gradient(135deg, #66bb6a 0%, #81c784 100%)'
-                  : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
-                color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#4caf50' : colors.greenAccent[600]}`,
-                border: 'none',
-                boxShadow: ui.elevatedShadow,
-                transition: 'transform 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 4px 12px rgba(102, 187, 106, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
-                }
-              }}
-            >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    Completed
-                  </Typography>
-                  <CheckCircleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[600], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.completedProjects}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  {summaryStats.totalProjects > 0 
-                    ? Math.round((summaryStats.completedProjects / summaryStats.totalProjects) * 100) 
-                    : 0}% of total
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4} lg={2}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                background: isLight 
-                  ? 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)'
-                  : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
-                color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#f57c00' : colors.blueAccent[400]}`,
-                border: 'none',
-                boxShadow: ui.elevatedShadow,
-                transition: 'transform 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: isLight ? '0 4px 12px rgba(255, 152, 0, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
-                }
-              }}
-            >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    In Progress
-                  </Typography>
-                  <HourglassIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[400], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.inProgressProjects}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  Active projects
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4} lg={2}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                background: isLight 
                   ? 'linear-gradient(135deg, #ff6f00 0%, #ff8f00 100%)'
                   : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#e65100' : colors.orange?.[500] || colors.yellowAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#e65100' : colors.orange?.[500] || colors.yellowAccent[500]}`,
                 border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
@@ -1480,15 +1523,15 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Contracted
                   </Typography>
-                  <ContractedIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[500] || colors.yellowAccent[500], fontSize: 18 }} />
+                  <ContractedIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[500] || colors.yellowAccent[500], fontSize: 16 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {currencyFormatter.format(summaryStats.totalContracted)}
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.1rem', mb: 0.25, lineHeight: 1.2 }}>
+                  {formatCurrencyInMillions(summaryStats.totalContracted)}
                 </Typography>
                 <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   {summaryStats.totalBudget > 0 
@@ -1507,7 +1550,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #26a69a 0%, #4db6ac 100%)'
                   : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#00897b' : colors.greenAccent[400]}`,
+                borderTop: `2px solid ${isLight ? '#00897b' : colors.greenAccent[400]}`,
                 border: 'none',
                 boxShadow: ui.elevatedShadow,
                 transition: 'transform 0.2s ease-in-out',
@@ -1517,15 +1560,15 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+              <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
                   <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
                     Paid Out
                   </Typography>
-                  <PaidIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[400], fontSize: 18 }} />
+                  <PaidIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[400], fontSize: 16 }} />
                 </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {currencyFormatter.format(summaryStats.totalPaidOut)}
+                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.1rem', mb: 0.25, lineHeight: 1.2 }}>
+                  {formatCurrencyInMillions(summaryStats.totalPaidOut)}
                 </Typography>
                 <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
                   {summaryStats.totalContracted > 0 
@@ -1538,16 +1581,15 @@ function ProjectManagementPage() {
         </Grid>
       )}
 
-      {/* Progress Statistics Cards - Show projects by progress percentage */}
+      {/* Distribution Cards - Toggle between Progress and Status */}
       {!loading && !error && projects && projects.length > 0 && (
-        <Grid container spacing={1} sx={{ mb: 1.5, mt: 1 }}>
-          <Grid item xs={12}>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: isLight ? colors.grey[700] : colors.grey[300] }}>
-              Projects by Progress
-            </Typography>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+        <Box sx={{ mb: 1, mt: 0.75, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Grid container spacing={0.5} sx={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', flex: 1, '&::-webkit-scrollbar': { display: 'none' }, scrollbarWidth: 'none' }}>
+
+          {/* Progress View */}
+          {distributionView === 'progress' && (
+            <>
+              <Grid item sx={{ minWidth: { xs: '140px', sm: '160px', md: '180px' }, flex: '0 0 auto' }}>
             <Card 
               onClick={() => handleProgressFilter(0)}
               sx={{ 
@@ -1556,7 +1598,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)'
                   : `linear-gradient(135deg, ${colors.grey[800]}, ${colors.grey[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#616161' : colors.grey[500]}`,
+                borderTop: `2px solid ${isLight ? '#616161' : colors.grey[500]}`,
                 border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 0) 
                   ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
                   : 'none',
@@ -1569,26 +1611,26 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    0% - Not Started
-                  </Typography>
-                  <ScheduleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[400], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.progressStats?.notStarted || 0}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  {summaryStats.totalProjects > 0 
-                    ? Math.round((summaryStats.progressStats?.notStarted || 0) / summaryStats.totalProjects * 100) 
-                    : 0}% of total
-                </Typography>
-              </CardContent>
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        0% - Not Started
+                      </Typography>
+                      <ScheduleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.progressStats?.notStarted || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.progressStats?.notStarted || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+          <Grid item sx={{ minWidth: { xs: '140px', sm: '160px', md: '180px' }, flex: '0 0 auto' }}>
             <Card 
               onClick={() => handleProgressFilter(25)}
               sx={{ 
@@ -1597,7 +1639,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)'
                   : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#f57c00' : colors.orange?.[500] || colors.yellowAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#f57c00' : colors.orange?.[500] || colors.yellowAccent[500]}`,
                 border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 25) 
                   ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
                   : 'none',
@@ -1610,26 +1652,26 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    25% - Quarter
-                  </Typography>
-                  <PlayArrowIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[400] || colors.yellowAccent[400], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.progressStats?.quarter || 0}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  {summaryStats.totalProjects > 0 
-                    ? Math.round((summaryStats.progressStats?.quarter || 0) / summaryStats.totalProjects * 100) 
-                    : 0}% of total
-                </Typography>
-              </CardContent>
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        25% - Quarter
+                      </Typography>
+                      <PlayArrowIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[400] || colors.yellowAccent[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.progressStats?.quarter || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.progressStats?.quarter || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+          <Grid item sx={{ minWidth: { xs: '140px', sm: '160px', md: '180px' }, flex: '0 0 auto' }}>
             <Card 
               onClick={() => handleProgressFilter(50)}
               sx={{ 
@@ -1638,7 +1680,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)'
                   : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
                 border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 50) 
                   ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
                   : 'none',
@@ -1651,26 +1693,26 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    50% - Halfway
-                  </Typography>
-                  <HourglassIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.progressStats?.halfway || 0}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  {summaryStats.totalProjects > 0 
-                    ? Math.round((summaryStats.progressStats?.halfway || 0) / summaryStats.totalProjects * 100) 
-                    : 0}% of total
-                </Typography>
-              </CardContent>
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        50% - Halfway
+                      </Typography>
+                      <HourglassIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.progressStats?.halfway || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.progressStats?.halfway || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+          <Grid item sx={{ minWidth: { xs: '140px', sm: '160px', md: '180px' }, flex: '0 0 auto' }}>
             <Card 
               onClick={() => handleProgressFilter(75)}
               sx={{ 
@@ -1679,7 +1721,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)'
                   : `linear-gradient(135deg, ${colors.purple?.[800] || colors.blueAccent[800]}, ${colors.purple?.[700] || colors.blueAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#7b1fa2' : colors.purple?.[500] || colors.blueAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#7b1fa2' : colors.purple?.[500] || colors.blueAccent[500]}`,
                 border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 75) 
                   ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
                   : 'none',
@@ -1692,26 +1734,26 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    75% - Nearly Complete
-                  </Typography>
-                  <CheckCircleOutlineIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.purple?.[400] || colors.blueAccent[400], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.progressStats?.threeQuarter || 0}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  {summaryStats.totalProjects > 0 
-                    ? Math.round((summaryStats.progressStats?.threeQuarter || 0) / summaryStats.totalProjects * 100) 
-                    : 0}% of total
-                </Typography>
-              </CardContent>
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        75% - Nearly Complete
+                      </Typography>
+                      <CheckCircleOutlineIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.purple?.[400] || colors.blueAccent[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.progressStats?.threeQuarter || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.progressStats?.threeQuarter || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={4} lg={2.4}>
+          <Grid item sx={{ minWidth: { xs: '140px', sm: '160px', md: '180px' }, flex: '0 0 auto' }}>
             <Card 
               onClick={() => handleProgressFilter(100)}
               sx={{ 
@@ -1720,7 +1762,7 @@ function ProjectManagementPage() {
                   ? 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)'
                   : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
                 color: isLight ? 'white' : 'inherit',
-                borderTop: `3px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
+                borderTop: `2px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
                 border: filterModel.items?.find(item => item.field === 'overallProgress' && item.value === 100) 
                   ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
                   : 'none',
@@ -1733,25 +1775,374 @@ function ProjectManagementPage() {
                 }
               }}
             >
-              <CardContent sx={{ p: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
-                  <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.7rem' }}>
-                    100% - Completed
-                  </Typography>
-                  <CheckCircleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 18 }} />
-                </Box>
-                <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1.25rem', mb: 0.125 }}>
-                  {summaryStats.progressStats?.completed || 0}
-                </Typography>
-                <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.65rem' }}>
-                  {summaryStats.totalProjects > 0 
-                    ? Math.round((summaryStats.progressStats?.completed || 0) / summaryStats.totalProjects * 100) 
-                    : 0}% of total
-                </Typography>
-              </CardContent>
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        100% - Completed
+                      </Typography>
+                      <CheckCircleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.progressStats?.completed || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.progressStats?.completed || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
             </Card>
           </Grid>
-        </Grid>
+            </>
+          )}
+
+          {/* Status Distribution View */}
+          {distributionView === 'status' && (
+            <>
+              {/* Completed */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Completed')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)'
+                      : `linear-gradient(135deg, ${colors.greenAccent[800]}, ${colors.greenAccent[700]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#388e3c' : colors.greenAccent[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Completed')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(76, 175, 80, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Completed
+                      </Typography>
+                      <CheckCircleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.greenAccent[500], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Completed'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Completed'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Ongoing */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Ongoing')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #2196f3 0%, #42a5f5 100%)'
+                      : `linear-gradient(135deg, ${colors.blueAccent[800]}, ${colors.blueAccent[700]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#1976d2' : colors.blueAccent[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Ongoing')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(33, 150, 243, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Ongoing
+                      </Typography>
+                      <PlayArrowIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.blueAccent[500], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Ongoing'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Ongoing'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Not started */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Not started')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)'
+                      : `linear-gradient(135deg, ${colors.grey[800]}, ${colors.grey[700]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#616161' : colors.grey[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Not started')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(158, 158, 158, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Not Started
+                      </Typography>
+                      <ScheduleIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Not started'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Not started'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Stalled */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Stalled')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)'
+                      : `linear-gradient(135deg, ${colors.orange?.[800] || colors.yellowAccent[800]}, ${colors.orange?.[700] || colors.yellowAccent[700]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#f57c00' : colors.orange?.[500] || colors.yellowAccent[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Stalled')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(255, 152, 0, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Stalled
+                      </Typography>
+                      <PauseIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.orange?.[400] || colors.yellowAccent[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Stalled'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Stalled'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Under Procurement */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Under Procurement')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)'
+                      : `linear-gradient(135deg, ${colors.purple?.[800] || colors.blueAccent[800]}, ${colors.purple?.[700] || colors.blueAccent[700]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#7b1fa2' : colors.purple?.[500] || colors.blueAccent[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Under Procurement')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(156, 39, 176, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Under Procurement
+                      </Typography>
+                      <HourglassIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.purple?.[400] || colors.blueAccent[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Under Procurement'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Under Procurement'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Suspended */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Suspended')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #f44336 0%, #e57373 100%)'
+                      : `linear-gradient(135deg, ${colors.redAccent[800]}, ${colors.redAccent[700]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#d32f2f' : colors.redAccent[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Suspended')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(244, 67, 54, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Suspended
+                      </Typography>
+                      <CancelIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.redAccent[500], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Suspended'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Suspended'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Other */}
+              <Grid item sx={{ minWidth: { xs: '120px', sm: '140px', md: '160px' }, flex: '0 0 auto' }}>
+                <Card 
+                  onClick={() => handleStatusFilter('Other')}
+                  sx={{ 
+                    height: '100%',
+                    background: isLight 
+                      ? 'linear-gradient(135deg, #757575 0%, #9e9e9e 100%)'
+                      : `linear-gradient(135deg, ${colors.grey[700]}, ${colors.grey[600]})`,
+                    color: isLight ? 'white' : 'inherit',
+                    borderTop: `2px solid ${isLight ? '#616161' : colors.grey[500]}`,
+                    border: filterModel.items?.some(item => item.field === 'status' && normalizeProjectStatus(item.value) === 'Other')
+                      ? `2px solid ${isLight ? '#000000' : '#ffffff'}` 
+                      : 'none',
+                    boxShadow: ui.elevatedShadow,
+                    transition: 'all 0.2s ease-in-out',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    '&:hover': {
+                      transform: 'translateY(-2px) scale(1.02)',
+                      boxShadow: isLight ? '0 4px 12px rgba(117, 117, 117, 0.3)' : '0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 0.75, '&:last-child': { pb: 0.75 }, pt: 0.75 }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.25}>
+                      <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[100], fontWeight: 600, fontSize: '0.65rem' }}>
+                        Other
+                      </Typography>
+                      <WarningIcon sx={{ color: isLight ? 'rgba(255, 255, 255, 0.9)' : colors.grey[400], fontSize: 14 }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ color: isLight ? '#ffffff' : '#fff', fontWeight: 'bold', fontSize: '1rem', mb: 0, lineHeight: 1.1 }}>
+                      {summaryStats.statusStats?.['Other'] || 0}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: isLight ? 'rgba(255, 255, 255, 0.8)' : colors.grey[300], fontWeight: 400, fontSize: '0.6rem', mt: 0.125 }}>
+                      {summaryStats.totalProjects > 0 
+                        ? Math.round((summaryStats.statusStats?.['Other'] || 0) / summaryStats.totalProjects * 100) 
+                        : 0}%
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </>
+          )}
+            </Grid>
+            <ToggleButtonGroup
+              value={distributionView}
+              exclusive
+              onChange={(e, newView) => {
+                if (newView !== null) {
+                  setDistributionView(newView);
+                  // Clear any active filters when switching views
+                  setFilterModel({ items: [] });
+                }
+              }}
+              size="small"
+              sx={{
+                flexShrink: 0,
+                '& .MuiToggleButton-root': {
+                  px: 1.5,
+                  py: 0.5,
+                  fontSize: '0.75rem',
+                  textTransform: 'none',
+                  borderColor: isLight ? colors.grey[400] : colors.grey[600],
+                  color: isLight ? colors.grey[700] : colors.grey[300],
+                  '&.Mui-selected': {
+                    backgroundColor: isLight ? colors.blueAccent[500] : colors.blueAccent[600],
+                    color: '#fff',
+                    '&:hover': {
+                      backgroundColor: isLight ? colors.blueAccent[600] : colors.blueAccent[700],
+                    }
+                  },
+                  '&:hover': {
+                    backgroundColor: isLight ? colors.grey[100] : colors.grey[700],
+                  }
+                }
+              }}
+            >
+              <ToggleButton value="progress" aria-label="progress view">
+                Progress
+              </ToggleButton>
+              <ToggleButton value="status" aria-label="status view">
+                Status
+              </ToggleButton>
+            </ToggleButtonGroup>
+        </Box>
       )}
 
       {loading && (<Box display="flex" justifyContent="center" alignItems="center" height="200px"><CircularProgress /><Typography sx={{ ml: 2 }}>Loading projects...</Typography></Box>)}

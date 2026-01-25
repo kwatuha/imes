@@ -18,7 +18,7 @@ const projectTableColumns = [
   { id: 'countyNames', label: 'Counties', minWidth: 180, show: false, sortable: false }, // Typically not sortable
   { id: 'subcountyNames', label: 'Sub-Counties', minWidth: 180, show: false, sortable: false }, // Typically not sortable
   { id: 'wardNames', label: 'Wards', minWidth: 180, show: false, sortable: false }, 
-  { id: 'principalInvestigator', label: 'PI', minWidth: 150, show: true, sortable: true },        // Typically not sortable
+  { id: 'principalInvestigator', label: 'Project Manager', minWidth: 150, show: true, sortable: true },
   { id: 'actions', label: 'Actions', minWidth: 180, show: true, sticky: 'right', sortable: false },
 ];
 

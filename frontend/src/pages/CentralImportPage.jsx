@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Box, Typography, Button, Paper, CircularProgress, Alert, Snackbar, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid,
   FormControl, InputLabel, Select, MenuItem, FormHelperText, Card, CardContent,
   CardActions, Chip, Divider, Accordion, AccordionSummary, AccordionDetails,
-  List, ListItem, ListItemText, ListItemIcon
+  List, ListItem, ListItemText, ListItemIcon, Stepper, Step, StepLabel, StepContent
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -161,6 +161,18 @@ function CentralImportPage() {
 
   const currentImportType = IMPORT_TYPES.find(type => type.id === selectedImportType);
 
+  // Calculate current step for the import process
+  const getCurrentStep = () => {
+    if (!selectedImportType) return 0;
+    if (!selectedFile) return 1;
+    if (!previewData) return 2;
+    if (currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview) return 3;
+    if (currentImportType?.id === 'projects' && showMappingPreview) return 4;
+    return 3; // Ready to confirm
+  };
+
+  const currentStep = getCurrentStep();
+
   const handleImportTypeChange = (event) => {
     const typeId = event.target.value;
     setSelectedImportType(typeId);
@@ -253,7 +265,50 @@ function CentralImportPage() {
         try {
           const mappingResponse = await apiService.projects.checkMetadataMapping({ dataToImport: response.fullData });
           if (mappingResponse.success) {
-            setMappingSummary(mappingResponse.mappingSummary);
+            // Deduplicate case-insensitive duplicates in mapping summary
+            // Keeps the first occurrence of each case-insensitive match
+            const deduplicateCaseInsensitive = (arr) => {
+              const seen = new Map(); // Map of lowercase -> first occurrence
+              arr.forEach(item => {
+                const lower = String(item).toLowerCase().trim();
+                if (!seen.has(lower)) {
+                  seen.set(lower, item);
+                }
+              });
+              return Array.from(seen.values());
+            };
+
+            const deduplicatedSummary = {
+              ...mappingResponse.mappingSummary,
+              departments: {
+                existing: deduplicateCaseInsensitive(mappingResponse.mappingSummary.departments?.existing || []),
+                new: deduplicateCaseInsensitive(mappingResponse.mappingSummary.departments?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingResponse.mappingSummary.departments?.unmatched || [])
+              },
+              directorates: {
+                existing: deduplicateCaseInsensitive(mappingResponse.mappingSummary.directorates?.existing || []),
+                new: deduplicateCaseInsensitive(mappingResponse.mappingSummary.directorates?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingResponse.mappingSummary.directorates?.unmatched || [])
+              },
+              subcounties: {
+                existing: deduplicateCaseInsensitive(mappingResponse.mappingSummary.subcounties?.existing || []),
+                new: deduplicateCaseInsensitive(mappingResponse.mappingSummary.subcounties?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingResponse.mappingSummary.subcounties?.unmatched || [])
+              },
+              wards: {
+                existing: deduplicateCaseInsensitive(mappingResponse.mappingSummary.wards?.existing || []),
+                new: deduplicateCaseInsensitive(mappingResponse.mappingSummary.wards?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingResponse.mappingSummary.wards?.unmatched || [])
+              },
+              financialYears: {
+                existing: deduplicateCaseInsensitive(mappingResponse.mappingSummary.financialYears?.existing || []),
+                new: deduplicateCaseInsensitive(mappingResponse.mappingSummary.financialYears?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingResponse.mappingSummary.financialYears?.unmatched || [])
+              }
+            };
+
+            setMappingSummary(deduplicatedSummary);
+            // Automatically show mapping preview for projects
             setShowMappingPreview(true);
           }
         } catch (mappingErr) {
@@ -608,50 +663,115 @@ function CentralImportPage() {
                 </Button>
               )}
 
-              {previewData && !showMappingPreview && (
-                <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<CheckCircleIcon />}
-                    onClick={handleConfirmImport}
-                    disabled={loading || !checkUserPrivilege(user, currentImportType.privilege)}
-                    fullWidth
-                  >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Import'}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<CancelIcon />}
-                    onClick={handleCancelImport}
-                    disabled={loading}
-                    fullWidth
-                  >
-                    Cancel
-                  </Button>
-                </Box>
+              {previewData && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<CancelIcon />}
+                  onClick={handleCancelImport}
+                  disabled={loading}
+                  fullWidth
+                >
+                  Cancel
+                </Button>
               )}
             </Grid>
           </Grid>
           
-          {/* Metadata Mapping Preview - Only for Projects */}
-          {showMappingPreview && mappingSummary && currentImportType.id === 'projects' && (
+          {/* Data Preview Section */}
+          {previewData && previewData.length > 0 && (
             <Box sx={{ mt: 2 }}>
-              <Paper elevation={2} sx={{ p: 2, borderRadius: '8px', border: '1.5px solid', borderColor: 'primary.main' }}>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <AssessmentIcon color="primary" fontSize="small" />
-                  Metadata Mapping Preview
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.85rem' }}>
-                  Review how your data will be mapped to existing metadata. Items marked as "Will be Created" need to be created manually before importing, or they will be skipped during import.
-                </Typography>
-                <Alert severity="info" sx={{ mb: 1.5, py: 0.5 }}>
-                  <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                    <strong>Note:</strong> The system checks both names and aliases when matching metadata. 
-                    Items not found will be skipped during import. Please create missing metadata in the Metadata Management section before proceeding.
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1 }}>Data Preview (First {previewData.length} Rows)</Typography>
+              <TableContainer component={Paper} elevation={1} sx={{ maxHeight: 300, overflow: 'auto', mb: 2 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      {parsedHeaders.map((header, index) => (
+                        <TableCell key={index} sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0', fontSize: '0.75rem' }}>
+                          {header}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {previewData.map((row, rowIndex) => (
+                      <TableRow key={rowIndex}>
+                        {parsedHeaders.map((header, colIndex) => (
+                          <TableCell key={`${rowIndex}-${colIndex}`} sx={{ fontSize: '0.75rem' }}>
+                            {String(row[header] || '')}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {importReport && importReport.details && importReport.details.unrecognizedHeaders && importReport.details.unrecognizedHeaders.length > 0 && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.8rem' }}>
+                    Warning: The following headers were found but are not recognized: {importReport.details.unrecognizedHeaders.join(', ')}. Data in these columns will be ignored.
                   </Typography>
                 </Alert>
+              )}
+            </Box>
+          )}
+
+          {/* Metadata Mapping Preview - Only for Projects - Now Prominently Displayed */}
+          {currentImportType?.id === 'projects' && mappingSummary && (
+            <Box sx={{ mt: 2 }}>
+              <Paper 
+                elevation={3} 
+                sx={{ 
+                  p: 2, 
+                  borderRadius: '8px', 
+                  border: '2px solid', 
+                  borderColor: 'primary.main',
+                  background: 'linear-gradient(180deg, rgba(102, 126, 234, 0.05) 0%, rgba(255, 255, 255, 1) 100%)'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ 
+                      p: 0.75, 
+                      borderRadius: 1.5, 
+                      bgcolor: 'primary.main', 
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <AssessmentIcon fontSize="small" />
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={700} sx={{ fontSize: '1rem' }}>
+                        Metadata Mapping Preview
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        ⚠️ Required: Review this before confirming import
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setShowMappingPreview(!showMappingPreview)}
+                    startIcon={<AssessmentIcon />}
+                  >
+                    {showMappingPreview ? 'Hide Details' : 'Show Details'}
+                  </Button>
+                </Box>
+                
+                {showMappingPreview ? (
+                  <>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.85rem' }}>
+                      Review how your data will be mapped to existing metadata. Items marked as "Need to be Created" will be skipped during import if not created first.
+                    </Typography>
+                    <Alert severity="info" sx={{ mb: 1.5, py: 0.75 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                        <strong>Note:</strong> The system checks both names and aliases when matching metadata (case-insensitive). 
+                        Items not found will be skipped during import. Please create missing metadata in the Metadata Management section before proceeding.
+                      </Typography>
+                    </Alert>
 
                 <Grid container spacing={1.5}>
                   {/* Departments */}
@@ -915,28 +1035,109 @@ function CentralImportPage() {
                   </Alert>
                 )}
 
-                <Box sx={{ mt: 1.5, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => {
-                      setShowMappingPreview(false);
-                      setMappingSummary(null);
-                    }}
-                  >
-                    Back to Preview
-                  </Button>
+                  </>
+                ) : (
+                  <Box>
+                    <Alert severity="warning" sx={{ mb: 1.5, py: 1 }}>
+                      <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.85rem', mb: 0.5 }}>
+                        ⚠️ Review Required Before Import
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                        Please click "Show Details" above to review the metadata mapping. This step is required before you can confirm the import.
+                      </Typography>
+                    </Alert>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                      <Chip 
+                        label={`${mappingSummary.departments?.existing.length || 0} Existing Departments`} 
+                        color="success" 
+                        size="small"
+                        sx={{ fontSize: '0.7rem' }}
+                      />
+                      <Chip 
+                        label={`${mappingSummary.directorates?.existing.length || 0} Existing Directorates`} 
+                        color="success" 
+                        size="small"
+                        sx={{ fontSize: '0.7rem' }}
+                      />
+                      {mappingSummary.departments?.new.length > 0 && (
+                        <Chip 
+                          label={`${mappingSummary.departments.new.length} New Departments`} 
+                          color="warning" 
+                          size="small"
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      )}
+                      {mappingSummary.directorates?.new.length > 0 && (
+                        <Chip 
+                          label={`${mappingSummary.directorates.new.length} New Directorates`} 
+                          color="warning" 
+                          size="small"
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                )}
+              </Paper>
+            </Box>
+          )}
+
+          {/* Import Confirmation Section - Appears after preview and metadata review */}
+          {previewData && (
+            <Box sx={{ 
+              mt: 2, 
+              p: 2, 
+              bgcolor: 'action.hover', 
+              borderRadius: 2, 
+              border: '2px solid', 
+              borderColor: currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview ? 'warning.main' : 'success.main'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>
+                    Ready to Import
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                    {currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview
+                      ? '⚠️ Please review the Metadata Mapping Preview above before confirming the import.'
+                      : 'Review the preview above and confirm to proceed with the import.'}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
                   <Button
                     variant="contained"
                     color="primary"
-                    size="small"
+                    size="large"
                     startIcon={<CheckCircleIcon />}
-                    onClick={() => setShowMappingPreview(false)}
+                    onClick={handleConfirmImport}
+                    disabled={
+                      loading || 
+                      !checkUserPrivilege(user, currentImportType.privilege) ||
+                      (currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview)
+                    }
+                    sx={{ minWidth: 160 }}
                   >
-                    Proceed to Import
+                    {loading ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CircularProgress size={20} color="inherit" />
+                        <Typography>Importing...</Typography>
+                      </Box>
+                    ) : (
+                      'Confirm Import'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="large"
+                    startIcon={<CancelIcon />}
+                    onClick={handleCancelImport}
+                    disabled={loading}
+                  >
+                    Cancel
                   </Button>
                 </Box>
-              </Paper>
+              </Box>
             </Box>
           )}
 
@@ -997,36 +1198,6 @@ function CentralImportPage() {
             </Box>
           )}
 
-          {previewData && previewData.length > 0 && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1 }}>Data Preview (First {previewData.length} Rows)</Typography>
-              <TableContainer component={Paper} elevation={1} sx={{ maxHeight: 350, overflow: 'auto' }}>
-                <Table stickyHeader size="small">
-                  <TableHead>
-                    <TableRow>
-                      {parsedHeaders.map((header, index) => (
-                        <TableCell key={index} sx={{ fontWeight: 'bold', backgroundColor: '#e0e0e0' }}>{header}</TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {previewData.map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {parsedHeaders.map((header, colIndex) => (
-                          <TableCell key={`${rowIndex}-${colIndex}`}>{String(row[header] || '')}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              {importReport && importReport.details && importReport.details.unrecognizedHeaders && importReport.details.unrecognizedHeaders.length > 0 && (
-                  <Alert severity="warning" sx={{ mt: 2 }}>
-                      Warning: The following headers were found in your file but are not recognized by the system: {importReport.details.unrecognizedHeaders.join(', ')}. Data in these columns will be ignored.
-                  </Alert>
-              )}
-            </Box>
-          )}
         </Paper>
       )}
 
