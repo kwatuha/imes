@@ -24,7 +24,7 @@ import {
     Stack
 } from '@mui/material';
 import { tokens } from '../pages/dashboard/theme';
-import { TrendingUp, Assessment, PieChart, BarChart, Timeline, Business, AttachMoney, CheckCircle, Warning, Speed, TrendingDown, Schedule, FilterList, ShowChart, Analytics, GetApp, PictureAsPdf, Print, Refresh, FileDownload } from '@mui/icons-material';
+import { TrendingUp, Assessment, PieChart, BarChart, Timeline, Business, AttachMoney, CheckCircle, Warning, Speed, TrendingDown, Schedule, FilterList, ShowChart, Analytics, GetApp, PictureAsPdf, Print, Refresh, FileDownload, TaskAlt, Percent } from '@mui/icons-material';
 
 // Import your chart components and new filter component
 import CircularChart from './charts/CircularChart';
@@ -1249,12 +1249,12 @@ const ReportingView = () => {
                         <Grid container spacing={1}>
                             {/* Enhanced Overview Tab Layout */}
                             
-                            {/* Top Row: KPI Cards - 2x2 Grid */}
+                            {/* KPI Cards - 2x3 Grid with Improved Information Flow */}
                             <Grid item xs={12}>
                                 <Fade in timeout={1000}>
-                                    <Box>
-                                        {/* Row 1: Total Projects and Total Contracted */}
-                                        <Grid container spacing={1} sx={{ mb: 1 }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                        {/* Row 1: Project Overview - Both are project counts */}
+                                        <Grid container spacing={1}>
                                             <Grid item xs={12} sm={6}>
                                                 <KPICard
                                                     title="Total Projects"
@@ -1262,6 +1262,28 @@ const ReportingView = () => {
                                                     icon={<Assessment />}
                                                     color="#1976d2"
                                                     subtitle="Across all departments"
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} sm={6}>
+                                                <KPICard
+                                                    title="Completed Projects"
+                                                    value={completedProjects}
+                                                    icon={<TaskAlt />}
+                                                    color="#2e7d32"
+                                                    subtitle="Projects finished"
+                                                />
+                                            </Grid>
+                                        </Grid>
+                                        {/* Row 2: Performance & Financial Commitment */}
+                                        <Grid container spacing={1}>
+                                            <Grid item xs={12} sm={6}>
+                                                <KPICard
+                                                    title="Completion Rate"
+                                                    value={`${completionRate}%`}
+                                                    icon={<Percent />}
+                                                    color="#2e7d32"
+                                                    subtitle="Projects completed"
+                                                    progress={completionRate}
                                                 />
                                             </Grid>
                                             <Grid item xs={12} sm={6}>
@@ -1274,7 +1296,7 @@ const ReportingView = () => {
                                                 />
                                             </Grid>
                                         </Grid>
-                                        {/* Row 2: Total Paid and Budget Utilization */}
+                                        {/* Row 3: Financial Execution Flow - Paid → Utilization */}
                                         <Grid container spacing={1}>
                                             <Grid item xs={12} sm={6}>
                                                 <KPICard
