@@ -20,6 +20,11 @@ const normalizeStatusForMatching = (status) => {
     // Convert to lowercase and trim
     const normalized = status.toLowerCase().trim();
     
+    // "to be initiated and completed" -> return a value that won't match any main category (so it goes to "Other")
+    if (normalized.includes('to be initiated') && normalized.includes('completed')) {
+        return 'to be initiated and completed'; // This won't match any main category
+    }
+    
     // Handle variations
     // "completed", "complete", or "done" -> "completed"
     if (normalized.includes('completed') || normalized === 'complete' || normalized === 'done') {
@@ -296,8 +301,9 @@ router.get('/projects', async (req, res) => {
             } else if (status === 'Other') {
                 // Other category: projects that don't match any main category
                 // Exclude projects that match main categories (including Suspended)
+                // But include "To Be Initiated And Completed" even though it contains "completed"
                 whereConditions.push(`(
-                    (LOWER(p.status) NOT LIKE '%completed%') AND
+                    ((LOWER(p.status) NOT LIKE '%completed%') OR (LOWER(p.status) LIKE '%to be initiated%' AND LOWER(p.status) LIKE '%completed%')) AND
                     (LOWER(p.status) NOT LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%on-going%' AND LOWER(p.status) NOT LIKE '%on going%' AND LOWER(p.status) NOT LIKE '%in progress%' AND LOWER(p.status) NOT LIKE '%inprogress%' AND (LOWER(p.status) NOT LIKE '%initiated%' OR LOWER(p.status) LIKE '%to be initiated%')) AND
                     (LOWER(p.status) NOT LIKE '%procurement%' AND LOWER(p.status) NOT LIKE '%under procurement%') AND
                     (LOWER(p.status) NOT LIKE '%not started%' AND LOWER(p.status) NOT LIKE '%notstarted%' AND LOWER(p.status) NOT LIKE '%not-started%') AND

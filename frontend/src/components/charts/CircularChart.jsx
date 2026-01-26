@@ -139,9 +139,9 @@ const CircularChart = ({ title, data, type }) => {
             }}>
                 <Box sx={{ 
                     width: '100%',
-                    height: { xs: '280px', sm: '320px', md: '360px' },
-                    flex: { xs: '0 0 280px', sm: '0 0 320px', md: '0 0 360px' },
-                    minHeight: { xs: '280px', sm: '320px', md: '360px' },
+                    height: { xs: '200px', sm: '220px', md: '240px' },
+                    flex: { xs: '0 0 200px', sm: '0 0 220px', md: '0 0 240px' },
+                    minHeight: { xs: '200px', sm: '220px', md: '240px' },
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -159,8 +159,7 @@ const CircularChart = ({ title, data, type }) => {
                                 outerRadius="85%"
                                 fill="#8884d8"
                                 paddingAngle={2}
-                                // Show percentage labels inside donut segments for better visibility
-                                label={type === 'donut' ? ({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : '' : undefined}
+                                label={false}
                                 labelLine={false}
                             >
                                 {chartData.map((entry, index) => (

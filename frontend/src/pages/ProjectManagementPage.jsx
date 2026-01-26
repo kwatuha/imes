@@ -246,7 +246,7 @@ function ProjectManagementPage() {
   }, [filterModel]);
 
   // Handler to filter by normalized status
-  const handleStatusFilter = useCallback((normalizedStatus) => {
+  const handleStatusFilter = useCallback(async (normalizedStatus) => {
     // Check if we're already filtering by this normalized status
     // Check if any of the current status filters match this normalized status
     const currentStatusFilters = filterModel.items?.filter(item => item.field === 'status') || [];
@@ -262,14 +262,45 @@ function ProjectManagementPage() {
     } else {
       // Find all original statuses that normalize to this status
       const matchingStatuses = [];
-      if (projects && projects.length > 0) {
-        projects.forEach(p => {
-          if (p.status && normalizeProjectStatus(p.status) === normalizedStatus) {
-            if (!matchingStatuses.includes(p.status)) {
-              matchingStatuses.push(p.status);
-            }
+      
+      // For "Other" status, fetch all status counts to get all possible statuses
+      // This ensures we include statuses that might not be in the currently loaded projects
+      if (normalizedStatus === 'Other') {
+        try {
+          const statusCounts = await apiService.analytics.getProjectStatusCounts();
+          if (statusCounts && Array.isArray(statusCounts)) {
+            statusCounts.forEach(item => {
+              if (item.status && normalizeProjectStatus(item.status) === 'Other') {
+                if (!matchingStatuses.includes(item.status)) {
+                  matchingStatuses.push(item.status);
+                }
+              }
+            });
           }
-        });
+        } catch (error) {
+          console.error('Error fetching status counts for Other filter:', error);
+          // Fallback to using currently loaded projects
+          if (projects && projects.length > 0) {
+            projects.forEach(p => {
+              if (p.status && normalizeProjectStatus(p.status) === 'Other') {
+                if (!matchingStatuses.includes(p.status)) {
+                  matchingStatuses.push(p.status);
+                }
+              }
+            });
+          }
+        }
+      } else {
+        // For other statuses, use currently loaded projects
+        if (projects && projects.length > 0) {
+          projects.forEach(p => {
+            if (p.status && normalizeProjectStatus(p.status) === normalizedStatus) {
+              if (!matchingStatuses.includes(p.status)) {
+                matchingStatuses.push(p.status);
+              }
+            }
+          });
+        }
       }
 
       // If we have matching statuses, create filters for each

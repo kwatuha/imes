@@ -20,6 +20,11 @@ export const normalizeProjectStatus = (status) => {
 
   const statusLower = status.toLowerCase().trim();
 
+  // Check for "to be initiated and completed" - map to "Other" since it has no specific status
+  if (statusLower.includes('to be initiated') && statusLower.includes('completed')) {
+    return 'Other';
+  }
+
   // Check for "completed" FIRST (case-insensitive, handles variations like "Phase II completed", "complete")
   // This must come before other checks to catch all completed variations
   if (statusLower.includes('completed') || statusLower === 'complete' || statusLower.endsWith('complete')) {

@@ -2086,7 +2086,24 @@ router.get('/', async (req, res) => {
         if (projectName) { whereConditions.push('p.projectName LIKE ?'); queryParams.push(`%${projectName}%`); }
         if (startDate) { whereConditions.push('p.startDate >= ?'); queryParams.push(startDate); }
         if (endDate) { whereConditions.push('p.endDate <= ?'); queryParams.push(endDate); }
-        if (status) { whereConditions.push('p.status = ?'); queryParams.push(status); }
+        if (status) {
+            if (status === 'Other') {
+                // Other category: projects that don't match any main category
+                // But include "To Be Initiated And Completed" even though it contains "completed"
+                whereConditions.push(`(
+                    ((LOWER(p.status) NOT LIKE '%completed%') OR (LOWER(p.status) LIKE '%to be initiated%' AND LOWER(p.status) LIKE '%completed%')) AND
+                    (LOWER(p.status) NOT LIKE '%ongoing%' AND LOWER(p.status) NOT LIKE '%on-going%' AND LOWER(p.status) NOT LIKE '%on going%' AND LOWER(p.status) NOT LIKE '%in progress%' AND LOWER(p.status) NOT LIKE '%inprogress%' AND (LOWER(p.status) NOT LIKE '%initiated%' OR LOWER(p.status) LIKE '%to be initiated%')) AND
+                    (LOWER(p.status) NOT LIKE '%procurement%' AND LOWER(p.status) NOT LIKE '%under procurement%') AND
+                    (LOWER(p.status) NOT LIKE '%not started%' AND LOWER(p.status) NOT LIKE '%notstarted%' AND LOWER(p.status) NOT LIKE '%not-started%') AND
+                    (LOWER(p.status) NOT LIKE '%stalled%') AND
+                    (LOWER(p.status) NOT LIKE '%suspended%') AND
+                    p.status IS NOT NULL AND p.status != ''
+                )`);
+            } else {
+                whereConditions.push('p.status = ?');
+                queryParams.push(status);
+            }
+        }
         if (departmentId) { whereConditions.push('p.departmentId = ?'); queryParams.push(parseInt(departmentId)); }
         if (sectionId) { whereConditions.push('p.sectionId = ?'); queryParams.push(parseInt(sectionId)); }
         if (finYearId) { whereConditions.push('p.finYearId = ?'); queryParams.push(parseInt(finYearId)); }

@@ -417,7 +417,7 @@ const ProjectOverviewDashboard = () => {
     // KPI Cards Component
     const KPICard = ({ title, value, icon, color, subtitle, progress }) => (
         <Card sx={{ 
-            height: '120px',
+            height: '100px',
             borderRadius: '12px',
             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -442,21 +442,21 @@ const ProjectOverviewDashboard = () => {
                 borderRadius: '12px 12px 0 0'
             }
         }}>
-            <CardContent sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.75rem' }}>
+            <CardContent sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary', fontSize: '0.7rem' }}>
                         {title}
                     </Typography>
-                    <Box sx={{ color: color, fontSize: '1.2rem' }}>
+                    <Box sx={{ color: color, fontSize: '1.1rem' }}>
                         {icon}
                     </Box>
                 </Box>
                 <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.5 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 0.25, fontSize: '1.25rem' }}>
                         {value}
                     </Typography>
                     {subtitle && (
-                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                             {subtitle}
                         </Typography>
                     )}
@@ -568,7 +568,7 @@ const ProjectOverviewDashboard = () => {
 
     return (
         <Box sx={{ 
-            p: 2, 
+            p: 1.5, 
             maxWidth: '100%', 
             overflowX: 'hidden',
             background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -576,7 +576,7 @@ const ProjectOverviewDashboard = () => {
         }}>
             {/* Header Section */}
             <Fade in timeout={800}>
-                <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ mb: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box>
                         <Typography 
                             variant="h6" 
@@ -599,7 +599,7 @@ const ProjectOverviewDashboard = () => {
                                 opacity: 0.7,
                                 fontSize: '0.7rem',
                                 display: 'block',
-                                mt: 0.25
+                                mt: 0.15
                             }}
                         >
                             Comprehensive project analytics and insights
@@ -620,7 +620,7 @@ const ProjectOverviewDashboard = () => {
             </Slide>
 
             {/* Tabbed Dashboard Interface */}
-            <Box sx={{ mt: 1.5 }}>
+            <Box sx={{ mt: 1 }}>
                 <Tabs 
                     value={activeTab} 
                     onChange={handleTabChange}
@@ -630,8 +630,8 @@ const ProjectOverviewDashboard = () => {
                             textTransform: 'none',
                             fontWeight: 600,
                             fontSize: '0.875rem',
-                            minHeight: '40px',
-                            py: 1
+                            minHeight: '36px',
+                            py: 0.75
                         },
                         '& .Mui-selected': {
                             color: 'primary.main',
@@ -660,16 +660,15 @@ const ProjectOverviewDashboard = () => {
                 </Tabs>
 
                 {/* Tab Content */}
-                <Box sx={{ mt: 1.5 }}>
+                <Box sx={{ mt: 1 }}>
                     {activeTab === 0 && (
-                        <Grid container spacing={1.5}>
+                        <Grid container spacing={1}>
 
                 {/* Project Status (Donut Chart) */}
                 <Grid item xs={12} md={5}>
                     <Fade in timeout={1200}>
                         <Card sx={{ 
-                            height: '100%',
-                            minHeight: '360px',
+                            height: '280px',
                             borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -699,16 +698,16 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <PieChart sx={{ color: 'primary.main', fontSize: '1rem' }} />
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+                                        <PieChart sx={{ color: 'primary.main', fontSize: '0.95rem' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.85rem' }}>
                                             Project Status Overview
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 1.5, pt: 1, flexShrink: 0 }}
+                                sx={{ pb: 0.25, px: 1.25, pt: 0.75, flexShrink: 0 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0.5, pb: 1, overflow: 'visible', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                                <Box sx={{ width: '100%', height: '100%', minHeight: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '1 1 auto' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0.25, pb: 0.75, overflow: 'visible', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                                <Box sx={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {dashboardData.projectStatus.length > 0 ? (
                                     <CircularChart
                                             title=""
@@ -728,8 +727,7 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={4}>
                     <Fade in timeout={1400}>
                         <Card sx={{ 
-                            height: '100%',
-                            minHeight: '360px',
+                            height: '280px',
                             borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -756,22 +754,22 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Speed sx={{ color: 'info.main', fontSize: '1rem' }} />
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.875rem' }}>
+                                        <Speed sx={{ color: 'info.main', fontSize: '0.95rem' }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.85rem' }}>
                                             Project Performance Metrics
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 1.5, pt: 1 }}
+                                sx={{ pb: 0.25, px: 1.25, pt: 0.75 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
-                                <Box sx={{ height: '200px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0.25, display: 'flex', flexDirection: 'column' }}>
+                                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, justifyContent: 'center' }}>
                                     {/* Completion Rate */}
-                                    <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px' }}>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50', mb: 0.5 }}>
+                                    <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px' }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50', mb: 0.25, fontSize: '1.75rem' }}>
                                             {completionRate}%
                                         </Typography>
-                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                             Completion Rate
                                         </Typography>
                                         <LinearProgress 
@@ -790,11 +788,11 @@ const ProjectOverviewDashboard = () => {
                                     </Box>
 
                                     {/* Health Score */}
-                                    <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(33, 150, 243, 0.1)', borderRadius: '8px' }}>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3', mb: 0.5 }}>
+                                    <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(33, 150, 243, 0.1)', borderRadius: '8px' }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3', mb: 0.25, fontSize: '1.75rem' }}>
                                             {healthScore}%
                                         </Typography>
-                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                             Health Score
                                         </Typography>
                                         <LinearProgress 
@@ -813,11 +811,11 @@ const ProjectOverviewDashboard = () => {
                                     </Box>
 
                                     {/* Average Progress */}
-                                    <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px' }}>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800', mb: 0.5 }}>
+                                    <Box sx={{ textAlign: 'center', p: 0.75, bgcolor: 'rgba(255, 152, 0, 0.1)', borderRadius: '8px' }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800', mb: 0.25, fontSize: '1.75rem' }}>
                                             {averageProgress}%
                                         </Typography>
-                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
                                             Average Progress
                                         </Typography>
                                         <LinearProgress 
@@ -846,9 +844,8 @@ const ProjectOverviewDashboard = () => {
                         <Box sx={{ 
                             display: 'flex', 
                             flexDirection: 'column', 
-                            gap: 1, 
-                            height: '100%',
-                            minHeight: '360px',
+                            gap: 0.75, 
+                            height: '280px',
                             justifyContent: 'space-between'
                         }}>
                             <KPICard
@@ -881,7 +878,7 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={8}>
                     <Fade in timeout={1600}>
                         <Card sx={{ 
-                            height: '320px',
+                            height: '300px',
                             borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -908,16 +905,16 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <BarChart sx={{ color: 'warning.main', fontSize: '1.2rem' }} />
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                        <BarChart sx={{ color: 'warning.main', fontSize: '1.1rem' }} />
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.9rem' }}>
                                             Budget Allocation by Status
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 1.5, pt: 1 }}
+                                sx={{ pb: 0.25, px: 1.25, pt: 0.75 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
-                                <Box sx={{ height: '240px', minWidth: '500px' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0.25 }}>
+                                <Box sx={{ height: '220px', minWidth: '500px' }}>
                                     {dashboardData.budgetAllocation.length > 0 ? (
                                         <BudgetAllocationChart
                                             title=""
@@ -936,7 +933,7 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={4}>
                     <Fade in timeout={1800}>
                         <Card sx={{ 
-                            height: '320px',
+                            height: '300px',
                             borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -963,16 +960,16 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <AttachMoney sx={{ color: 'success.main', fontSize: '1.2rem' }} />
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                        <AttachMoney sx={{ color: 'success.main', fontSize: '1.1rem' }} />
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.9rem' }}>
                                             Budget Performance by Department
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                sx={{ pb: 0.25, px: 1.25, pt: 0.75 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0 }}>
-                                <Box sx={{ height: '300px', minWidth: '300px' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0.25 }}>
+                                <Box sx={{ height: '220px', minWidth: '300px' }}>
                                     {dashboardData.projectProgress.length > 0 ? (
                                         <BudgetAllocationChart
                                             title=""
@@ -997,7 +994,7 @@ const ProjectOverviewDashboard = () => {
                 <Grid item xs={12} md={9}>
                     <Fade in timeout={2000}>
                         <Card sx={{ 
-                            height: '340px',
+                            height: '320px',
                             borderRadius: '8px',
                             background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -1024,16 +1021,16 @@ const ProjectOverviewDashboard = () => {
                             <CardHeader
                                 title={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Timeline sx={{ color: 'info.main', fontSize: '1.2rem' }} />
-                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.95rem' }}>
+                                        <Timeline sx={{ color: 'info.main', fontSize: '1.1rem' }} />
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'text.primary', fontSize: '0.9rem' }}>
                                             Project Progress | Stratified By Departments
                                         </Typography>
                                     </Box>
                                 }
-                                sx={{ pb: 0.5, px: 2, pt: 1.5 }}
+                                sx={{ pb: 0.25, px: 1.25, pt: 0.75 }}
                             />
-                            <CardContent sx={{ flexGrow: 1, p: 1, pt: 0 }}>
-                                <Box sx={{ height: '260px', minWidth: '700px' }}>
+                            <CardContent sx={{ flexGrow: 1, p: 0.75, pt: 0.25 }}>
+                                <Box sx={{ height: '240px', minWidth: '700px' }}>
                                 {dashboardData.projectProgress.length > 0 ? (
                                     <LineBarComboChart
                                             title=""
@@ -1057,8 +1054,8 @@ const ProjectOverviewDashboard = () => {
                         <Box sx={{ 
                             display: 'flex', 
                             flexDirection: 'column', 
-                            gap: 1, 
-                            height: '340px',
+                            gap: 0.75, 
+                            height: '320px',
                             justifyContent: 'space-between'
                         }}>
                             {/* Project Risk Level */}
