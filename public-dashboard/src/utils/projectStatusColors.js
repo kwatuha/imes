@@ -73,3 +73,8 @@ export function getProjectStatusTextColor(status) {
   return brightness > 180 ? 'black' : 'white'; // Use black text for light backgrounds, white for dark
 }
 
+
+
+
+
+
