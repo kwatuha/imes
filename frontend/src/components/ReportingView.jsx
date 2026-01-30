@@ -48,6 +48,11 @@ import {
     transformAnalyticsData
 } from './tables/TableConfigs';
 
+// Import jsPDF and autoTable for PDF export
+// Note: jspdf-autotable must be imported as side effect to extend jsPDF prototype
+import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+
 const ReportingView = () => {
     const theme = useTheme();
 
@@ -701,30 +706,30 @@ const ReportingView = () => {
                 return;
             }
 
-            // Dynamic import for jsPDF
-            import('jspdf').then(({ default: jsPDF }) => {
-                import('jspdf-autotable').then(() => {
-                    const doc = new jsPDF();
-                    const headers = columns.map(col => col.label);
-                    const tableData = data.map(item => 
-                        columns.map(col => {
-                            const value = item[col.id];
-                            return value !== undefined && value !== null ? String(value) : '';
-                        })
-                    );
+            const doc = new jsPDF();
+            const headers = columns.map(col => col.label);
+            const tableData = data.map(item => 
+                columns.map(col => {
+                    const value = item[col.id];
+                    return value !== undefined && value !== null ? String(value) : '';
+                })
+            );
 
-                    doc.autoTable({
-                        head: [headers],
-                        body: tableData,
-                        styles: { fontSize: 8, cellPadding: 3 },
-                        headStyles: { fillColor: [25, 118, 210], textColor: 255, fontStyle: 'bold' }
-                    });
+            // Check if autoTable is available
+            if (typeof doc.autoTable !== 'function') {
+                throw new Error('autoTable plugin failed to load. Please ensure jspdf-autotable is installed.');
+            }
 
-                    const tabNames = ['Overview', 'Financial', 'Analytics', 'Yearly Trends'];
-                    const filename = `Project_Dashboard_${tabNames[activeTab]}_${new Date().toISOString().split('T')[0]}.pdf`;
-                    doc.save(filename);
-                });
+            doc.autoTable({
+                head: [headers],
+                body: tableData,
+                styles: { fontSize: 8, cellPadding: 3 },
+                headStyles: { fillColor: [25, 118, 210], textColor: 255, fontStyle: 'bold' }
             });
+
+            const tabNames = ['Overview', 'Financial', 'Analytics', 'Yearly Trends'];
+            const filename = `Project_Dashboard_${tabNames[activeTab]}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(filename);
         } catch (error) {
             console.error('Error exporting to PDF:', error);
             alert('Failed to export to PDF. Please try again.');
@@ -1375,7 +1380,7 @@ const ReportingView = () => {
                             <Grid item xs={12} md={8}>
                                 <Fade in timeout={1200}>
                                     <Card sx={{ 
-                                        height: 'calc(3 * 105px + 2 * 8px)', // Match 3 KPI cards height: 3 cards (~105px each) + 2 gaps (8px each) = ~331px
+                                        height: 'calc(3 * 105px + 2 * 8px + 40px)', // Match 3 KPI cards height + extra 40px to prevent scrollbar: 3 cards (~105px each) + 2 gaps (8px each) + 40px = ~371px
                                         borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -1442,7 +1447,7 @@ const ReportingView = () => {
                                         display: 'flex', 
                                         flexDirection: { xs: 'column', md: 'row' }, 
                                         gap: 1, 
-                                        height: 'calc(3 * 105px + 2 * 8px)', // Match 3 KPI cards height: 3 cards (~105px each) + 2 gaps (8px each) = ~331px
+                                        height: 'calc(3 * 105px + 2 * 8px + 40px)', // Match 3 KPI cards height + extra 40px to prevent scrollbar: 3 cards (~105px each) + 2 gaps (8px each) + 40px = ~371px
                                     }}>
                                     {/* Project Count Distribution by Status */}
                                     <Card sx={{ 
