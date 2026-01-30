@@ -32,6 +32,7 @@ const FilterBar = ({
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedSubcounty, setSelectedSubcounty] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [projectSearch, setProjectSearch] = useState('');
 
   useEffect(() => {
@@ -46,7 +47,7 @@ const FilterBar = ({
       setWards([]);
       setSelectedWard('');
     }
-  }, [selectedSubcounty]);
+  }, [selectedSubcounty, finYearId]);
 
   useEffect(() => {
     // Apply filters whenever any filter changes
@@ -54,10 +55,11 @@ const FilterBar = ({
       department: selectedDepartment,
       subcounty: selectedSubcounty,
       ward: selectedWard,
+      status: selectedStatus,
       projectSearch: projectSearch.trim()
     };
     onFiltersChange(filters);
-  }, [selectedDepartment, selectedSubcounty, selectedWard, projectSearch]); // Remove onFiltersChange from dependencies to prevent infinite loops
+  }, [selectedDepartment, selectedSubcounty, selectedWard, selectedStatus, projectSearch]); // Remove onFiltersChange from dependencies to prevent infinite loops
 
   const fetchMetadata = async () => {
     try {
@@ -78,11 +80,12 @@ const FilterBar = ({
 
   const fetchWardsForSubcounty = async (subcountyId) => {
     try {
-      const wardData = await getWardStats(finYearId);
+      const wardData = await getWardStats(finYearId || null);
       // Filter wards by subcounty ID
-      const filteredWards = wardData.filter(ward => 
-        ward.subcounty_id === subcountyId || ward.subcountyId === subcountyId
-      );
+      const filteredWards = (wardData || []).filter(ward => {
+        const wardSubcountyId = ward.subcounty_id || ward.subcountyId;
+        return wardSubcountyId && (wardSubcountyId.toString() === subcountyId.toString() || wardSubcountyId === subcountyId);
+      });
       setWards(filteredWards);
     } catch (err) {
       console.error('Error fetching wards:', err);
@@ -94,10 +97,13 @@ const FilterBar = ({
     setSelectedDepartment('');
     setSelectedSubcounty('');
     setSelectedWard('');
+    setSelectedStatus('');
     setProjectSearch('');
   };
 
-  const hasActiveFilters = selectedDepartment || selectedSubcounty || selectedWard || projectSearch.trim();
+  const hasActiveFilters = selectedDepartment || selectedSubcounty || selectedWard || selectedStatus || projectSearch.trim();
+
+  const statuses = ['Completed', 'Ongoing', 'Not Started', 'Under Procurement', 'Stalled', 'Suspended'];
 
   return (
     <Paper sx={{ mb: 1.5, borderRadius: 2, p: 0.75 }} elevation={1}>
@@ -193,8 +199,31 @@ const FilterBar = ({
                 All
               </MenuItem>
               {wards.map((ward) => (
-                <MenuItem key={ward.wardId || ward.id} value={ward.wardId || ward.id} sx={{ fontSize: '0.8125rem' }}>
+                <MenuItem key={ward.wardId || ward.id || ward.ward_id} value={ward.wardId || ward.id || ward.ward_id} sx={{ fontSize: '0.8125rem' }}>
                   {ward.name || ward.ward_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        {/* Status Filter */}
+        <Grid item xs={6} sm={3} md={2}>
+          <FormControl fullWidth size="small">
+            <InputLabel id="status-label" sx={{ fontSize: '0.8125rem' }}>Status</InputLabel>
+            <Select
+              labelId="status-label"
+              value={selectedStatus}
+              label="Status"
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              sx={{ height: '32px', fontSize: '0.8125rem' }}
+            >
+              <MenuItem value="" sx={{ fontSize: '0.8125rem' }}>
+                All
+              </MenuItem>
+              {statuses.map((status) => (
+                <MenuItem key={status} value={status} sx={{ fontSize: '0.8125rem' }}>
+                  {status}
                 </MenuItem>
               ))}
             </Select>

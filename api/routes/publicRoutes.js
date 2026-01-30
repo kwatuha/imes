@@ -102,7 +102,7 @@ const isMainCategoryStatus = (status) => {
  */
 router.get('/stats/overview', async (req, res) => {
     try {
-        const { finYearId, departmentId, subcountyId, wardId, search } = req.query;
+        const { finYearId, departmentId, subcountyId, wardId, status, search } = req.query;
         
         let whereConditions = ['p.voided = 0', 'p.approved_for_public = 1'];
         const queryParams = [];
@@ -156,6 +156,14 @@ router.get('/stats/overview', async (req, res) => {
         
         const [projects] = await pool.query(projectsQuery, queryParams);
         
+        // Filter by status if provided (after fetching, since we need to use the helper function)
+        let filteredProjects = projects;
+        if (status) {
+            filteredProjects = projects.filter(project => 
+                matchesStatusCategory(project.status || '', status)
+            );
+        }
+        
         // Categorize projects using the helper functions
         let completed_projects = 0;
         let completed_budget = 0;
@@ -173,7 +181,7 @@ router.get('/stats/overview', async (req, res) => {
         let other_budget = 0;
         let total_budget = 0;
         
-        projects.forEach(project => {
+        filteredProjects.forEach(project => {
             const status = project.status || '';
             const budget = parseFloat(project.costOfProject) || 0;
             total_budget += budget;
@@ -204,7 +212,7 @@ router.get('/stats/overview', async (req, res) => {
         });
         
         const results = {
-            total_projects: projects.length,
+            total_projects: filteredProjects.length,
             total_budget: total_budget,
             completed_projects: completed_projects,
             completed_budget: completed_budget,

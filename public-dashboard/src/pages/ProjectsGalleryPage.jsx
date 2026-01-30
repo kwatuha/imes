@@ -34,7 +34,9 @@ import {
   getProjects,
   getFinancialYears,
   getDepartments,
-  getProjectTypes
+  getProjectTypes,
+  getSubCounties,
+  getWardStats
 } from '../services/publicApi';
 import { formatCurrency, formatDate, getStatusColor, truncateText, formatStatus } from '../utils/formatters';
 import ProjectFeedbackModal from '../components/ProjectFeedbackModal';
@@ -56,11 +58,15 @@ const ProjectsGalleryPage = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedProjectType, setSelectedProjectType] = useState('all');
+  const [selectedSubcounty, setSelectedSubcounty] = useState('all');
+  const [selectedWard, setSelectedWard] = useState('all');
   
   // Filter Options
   const [financialYears, setFinancialYears] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [projectTypes, setProjectTypes] = useState([]);
+  const [subcounties, setSubcounties] = useState([]);
+  const [wards, setWards] = useState([]);
 
   const statuses = ['Completed', 'Ongoing', 'Not Started', 'Under Procurement', 'Stalled'];
 
@@ -70,20 +76,46 @@ const ProjectsGalleryPage = () => {
 
   useEffect(() => {
     fetchProjects();
-  }, [pagination.page, selectedYear, selectedStatus, selectedDepartment, selectedProjectType, searchTerm]);
+  }, [pagination.page, selectedYear, selectedStatus, selectedDepartment, selectedProjectType, selectedSubcounty, selectedWard, searchTerm]);
+
+  useEffect(() => {
+    // Update wards when subcounty changes
+    if (selectedSubcounty && selectedSubcounty !== 'all') {
+      fetchWardsForSubcounty(selectedSubcounty);
+    } else {
+      setWards([]);
+      setSelectedWard('all');
+    }
+  }, [selectedSubcounty]);
 
   const fetchFilterOptions = async () => {
     try {
-      const [yearsData, deptsData, typesData] = await Promise.all([
+      const [yearsData, deptsData, typesData, subcountyData] = await Promise.all([
         getFinancialYears(),
         getDepartments(),
-        getProjectTypes()
+        getProjectTypes(),
+        getSubCounties()
       ]);
       setFinancialYears(yearsData);
       setDepartments(deptsData);
       setProjectTypes(typesData);
+      setSubcounties(subcountyData || []);
     } catch (err) {
       console.error('Error fetching filter options:', err);
+    }
+  };
+
+  const fetchWardsForSubcounty = async (subcountyId) => {
+    try {
+      const wardData = await getWardStats(selectedYear !== 'all' ? selectedYear : null);
+      // Filter wards by subcounty ID
+      const filteredWards = (wardData || []).filter(ward => 
+        ward.subcounty_id === subcountyId || ward.subcountyId === subcountyId
+      );
+      setWards(filteredWards);
+    } catch (err) {
+      console.error('Error fetching wards:', err);
+      setWards([]);
     }
   };
 
@@ -99,6 +131,8 @@ const ProjectsGalleryPage = () => {
       if (selectedStatus !== 'all') filters.status = selectedStatus;
       if (selectedDepartment !== 'all') filters.department = selectedDepartment;
       if (selectedProjectType !== 'all') filters.projectType = selectedProjectType;
+      if (selectedSubcounty !== 'all') filters.subCountyId = selectedSubcounty;
+      if (selectedWard !== 'all') filters.wardId = selectedWard;
       if (searchTerm) filters.search = searchTerm;
 
       const response = await getProjects(filters);
@@ -128,6 +162,8 @@ const ProjectsGalleryPage = () => {
     setSelectedStatus('all');
     setSelectedDepartment('all');
     setSelectedProjectType('all');
+    setSelectedSubcounty('all');
+    setSelectedWard('all');
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -415,6 +451,52 @@ const ProjectsGalleryPage = () => {
             </FormControl>
           </Grid>
 
+          {/* Subcounty */}
+          <Grid item xs={6} sm={3.5} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel sx={{ fontSize: '0.8125rem' }}>Subcounty</InputLabel>
+              <Select
+                value={selectedSubcounty}
+                label="Subcounty"
+                onChange={(e) => {
+                  setSelectedSubcounty(e.target.value);
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
+                sx={{ height: '32px', fontSize: '0.8125rem' }}
+              >
+                <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                {subcounties.map((subcounty) => (
+                  <MenuItem key={subcounty.subcountyId || subcounty.id} value={subcounty.subcountyId || subcounty.id} sx={{ fontSize: '0.8125rem' }}>
+                    {subcounty.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Ward */}
+          <Grid item xs={6} sm={3.5} md={2}>
+            <FormControl fullWidth size="small" disabled={selectedSubcounty === 'all'}>
+              <InputLabel sx={{ fontSize: '0.8125rem' }}>Ward</InputLabel>
+              <Select
+                value={selectedWard}
+                label="Ward"
+                onChange={(e) => {
+                  setSelectedWard(e.target.value);
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
+                sx={{ height: '32px', fontSize: '0.8125rem' }}
+              >
+                <MenuItem value="all" sx={{ fontSize: '0.8125rem' }}>All</MenuItem>
+                {wards.map((ward) => (
+                  <MenuItem key={ward.wardId || ward.id} value={ward.wardId || ward.id} sx={{ fontSize: '0.8125rem' }}>
+                    {ward.name || ward.ward_name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
           {/* Clear Filters Button */}
           <Grid item xs={12} sm={12} md={0.9} sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' }, mt: { xs: 0.25, md: 0 } }}>
             <Button
@@ -436,7 +518,7 @@ const ProjectsGalleryPage = () => {
       </Paper>
 
       {/* Results Summary - Filters Applied Chip */}
-      {(selectedYear !== 'all' || selectedStatus !== 'all' || selectedDepartment !== 'all' || selectedProjectType !== 'all' || searchTerm) && (
+      {(selectedYear !== 'all' || selectedStatus !== 'all' || selectedDepartment !== 'all' || selectedProjectType !== 'all' || selectedSubcounty !== 'all' || selectedWard !== 'all' || searchTerm) && (
         <Box sx={{ mb: 0.75, display: 'flex', justifyContent: 'flex-end' }}>
           <Chip 
             label="Filters Applied" 

@@ -192,6 +192,11 @@
           "title": "Contractor mgmt",
           "icon": "BusinessIcon",
           "route": "CONTRACTOR_MANAGEMENT"
+        },
+        {
+          "title": "Budget Management",
+          "icon": "AttachMoneyIcon",
+          "route": "BUDGET_MANAGEMENT"
         }
       ]
     }

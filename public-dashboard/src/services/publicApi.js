@@ -18,6 +18,7 @@ export const getOverviewStats = async (finYearId = null, filters = {}) => {
   if (filters.department) params.departmentId = filters.department;
   if (filters.subcounty) params.subcountyId = filters.subcounty;
   if (filters.ward) params.wardId = filters.ward;
+  if (filters.status) params.status = filters.status;
   if (filters.projectSearch) params.search = filters.projectSearch;
   
   const response = await publicApi.get('/stats/overview', { params });

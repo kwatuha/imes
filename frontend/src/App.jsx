@@ -65,6 +65,8 @@ import ProjectAnnouncementsManagementPage from './pages/ProjectAnnouncementsMana
 import PublicApprovalManagementPage from './pages/PublicApprovalManagementPage';
 // ✨ NEW: Import the Project Analytics page
 import ProjectAnalyticsPage from './pages/ProjectAnalyticsPage';
+// ✨ NEW: Import the Budget Management page
+import BudgetManagementPage from './pages/BudgetManagementPage';
  
 import ReportingView from './components/ReportingView';
 import RegionalReportsView from './components/RegionalReportsView';
@@ -226,6 +228,10 @@ const router = createBrowserRouter([
       {
         path: 'public-approval',
         element: <PublicApprovalManagementPage />,
+      },
+      {
+        path: 'budget-management',
+        element: <BudgetManagementPage />,
       },
       {
         path: 'project-analytics',

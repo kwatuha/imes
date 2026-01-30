@@ -78,6 +78,7 @@ export const ROUTES = {
     COUNTY_PROPOSED_PROJECTS: '/county-proposed-projects', // ✨ NEW: County Proposed Projects management route
     PROJECT_ANNOUNCEMENTS: '/project-announcements', // ✨ NEW: Project Announcements management route
     PUBLIC_APPROVAL: '/public-approval', // ✨ NEW: Public Content Approval management route
+    BUDGET_MANAGEMENT: '/budget-management', // ✨ NEW: Budget Management route
 
     // Sub-routes with dynamic parameters
     PROJECT_DETAILS: '/projects/:projectId',

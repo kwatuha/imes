@@ -1375,7 +1375,7 @@ const ReportingView = () => {
                             <Grid item xs={12} md={8}>
                                 <Fade in timeout={1200}>
                                     <Card sx={{ 
-                                        height: '480px',
+                                        height: 'calc(3 * 105px + 2 * 8px)', // Match 3 KPI cards height: 3 cards (~105px each) + 2 gaps (8px each) = ~331px
                                         borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
                                         boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
@@ -1411,11 +1411,14 @@ const ReportingView = () => {
                                             }
                                             sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0, pb: 1 }}>
+                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0, pb: 1, display: 'flex', flexDirection: 'column' }}>
                                             <Box sx={{ 
-                                                height: '440px', 
+                                                flex: 1,
                                                 minWidth: { xs: '280px', sm: '300px' },
-                                                overflow: 'visible'
+                                                overflow: 'visible',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
                                             }}>
                                                 {dashboardData.projectStatus.length > 0 ? (
                                                     <CircularChart
@@ -1435,7 +1438,12 @@ const ReportingView = () => {
                             {/* Right Column: Status Count & Performance Metrics */}
                             <Grid item xs={12} md={4}>
                                 <Fade in timeout={1400}>
-                                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, height: '480px' }}>
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        flexDirection: { xs: 'column', md: 'row' }, 
+                                        gap: 1, 
+                                        height: 'calc(3 * 105px + 2 * 8px)', // Match 3 KPI cards height: 3 cards (~105px each) + 2 gaps (8px each) = ~331px
+                                    }}>
                                     {/* Project Count Distribution by Status */}
                                     <Card sx={{ 
                                         borderRadius: '8px',
@@ -1448,6 +1456,7 @@ const ReportingView = () => {
                                         overflow: 'hidden',
                                         flex: { xs: '1 1 auto', md: '1 1 60%' },
                                         minHeight: 0,
+                                        height: '100%',
                                         width: { xs: '100%', md: '60%' },
                                         '&:hover': {
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
@@ -1625,6 +1634,7 @@ const ReportingView = () => {
                                         overflow: 'hidden',
                                         flex: { xs: '1 1 auto', md: '1 1 40%' },
                                         minHeight: 0,
+                                        height: '100%',
                                         width: { xs: '100%', md: '40%' },
                                         '&:hover': {
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
@@ -1851,39 +1861,71 @@ const ReportingView = () => {
                         {/* Visual Separator */}
                         <Grid item xs={12}>
                             <Box sx={{ 
-                                mt: 1, 
+                                mt: 2, 
                                 mb: 1,
                                 position: 'relative',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 2
+                                gap: 2,
+                                py: 1.5,
+                                px: 2,
+                                background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(25, 118, 210, 0.02) 100%)',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(25, 118, 210, 0.1)',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: '2px',
+                                    background: 'linear-gradient(90deg, transparent, rgba(25, 118, 210, 0.3), transparent)',
+                                    borderRadius: '12px 12px 0 0'
+                                }
                             }}>
                                 <Divider 
                                     sx={{ 
                                         flex: 1,
-                                        borderWidth: 2,
+                                        borderWidth: 1.5,
                                         borderColor: 'primary.main',
-                                        opacity: 0.3,
+                                        opacity: 0.2,
                                         '&::before, &::after': {
-                                            borderWidth: 2
+                                            borderWidth: 1.5
                                         }
                                     }} 
                                 />
                                 <Box sx={{
-                                    px: 2,
-                                    py: 0.75,
-                                    backgroundColor: 'primary.main',
-                                    borderRadius: '20px',
-                                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)'
+                                    px: 3,
+                                    py: 1,
+                                    background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                                    borderRadius: '24px',
+                                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    position: 'relative',
+                                    '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        inset: 0,
+                                        borderRadius: '24px',
+                                        padding: '1px',
+                                        background: 'linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1))',
+                                        WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                                        WebkitMaskComposite: 'xor',
+                                        maskComposite: 'exclude'
+                                    }
                                 }}>
                                     <Typography 
                                         variant="subtitle2" 
                                         sx={{ 
                                             fontWeight: 700,
                                             color: 'white',
-                                            fontSize: '0.8125rem',
-                                            letterSpacing: '0.5px',
-                                            textTransform: 'uppercase'
+                                            fontSize: '0.875rem',
+                                            letterSpacing: '1px',
+                                            textTransform: 'uppercase',
+                                            position: 'relative',
+                                            zIndex: 1,
+                                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                                         }}
                                     >
                                         Detailed View
@@ -1892,11 +1934,11 @@ const ReportingView = () => {
                                 <Divider 
                                     sx={{ 
                                         flex: 1,
-                                        borderWidth: 2,
+                                        borderWidth: 1.5,
                                         borderColor: 'primary.main',
-                                        opacity: 0.3,
+                                        opacity: 0.2,
                                         '&::before, &::after': {
-                                            borderWidth: 2
+                                            borderWidth: 1.5
                                         }
                                     }} 
                                 />
@@ -1995,9 +2037,22 @@ const ReportingView = () => {
                             <Box sx={{ 
                                 mt: 0,
                                 pt: 2,
-                                backgroundColor: 'rgba(255, 255, 255, 0.6)',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(25, 118, 210, 0.1)'
+                                pb: 2,
+                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                borderRadius: '12px',
+                                border: '1px solid rgba(25, 118, 210, 0.15)',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                                position: 'relative',
+                                '&::before': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: '3px',
+                                    background: 'linear-gradient(90deg, #1976d2, #42a5f5, #64b5f6)',
+                                    borderRadius: '12px 12px 0 0'
+                                }
                             }}>
                                 <ProjectDetailTable
                                     data={transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
