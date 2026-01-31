@@ -20,6 +20,7 @@ export const ICON_MAP = {
   AnnouncementIcon: () => import('@mui/icons-material/Announcement').then(m => m.default),
   PublicIcon: () => import('@mui/icons-material/Public').then(m => m.default),
   AnalyticsIcon: () => import('@mui/icons-material/Analytics').then(m => m.default),
+  AttachMoneyIcon: () => import('@mui/icons-material/AttachMoney').then(m => m.default),
 };
 
 // Get icon component by name

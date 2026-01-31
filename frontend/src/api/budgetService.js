@@ -82,9 +82,208 @@ class BudgetService {
       throw error;
     }
   }
+
+  // ============================================
+  // BUDGET CONTAINER METHODS
+  // ============================================
+
+  /**
+   * Get all budget containers with optional filters
+   */
+  async getBudgetContainers(filters = {}) {
+    try {
+      console.log('budgetService.getBudgetContainers called with filters:', filters);
+      const response = await axiosInstance.get('/budgets/containers', { params: filters });
+      console.log('budgetService.getBudgetContainers response:', response);
+      console.log('budgetService.getBudgetContainers response.data:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching budget containers in budgetService:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error keys:', Object.keys(error || {}));
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      // Re-throw the error so the component can handle it
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single budget container with all items
+   */
+  async getBudgetContainer(budgetId) {
+    try {
+      const response = await axiosInstance.get(`/budgets/containers/${budgetId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching budget container:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new budget container
+   */
+  async createBudgetContainer(containerData) {
+    try {
+      const response = await axiosInstance.post('/budgets/containers', containerData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating budget container:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a budget container
+   */
+  async updateBudgetContainer(budgetId, containerData) {
+    try {
+      const response = await axiosInstance.put(`/budgets/containers/${budgetId}`, containerData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating budget container:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Approve a budget container
+   */
+  async approveBudgetContainer(budgetId) {
+    try {
+      const response = await axiosInstance.post(`/budgets/containers/${budgetId}/approve`);
+      return response.data;
+    } catch (error) {
+      console.error('Error approving budget container:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reject a budget container
+   */
+  async rejectBudgetContainer(budgetId, rejectionReason) {
+    try {
+      const response = await axiosInstance.post(`/budgets/containers/${budgetId}/reject`, {
+        rejectionReason
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting budget container:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // BUDGET ITEMS METHODS
+  // ============================================
+
+  /**
+   * Get all items in a budget container
+   */
+  async getBudgetItems(budgetId) {
+    try {
+      const response = await axiosInstance.get(`/budgets/containers/${budgetId}/items`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching budget items:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add an item to a budget container
+   */
+  async addBudgetItem(budgetId, itemData) {
+    try {
+      const response = await axiosInstance.post(`/budgets/containers/${budgetId}/items`, itemData);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding budget item:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a budget item
+   */
+  async updateBudgetItem(itemId, itemData) {
+    try {
+      const response = await axiosInstance.put(`/budgets/items/${itemId}`, itemData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating budget item:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a budget item
+   */
+  async removeBudgetItem(itemId, changeReason = null) {
+    try {
+      const response = await axiosInstance.delete(`/budgets/items/${itemId}`, {
+        data: { changeReason }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error removing budget item:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // CHANGE REQUESTS METHODS
+  // ============================================
+
+  /**
+   * Get change history for a budget
+   */
+  async getBudgetChanges(budgetId, status = null) {
+    try {
+      const params = status ? { status } : {};
+      const response = await axiosInstance.get(`/budgets/containers/${budgetId}/changes`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching budget changes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Approve a change request
+   */
+  async approveChangeRequest(changeId, reviewNotes = null) {
+    try {
+      const response = await axiosInstance.put(`/budgets/changes/${changeId}/approve`, {
+        reviewNotes
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error approving change request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reject a change request
+   */
+  async rejectChangeRequest(changeId, reviewNotes) {
+    try {
+      const response = await axiosInstance.put(`/budgets/changes/${changeId}/reject`, {
+        reviewNotes
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting change request:', error);
+      throw error;
+    }
+  }
 }
 
 export default new BudgetService();
+
 
 
 

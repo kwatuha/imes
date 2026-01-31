@@ -76,6 +76,47 @@ export const getRiskChipColor = (risk) => {
   }
 };
 
+/**
+ * Format text to sentence case (Title Case) - capitalize first letter of each word
+ * Handles slashes, apostrophes, and hyphens properly
+ * @param {string} text - The text to format
+ * @returns {string} Formatted text in sentence case
+ */
+export const formatToSentenceCase = (text) => {
+  if (!text || typeof text !== 'string') return text || '';
+  
+  // Handle 'N/A' or empty strings
+  if (text.trim() === '' || text === 'N/A') return text;
+  
+  // Convert to sentence case: first letter of each word capitalized, rest lowercase
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map((word) => {
+      // Handle empty words (multiple spaces)
+      if (!word) return word;
+      
+      // Handle words with special characters (e.g., "O'Neil", "McDonald", "Muhoroni/koru")
+      // Capitalize first letter after apostrophes, hyphens, and slashes
+      return word
+        .split(/(['\-\/])/)
+        .map((part, index) => {
+          // Skip delimiters (apostrophes, hyphens, slashes)
+          if (['\'', '-', '/'].includes(part)) {
+            return part;
+          }
+          
+          // Capitalize first letter of each part
+          if (part.length > 0 && /[a-z]/.test(part[0])) {
+            return part.charAt(0).toUpperCase() + part.slice(1);
+          }
+          return part;
+        })
+        .join('');
+    })
+    .join(' ');
+};
+
 export const CARD_CONTENT_MAX_HEIGHT = '350px';
 export const riskLevels = ['High', 'Medium', 'Low'];
 export const financingSources = ['GoK only', 'Development partner only', 'GoK and development partner', 'Public-private partnership', 'Private sector only'];

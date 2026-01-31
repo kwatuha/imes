@@ -4,6 +4,19 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../../config/db'); // Correct path for the new folder structure
 
+/**
+ * Normalize financial year name for comparison
+ * Removes "FY" prefix (case-insensitive), trims whitespace, and converts to uppercase
+ * Examples: "FY2025/2026" -> "2025/2026", "fy2024/2025" -> "2024/2025", " 2025/2026 " -> "2025/2026"
+ */
+function normalizeFinancialYearName(name) {
+    if (!name) return '';
+    // Remove "FY" prefix (case-insensitive) and trim whitespace
+    let normalized = name.trim().replace(/^fy\s*/i, '');
+    // Remove any leading/trailing whitespace and convert to uppercase for consistent comparison
+    return normalized.trim().toUpperCase();
+}
+
 // --- Financial Years CRUD ---
 
 /**
@@ -13,9 +26,44 @@ const pool = require('../../config/db'); // Correct path for the new folder stru
  */
 router.get('/', async (req, res) => {
     try {
-        // Only return financial years where voided = 0 (exclude NULL and 1)
-        const [rows] = await pool.query('SELECT finYearId, finYearName, startDate, endDate, createdAt, updatedAt, userId FROM kemri_financialyears WHERE voided = 0 ORDER BY finYearName DESC');
-        res.status(200).json(rows);
+        // Get all financial years where voided = 0 or voided IS NULL
+        const [allRows] = await pool.query(`
+            SELECT 
+                finYearId, 
+                finYearName, 
+                startDate, 
+                endDate, 
+                createdAt, 
+                updatedAt, 
+                userId 
+            FROM kemri_financialyears 
+            WHERE (voided = 0 OR voided IS NULL)
+            ORDER BY startDate DESC, finYearName DESC
+        `);
+        
+        // Deduplicate by normalized finYearName, keeping the most recent one (highest finYearId)
+        const seen = new Map();
+        const uniqueRows = [];
+        
+        for (const row of allRows) {
+            const normalized = normalizeFinancialYearName(row.finYearName);
+            const existing = seen.get(normalized);
+            
+            if (!existing || row.finYearId > existing.finYearId) {
+                // Remove old entry if it exists
+                if (existing) {
+                    const index = uniqueRows.findIndex(r => r.finYearId === existing.finYearId);
+                    if (index !== -1) {
+                        uniqueRows.splice(index, 1);
+                    }
+                }
+                // Add new entry
+                seen.set(normalized, row);
+                uniqueRows.push(row);
+            }
+        }
+        
+        res.status(200).json(uniqueRows);
     } catch (error) {
         console.error('Error fetching financial years:', error);
         res.status(500).json({ message: 'Error fetching financial years', error: error.message });
@@ -64,22 +112,30 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        // Check if financial year with this name already exists (including voided ones)
-        const [existing] = await pool.query(
-            'SELECT finYearId, finYearName, voided FROM kemri_financialyears WHERE finYearName = ?',
-            [finYearName]
+        // Normalize the input name for comparison
+        const normalizedName = normalizeFinancialYearName(finYearName);
+        
+        // Get all financial years to check for normalized duplicates
+        const [allFinancialYears] = await pool.query(
+            'SELECT finYearId, finYearName, voided FROM kemri_financialyears'
         );
+        
+        // Check if any existing financial year has the same normalized name
+        const duplicate = allFinancialYears.find(fy => {
+            const existingNormalized = normalizeFinancialYearName(fy.finYearName);
+            return existingNormalized === normalizedName;
+        });
 
-        if (existing.length > 0) {
-            const existingRecord = existing[0];
+        if (duplicate) {
+            const existingRecord = duplicate;
             if (existingRecord.voided === 0 || existingRecord.voided === null) {
                 return res.status(409).json({ 
-                    message: `Financial year "${finYearName}" already exists. Please use a different name.` 
+                    message: `Financial year "${finYearName}" is the same as existing "${existingRecord.finYearName}". Please use a different name.` 
                 });
             } else {
                 // If voided, we could restore it, but for now, return error
                 return res.status(409).json({ 
-                    message: `Financial year "${finYearName}" already exists (voided). Please use a different name or restore the existing record.` 
+                    message: `Financial year "${finYearName}" is the same as existing "${existingRecord.finYearName}" (voided). Please use a different name or restore the existing record.` 
                 });
             }
         }
@@ -116,16 +172,26 @@ router.put('/:finYearId', async (req, res) => {
     try {
         // Check if another financial year with this name already exists (excluding current record)
         if (finYearName) {
-            const [existing] = await pool.query(
-                'SELECT finYearId, finYearName, voided FROM kemri_financialyears WHERE finYearName = ? AND finYearId != ?',
-                [finYearName, finYearId]
+            // Normalize the input name for comparison
+            const normalizedName = normalizeFinancialYearName(finYearName);
+            
+            // Get all financial years to check for normalized duplicates (excluding current record)
+            const [allFinancialYears] = await pool.query(
+                'SELECT finYearId, finYearName, voided FROM kemri_financialyears WHERE finYearId != ?',
+                [finYearId]
             );
+            
+            // Check if any existing financial year has the same normalized name
+            const duplicate = allFinancialYears.find(fy => {
+                const existingNormalized = normalizeFinancialYearName(fy.finYearName);
+                return existingNormalized === normalizedName;
+            });
 
-            if (existing.length > 0) {
-                const existingRecord = existing[0];
+            if (duplicate) {
+                const existingRecord = duplicate;
                 if (existingRecord.voided === 0 || existingRecord.voided === null) {
                     return res.status(409).json({ 
-                        message: `Financial year "${finYearName}" already exists. Please use a different name.` 
+                        message: `Financial year "${finYearName}" is the same as existing "${existingRecord.finYearName}". Please use a different name.` 
                     });
                 }
             }

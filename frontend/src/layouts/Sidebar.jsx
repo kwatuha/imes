@@ -81,6 +81,7 @@ const ICON_MAP = {
   AssignmentIcon,
   AnnouncementIcon,
   PublicIcon,
+  AttachMoneyIcon,
 };
 
 const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme, isCollapsed }) => {
