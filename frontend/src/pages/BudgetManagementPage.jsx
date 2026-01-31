@@ -5,7 +5,8 @@ import {
   Select, MenuItem, FormControl, InputLabel, Snackbar, Alert, 
   Stack, useTheme, Tooltip, Grid, Paper, Chip, Autocomplete,
   Tabs, Tab, Card, CardContent, Divider, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow
+  TableCell, TableContainer, TableHead, TableRow, Avatar,
+  DialogContentText
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { 
@@ -101,6 +102,10 @@ function BudgetManagementPage() {
   const [openDeleteConfirmDialog, setOpenDeleteConfirmDialog] = useState(false);
   const [budgetToDeleteId, setBudgetToDeleteId] = useState(null);
   const [budgetToDeleteName, setBudgetToDeleteName] = useState('');
+  
+  // Approve Confirmation States
+  const [openApproveDialog, setOpenApproveDialog] = useState(false);
+  const [budgetToApprove, setBudgetToApprove] = useState(null);
 
   // Fetch metadata
   const fetchMetadata = useCallback(async () => {
@@ -429,18 +434,30 @@ function BudgetManagementPage() {
     }
   };
 
-  const handleApproveContainer = async (budgetId) => {
-    if (!window.confirm('Are you sure you want to approve this budget? It will be locked and require change requests for modifications.')) {
-      return;
+  const handleOpenApproveDialog = (budgetId) => {
+    const budget = containers.find(c => c.budgetId === budgetId);
+    if (budget) {
+      setBudgetToApprove(budget);
+      setOpenApproveDialog(true);
     }
+  };
+
+  const handleCloseApproveDialog = () => {
+    setOpenApproveDialog(false);
+    setBudgetToApprove(null);
+  };
+
+  const handleApproveContainer = async () => {
+    if (!budgetToApprove) return;
 
     setLoading(true);
+    handleCloseApproveDialog();
     try {
-      await budgetService.approveBudgetContainer(budgetId);
+      await budgetService.approveBudgetContainer(budgetToApprove.budgetId);
       setSnackbar({ open: true, message: 'Budget approved and locked successfully!', severity: 'success' });
       fetchContainers();
-      if (selectedContainer?.budgetId === budgetId) {
-        await fetchContainerDetails(budgetId);
+      if (selectedContainer?.budgetId === budgetToApprove.budgetId) {
+        await fetchContainerDetails(budgetToApprove.budgetId);
       }
     } catch (err) {
       console.error("Approve container error:", err);
@@ -976,7 +993,7 @@ function BudgetManagementPage() {
                 <IconButton 
                   color="success" 
                   size="small"
-                  onClick={() => handleApproveContainer(params.row.budgetId)}
+                  onClick={() => handleOpenApproveDialog(params.row.budgetId)}
                 >
                   <CheckCircleIcon fontSize="small" />
                 </IconButton>
@@ -1762,6 +1779,130 @@ function BudgetManagementPage() {
         <DialogActions>
           <Button onClick={handleCloseDeleteConfirmDialog} color="primary" variant="outlined">Cancel</Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained">Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approve Budget Confirmation Dialog */}
+      <Dialog 
+        open={openApproveDialog} 
+        onClose={handleCloseApproveDialog} 
+        aria-labelledby="approve-dialog-title" 
+        aria-describedby="approve-dialog-description"
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0,0,0,0.4)' 
+              : '0 8px 32px rgba(0,0,0,0.12)',
+          }
+        }}
+      >
+        <DialogTitle 
+          id="approve-dialog-title"
+          sx={{ 
+            backgroundColor: colors.greenAccent[600],
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            py: 3
+          }}
+        >
+          <Avatar sx={{ bgcolor: colors.greenAccent[700] }}>
+            <CheckCircleIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              Approve Budget Container
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              Approval action required
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ py: 3, px: 3 }}>
+          <DialogContentText 
+            id="approve-dialog-description"
+            sx={{ 
+              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+              fontSize: '1.1rem',
+              lineHeight: 1.6
+            }}
+          >
+            Are you sure you want to approve the budget container{' '}
+            <Box component="span" sx={{ fontWeight: 'bold', color: colors.greenAccent[500] }}>
+              "{budgetToApprove?.budgetName || 'N/A'}"
+            </Box>
+            ?
+          </DialogContentText>
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              mt: 2,
+              bgcolor: theme.palette.mode === 'dark' ? colors.orange[900] : colors.orange[50],
+              color: theme.palette.mode === 'dark' ? colors.orange[100] : colors.orange[800],
+              '& .MuiAlert-icon': {
+                color: colors.orange[500]
+              }
+            }}
+          >
+            <Typography variant="body2" fontWeight="bold">
+              Important: Budget will be locked
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Once approved, this budget container will be locked and any modifications will require a change request that needs approval.
+            </Typography>
+          </Alert>
+          {budgetToApprove && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100], borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                <strong>Financial Year:</strong> {budgetToApprove.finYearName || 'N/A'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                <strong>Department:</strong> {budgetToApprove.departmentName || 'N/A'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                <strong>Total Amount:</strong> {formatCurrency(budgetToApprove.totalAmount || 0)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Items:</strong> {budgetToApprove.itemCount || 0}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCloseApproveDialog} 
+            variant="outlined"
+            sx={{ 
+              borderColor: colors.grey[500],
+              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+              '&:hover': {
+                borderColor: colors.grey[400],
+                backgroundColor: theme.palette.mode === 'dark' ? colors.grey[700] : colors.grey[200]
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleApproveContainer} 
+            variant="contained"
+            disabled={loading}
+            sx={{
+              backgroundColor: colors.greenAccent[600],
+              '&:hover': {
+                backgroundColor: colors.greenAccent[700]
+              },
+              fontWeight: 'bold'
+            }}
+            startIcon={<CheckCircleIcon />}
+          >
+            {loading ? <CircularProgress size={20} color="inherit" /> : 'Approve Budget'}
+          </Button>
         </DialogActions>
       </Dialog>
 
