@@ -77,6 +77,8 @@ router.get('/containers', async (req, res) => {
                 b.budgetId,
                 b.budgetName,
                 b.budgetType,
+                b.isCombined,
+                b.parentBudgetId,
                 b.finYearId,
                 b.departmentId,
                 b.description,
@@ -424,15 +426,25 @@ router.post('/containers/:budgetId/approve', auth, privilege(['budget.approve'])
         // Log approval as a change
         await pool.query(
             `INSERT INTO kemri_budget_changes 
-             (budgetId, changeType, changeReason, status, requestedBy, reviewedBy, reviewedAt)
-             VALUES (?, 'Budget Approved', 'Budget approved by authorized user', 'Approved', ?, ?, NOW())`,
-            [budgetId, userId, userId]
+             (budgetId, changeType, changeReason, status, requestedBy, reviewedBy, reviewedAt, userId)
+             VALUES (?, 'Budget Approved', 'Budget approved by authorized user', 'Approved', ?, ?, NOW(), ?)`,
+            [budgetId, userId, userId, userId]
         );
 
         res.json({ message: 'Budget approved successfully' });
     } catch (error) {
         console.error('Error approving budget:', error);
-        res.status(500).json({ message: 'Error approving budget', error: error.message });
+        console.error('Error details:', {
+            code: error.code,
+            sqlMessage: error.sqlMessage,
+            sqlState: error.sqlState,
+            stack: error.stack
+        });
+        res.status(500).json({ 
+            message: 'Error approving budget', 
+            error: error.message,
+            details: error.sqlMessage || error.code || 'Unknown database error'
+        });
     }
 });
 
@@ -1040,6 +1052,409 @@ router.put('/changes/:changeId/reject', auth, privilege(['budget.approve']), asy
     } catch (error) {
         console.error('Error rejecting change request:', error);
         res.status(500).json({ message: 'Error rejecting change request', error: error.message });
+    }
+});
+
+/**
+ * ============================================
+ * COMBINED BUDGETS ROUTES
+ * ============================================
+ */
+
+/**
+ * @route POST /api/budgets/containers/combined
+ * @description Create a new combined budget container
+ * @access Private
+ */
+router.post('/containers/combined', auth, privilege(['budget.create']), async (req, res) => {
+    try {
+        const {
+            budgetName,
+            finYearId,
+            description,
+            containerIds = [] // Array of budget IDs to combine
+        } = req.body;
+
+        // Validation
+        if (!budgetName || !finYearId) {
+            return res.status(400).json({ 
+                message: 'Missing required fields: budgetName and finYearId are required' 
+            });
+        }
+
+        if (!Array.isArray(containerIds) || containerIds.length === 0) {
+            return res.status(400).json({ 
+                message: 'At least one container must be selected to create a combined budget' 
+            });
+        }
+
+        const userId = req.user?.userId || 1;
+
+        // Verify all containers exist and are not already part of another combined budget
+        const placeholders = containerIds.map(() => '?').join(',');
+        const [containers] = await pool.query(
+            `SELECT budgetId, budgetName, departmentId, status, isCombined, parentBudgetId 
+             FROM kemri_budgets 
+             WHERE budgetId IN (${placeholders}) AND voided = 0`,
+            containerIds
+        );
+
+        if (containers.length !== containerIds.length) {
+            return res.status(400).json({ 
+                message: 'One or more selected containers do not exist or have been deleted' 
+            });
+        }
+
+        // Check if any container is already part of a combined budget
+        const alreadyCombined = containers.filter(c => c.isCombined === 1 || c.parentBudgetId);
+        if (alreadyCombined.length > 0) {
+            return res.status(400).json({ 
+                message: `The following containers are already part of a combined budget: ${alreadyCombined.map(c => c.budgetName).join(', ')}` 
+            });
+        }
+
+        // Create the combined budget container
+        const query = `
+            INSERT INTO kemri_budgets 
+            (budgetName, budgetType, isCombined, finYearId, description, userId)
+            VALUES (?, 'Combined', 1, ?, ?, ?)
+        `;
+
+        const [result] = await pool.query(query, [
+            budgetName,
+            finYearId,
+            description || null,
+            userId
+        ]);
+
+        const combinedBudgetId = result.insertId;
+
+        // Link containers to the combined budget
+        const combinationQueries = containerIds.map((containerId, index) => {
+            return pool.query(
+                `INSERT INTO kemri_budget_combinations 
+                 (combinedBudgetId, containerBudgetId, displayOrder, userId)
+                 VALUES (?, ?, ?, ?)`,
+                [combinedBudgetId, containerId, index, userId]
+            );
+        });
+
+        await Promise.all(combinationQueries);
+
+        // Calculate total amount from all containers
+        const [totalResult] = await pool.query(
+            `SELECT COALESCE(SUM(totalAmount), 0) as total
+             FROM kemri_budgets
+             WHERE budgetId IN (${placeholders}) AND voided = 0`,
+            containerIds
+        );
+
+        const totalAmount = totalResult[0].total || 0;
+
+        // Update the combined budget's total amount
+        await pool.query(
+            'UPDATE kemri_budgets SET totalAmount = ? WHERE budgetId = ?',
+            [totalAmount, combinedBudgetId]
+        );
+
+        // Fetch the created combined budget
+        const [createdBudget] = await pool.query(
+            `SELECT b.*, fy.finYearName, d.name as departmentName
+             FROM kemri_budgets b
+             LEFT JOIN kemri_financialyears fy ON b.finYearId = fy.finYearId
+             LEFT JOIN kemri_departments d ON b.departmentId = d.departmentId
+             WHERE b.budgetId = ?`,
+            [combinedBudgetId]
+        );
+
+        res.status(201).json({
+            message: 'Combined budget created successfully',
+            budget: createdBudget[0],
+            totalAmount,
+            containerCount: containerIds.length
+        });
+    } catch (error) {
+        console.error('Error creating combined budget:', error);
+        res.status(500).json({ 
+            message: 'Error creating combined budget', 
+            error: error.message,
+            details: error.sqlMessage || error.code
+        });
+    }
+});
+
+/**
+ * @route GET /api/budgets/containers/:budgetId/combined
+ * @description Get a combined budget with all its containers and subtotals
+ * @access Private
+ */
+router.get('/containers/:budgetId/combined', auth, async (req, res) => {
+    try {
+        const { budgetId } = req.params;
+
+        // Get the combined budget
+        const [combinedBudget] = await pool.query(
+            `SELECT b.*, fy.finYearName, d.name as departmentName
+             FROM kemri_budgets b
+             LEFT JOIN kemri_financialyears fy ON b.finYearId = fy.finYearId
+             LEFT JOIN kemri_departments d ON b.departmentId = d.departmentId
+             WHERE b.budgetId = ? AND b.voided = 0`,
+            [budgetId]
+        );
+
+        if (combinedBudget.length === 0) {
+            return res.status(404).json({ message: 'Combined budget not found' });
+        }
+
+        if (combinedBudget[0].isCombined !== 1) {
+            return res.status(400).json({ message: 'This is not a combined budget' });
+        }
+
+        // Get all containers in this combined budget
+        const [containers] = await pool.query(
+            `SELECT 
+                b.budgetId,
+                b.budgetName,
+                b.totalAmount,
+                b.status,
+                b.isFrozen,
+                b.description,
+                d.name as departmentName,
+                d.departmentId,
+                bc.displayOrder,
+                (SELECT COUNT(*) FROM kemri_budget_items WHERE budgetId = b.budgetId AND voided = 0) as itemCount
+             FROM kemri_budget_combinations bc
+             INNER JOIN kemri_budgets b ON bc.containerBudgetId = b.budgetId
+             LEFT JOIN kemri_departments d ON b.departmentId = d.departmentId
+             WHERE bc.combinedBudgetId = ? AND b.voided = 0
+             ORDER BY bc.displayOrder ASC, b.budgetName ASC`,
+            [budgetId]
+        );
+
+        // Get all items from all containers, grouped by container
+        const containerItems = [];
+        console.log(`Found ${containers.length} containers in combined budget ${budgetId}`);
+        
+        for (const container of containers) {
+            console.log(`Fetching items for container ${container.budgetId} (${container.budgetName})`);
+            
+            // First check if items exist at all for this container
+            const [itemCountCheck] = await pool.query(
+                `SELECT COUNT(*) as count FROM kemri_budget_items WHERE budgetId = ? AND voided = 0`,
+                [container.budgetId]
+            );
+            console.log(`Container ${container.budgetId} has ${itemCountCheck[0].count} items in database (before joins)`);
+            
+            const [items] = await pool.query(
+                `SELECT 
+                    bi.*,
+                    d.name as departmentName,
+                    sc.name as subcountyName,
+                    w.name as wardName,
+                    p.projectName as linkedProjectName
+                 FROM kemri_budget_items bi
+                 LEFT JOIN kemri_departments d ON bi.departmentId = d.departmentId
+                 LEFT JOIN kemri_subcounties sc ON bi.subcountyId = sc.subcountyId
+                 LEFT JOIN kemri_wards w ON bi.wardId = w.wardId
+                 LEFT JOIN kemri_projects p ON bi.projectId = p.id
+                 WHERE bi.budgetId = ? AND bi.voided = 0
+                 ORDER BY bi.createdAt DESC`,
+                [container.budgetId]
+            );
+
+            console.log(`Container ${container.budgetId} query returned ${items.length} items after joins`);
+            if (items.length > 0) {
+                console.log(`First item sample:`, JSON.stringify(items[0], null, 2));
+            }
+            if (items.length > 0) {
+                console.log(`Sample item from container ${container.budgetId}:`, JSON.stringify(items[0], null, 2));
+            }
+            
+            // Ensure items is always an array
+            const itemsArray = Array.isArray(items) ? items : [];
+            
+            console.log(`Container ${container.budgetId} (${container.budgetName}):`, {
+                itemCount: itemsArray.length,
+                items: itemsArray,
+                rawItems: items
+            });
+            
+            containerItems.push({
+                container: container,
+                items: itemsArray
+            });
+        }
+        
+        console.log(`Total containerItems array length: ${containerItems.length}`);
+        const totalItemsCount = containerItems.reduce((sum, ci) => sum + (ci.items?.length || 0), 0);
+        console.log(`Total items across all containers: ${totalItemsCount}`);
+        
+        if (containerItems.length > 0) {
+            console.log(`Sample containerItems[0] structure:`, JSON.stringify({
+                container: {
+                    budgetId: containerItems[0].container?.budgetId,
+                    budgetName: containerItems[0].container?.budgetName,
+                    itemCount: containerItems[0].container?.itemCount
+                },
+                itemsLength: containerItems[0].items?.length,
+                firstItem: containerItems[0].items?.[0] || null
+            }, null, 2));
+        }
+        
+        // Log full response structure
+        console.log('Full response structure:', {
+            hasCombinedBudget: !!combinedBudget[0],
+            containersCount: containers.length,
+            containerItemsCount: containerItems.length,
+            totalItems: totalItemsCount
+        });
+
+        // Calculate grand total
+        const grandTotal = containers.reduce((sum, c) => sum + (parseFloat(c.totalAmount) || 0), 0);
+
+        res.json({
+            combinedBudget: combinedBudget[0],
+            containers: containers,
+            containerItems: containerItems,
+            grandTotal: grandTotal,
+            containerCount: containers.length,
+            totalItems: containerItems.reduce((sum, ci) => sum + ci.items.length, 0)
+        });
+    } catch (error) {
+        console.error('Error fetching combined budget:', error);
+        res.status(500).json({ message: 'Error fetching combined budget', error: error.message });
+    }
+});
+
+/**
+ * @route POST /api/budgets/containers/:budgetId/combined/add
+ * @description Add a container to an existing combined budget
+ * @access Private
+ */
+router.post('/containers/:budgetId/combined/add', auth, privilege(['budget.update']), async (req, res) => {
+    try {
+        const { budgetId } = req.params;
+        const { containerId } = req.body;
+        const userId = req.user?.userId || 1;
+
+        if (!containerId) {
+            return res.status(400).json({ message: 'containerId is required' });
+        }
+
+        // Verify combined budget exists
+        const [combinedBudget] = await pool.query(
+            'SELECT * FROM kemri_budgets WHERE budgetId = ? AND isCombined = 1 AND voided = 0',
+            [budgetId]
+        );
+
+        if (combinedBudget.length === 0) {
+            return res.status(404).json({ message: 'Combined budget not found' });
+        }
+
+        // Verify container exists and is not already combined
+        const [container] = await pool.query(
+            'SELECT * FROM kemri_budgets WHERE budgetId = ? AND voided = 0',
+            [containerId]
+        );
+
+        if (container.length === 0) {
+            return res.status(404).json({ message: 'Container not found' });
+        }
+
+        if (container[0].isCombined === 1 || container[0].parentBudgetId) {
+            return res.status(400).json({ message: 'This container is already part of a combined budget' });
+        }
+
+        // Get current max display order
+        const [maxOrder] = await pool.query(
+            'SELECT COALESCE(MAX(displayOrder), -1) as maxOrder FROM kemri_budget_combinations WHERE combinedBudgetId = ?',
+            [budgetId]
+        );
+
+        const nextOrder = (maxOrder[0].maxOrder || 0) + 1;
+
+        // Add container to combined budget
+        await pool.query(
+            `INSERT INTO kemri_budget_combinations 
+             (combinedBudgetId, containerBudgetId, displayOrder, userId)
+             VALUES (?, ?, ?, ?)`,
+            [budgetId, containerId, nextOrder, userId]
+        );
+
+        // Recalculate total amount
+        const [containers] = await pool.query(
+            `SELECT budgetId FROM kemri_budget_combinations WHERE combinedBudgetId = ?`,
+            [budgetId]
+        );
+
+        const containerIds = containers.map(c => c.budgetId);
+        const placeholders = containerIds.map(() => '?').join(',');
+        const [totalResult] = await pool.query(
+            `SELECT COALESCE(SUM(totalAmount), 0) as total
+             FROM kemri_budgets
+             WHERE budgetId IN (${placeholders}) AND voided = 0`,
+            containerIds
+        );
+
+        await pool.query(
+            'UPDATE kemri_budgets SET totalAmount = ? WHERE budgetId = ?',
+            [totalResult[0].total || 0, budgetId]
+        );
+
+        res.json({ message: 'Container added to combined budget successfully' });
+    } catch (error) {
+        console.error('Error adding container to combined budget:', error);
+        res.status(500).json({ message: 'Error adding container', error: error.message });
+    }
+});
+
+/**
+ * @route DELETE /api/budgets/containers/:budgetId/combined/:containerId
+ * @description Remove a container from a combined budget
+ * @access Private
+ */
+router.delete('/containers/:budgetId/combined/:containerId', auth, privilege(['budget.update']), async (req, res) => {
+    try {
+        const { budgetId, containerId } = req.params;
+
+        // Remove container from combined budget
+        await pool.query(
+            'DELETE FROM kemri_budget_combinations WHERE combinedBudgetId = ? AND containerBudgetId = ?',
+            [budgetId, containerId]
+        );
+
+        // Recalculate total amount
+        const [containers] = await pool.query(
+            `SELECT budgetId FROM kemri_budget_combinations WHERE combinedBudgetId = ?`,
+            [budgetId]
+        );
+
+        if (containers.length === 0) {
+            // No containers left, update total to 0
+            await pool.query(
+                'UPDATE kemri_budgets SET totalAmount = 0 WHERE budgetId = ?',
+                [budgetId]
+            );
+        } else {
+            const containerIds = containers.map(c => c.budgetId);
+            const placeholders = containerIds.map(() => '?').join(',');
+            const [totalResult] = await pool.query(
+                `SELECT COALESCE(SUM(totalAmount), 0) as total
+                 FROM kemri_budgets
+                 WHERE budgetId IN (${placeholders}) AND voided = 0`,
+                containerIds
+            );
+
+            await pool.query(
+                'UPDATE kemri_budgets SET totalAmount = ? WHERE budgetId = ?',
+                [totalResult[0].total || 0, budgetId]
+            );
+        }
+
+        res.json({ message: 'Container removed from combined budget successfully' });
+    } catch (error) {
+        console.error('Error removing container from combined budget:', error);
+        res.status(500).json({ message: 'Error removing container', error: error.message });
     }
 });
 

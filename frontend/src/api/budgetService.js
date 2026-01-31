@@ -280,6 +280,73 @@ class BudgetService {
       throw error;
     }
   }
+
+  // ============================================
+  // COMBINED BUDGETS METHODS
+  // ============================================
+
+  /**
+   * Create a new combined budget container
+   */
+  async createCombinedBudget(combinedBudgetData) {
+    try {
+      const response = await axiosInstance.post('/budgets/containers/combined', combinedBudgetData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating combined budget:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a combined budget with all containers and items
+   */
+  async getCombinedBudget(budgetId) {
+    try {
+      const response = await axiosInstance.get(`/budgets/containers/${budgetId}/combined`);
+      console.log('getCombinedBudget response:', response);
+      console.log('getCombinedBudget response.data:', response.data);
+      console.log('containerItems in response:', response.data?.containerItems);
+      console.log('containerItems length:', response.data?.containerItems?.length);
+      if (response.data?.containerItems) {
+        response.data.containerItems.forEach((ci, idx) => {
+          console.log(`Container ${idx}:`, ci.container?.budgetName, 'Items:', ci.items?.length);
+        });
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching combined budget:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a container to a combined budget
+   */
+  async addContainerToCombined(combinedBudgetId, containerId) {
+    try {
+      const response = await axiosInstance.post(`/budgets/containers/${combinedBudgetId}/combined/add`, {
+        containerId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding container to combined budget:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a container from a combined budget
+   */
+  async removeContainerFromCombined(combinedBudgetId, containerId) {
+    try {
+      const response = await axiosInstance.delete(`/budgets/containers/${combinedBudgetId}/combined/${containerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error removing container from combined budget:', error);
+      throw error;
+    }
+  }
 }
 
 export default new BudgetService();

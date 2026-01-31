@@ -106,6 +106,16 @@ function BudgetManagementPage() {
   // Approve Confirmation States
   const [openApproveDialog, setOpenApproveDialog] = useState(false);
   const [budgetToApprove, setBudgetToApprove] = useState(null);
+  
+  // Combined Budget States
+  const [openCombinedBudgetDialog, setOpenCombinedBudgetDialog] = useState(false);
+  const [combinedBudgetData, setCombinedBudgetData] = useState({
+    budgetName: '',
+    finYearId: '',
+    description: '',
+    selectedContainerIds: []
+  });
+  const [combinedBudgetView, setCombinedBudgetView] = useState(null); // Stores the combined budget view data
 
   // Fetch metadata
   const fetchMetadata = useCallback(async () => {
@@ -329,9 +339,21 @@ function BudgetManagementPage() {
   };
 
   const handleViewContainer = async (container) => {
-    setSelectedContainer(container);
-    setActiveTab(1);
-    await fetchContainerDetails(container.budgetId);
+    console.log('handleViewContainer called with:', container);
+    console.log('isCombined value:', container.isCombined, 'Type:', typeof container.isCombined);
+    
+    // Check if it's a combined budget (handle both number and boolean)
+    if (container.isCombined === 1 || container.isCombined === true || container.budgetType === 'Combined') {
+      console.log('Detected as combined budget, calling handleViewCombinedBudget');
+      // Handle combined budget view
+      await handleViewCombinedBudget(container.budgetId);
+    } else {
+      console.log('Detected as regular container, calling fetchContainerDetails');
+      // Handle regular container view
+      setSelectedContainer(container);
+      setActiveTab(1);
+      await fetchContainerDetails(container.budgetId);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -461,9 +483,123 @@ function BudgetManagementPage() {
       }
     } catch (err) {
       console.error("Approve container error:", err);
+      console.error("Error response:", err.response);
+      console.error("Error response data:", err.response?.data);
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
+                          err.message || 
+                          'Failed to approve budget. Please check the console for details.';
       setSnackbar({ 
         open: true, 
-        message: err.response?.data?.message || err.message || 'Failed to approve budget.', 
+        message: errorMessage, 
+        severity: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Combined Budget Handlers
+  const handleOpenCombinedBudgetDialog = () => {
+    setCombinedBudgetData({
+      budgetName: '',
+      finYearId: '',
+      description: '',
+      selectedContainerIds: []
+    });
+    setOpenCombinedBudgetDialog(true);
+  };
+
+  const handleCloseCombinedBudgetDialog = () => {
+    setOpenCombinedBudgetDialog(false);
+    setCombinedBudgetData({
+      budgetName: '',
+      finYearId: '',
+      description: '',
+      selectedContainerIds: []
+    });
+  };
+
+  const handleToggleContainerSelection = (budgetId) => {
+    setCombinedBudgetData(prev => {
+      const isSelected = prev.selectedContainerIds.includes(budgetId);
+      return {
+        ...prev,
+        selectedContainerIds: isSelected
+          ? prev.selectedContainerIds.filter(id => id !== budgetId)
+          : [...prev.selectedContainerIds, budgetId]
+      };
+    });
+  };
+
+  const handleCreateCombinedBudget = async () => {
+    if (!combinedBudgetData.budgetName || !combinedBudgetData.finYearId) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Budget name and financial year are required', 
+        severity: 'error' 
+      });
+      return;
+    }
+
+    if (combinedBudgetData.selectedContainerIds.length === 0) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Please select at least one container to combine', 
+        severity: 'error' 
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await budgetService.createCombinedBudget({
+        budgetName: combinedBudgetData.budgetName,
+        finYearId: combinedBudgetData.finYearId,
+        description: combinedBudgetData.description,
+        containerIds: combinedBudgetData.selectedContainerIds
+      });
+      setSnackbar({ 
+        open: true, 
+        message: 'Combined budget created successfully!', 
+        severity: 'success' 
+      });
+      handleCloseCombinedBudgetDialog();
+      fetchContainers();
+    } catch (err) {
+      console.error("Create combined budget error:", err);
+      setSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || err.message || 'Failed to create combined budget.', 
+        severity: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewCombinedBudget = async (budgetId) => {
+    setLoading(true);
+    try {
+      const data = await budgetService.getCombinedBudget(budgetId);
+      console.log('Combined budget data received:', data);
+      console.log('Container items:', data.containerItems);
+      console.log('Total items count:', data.totalItems);
+      
+      // Ensure containerItems is an array
+      if (!data.containerItems || !Array.isArray(data.containerItems)) {
+        console.warn('containerItems is not an array:', data.containerItems);
+        data.containerItems = [];
+      }
+      
+      setCombinedBudgetView(data);
+      setSelectedContainer({ budgetId, isCombined: true });
+      setActiveTab(1);
+    } catch (err) {
+      console.error("Fetch combined budget error:", err);
+      setSnackbar({ 
+        open: true, 
+        message: err.response?.data?.message || err.message || 'Failed to fetch combined budget.', 
         severity: 'error' 
       });
     } finally {
@@ -850,6 +986,247 @@ function BudgetManagementPage() {
     }
   };
 
+  // Export functions for Combined Budget
+  const handleExportCombinedBudgetToExcel = () => {
+    setExportingExcel(true);
+    try {
+      if (!combinedBudgetView || !combinedBudgetView.containerItems) {
+        setSnackbar({ open: true, message: 'No data to export', severity: 'warning' });
+        return;
+      }
+
+      const allRows = [];
+      const headers = ['Container', 'Project Name', 'Department', 'Subcounty', 'Ward', 'Amount (KES)', 'Remarks'];
+      
+      // Add header row
+      allRows.push(headers);
+      
+      // Add items from each container
+      combinedBudgetView.containerItems.forEach((containerData) => {
+        const container = containerData.container;
+        const items = containerData.items || [];
+        
+        if (items.length > 0) {
+          items.forEach((item) => {
+            allRows.push([
+              formatToSentenceCase(container.budgetName) || 'N/A',
+              formatToSentenceCase(item.projectName) || 'N/A',
+              item.departmentName || 'N/A',
+              formatToSentenceCase(item.subcountyName) || 'N/A',
+              formatToSentenceCase(item.wardName) || 'N/A',
+              item.amount || 0,
+              item.remarks || ''
+            ]);
+          });
+          
+          // Add subtotal row for this container
+          allRows.push([
+            `${formatToSentenceCase(container.budgetName)} - Subtotal`,
+            '',
+            '',
+            '',
+            '',
+            parseFloat(container.totalAmount) || 0,
+            ''
+          ]);
+        }
+      });
+      
+      // Add grand total row
+      allRows.push([
+        'GRAND TOTAL',
+        '',
+        '',
+        '',
+        '',
+        combinedBudgetView.grandTotal || 0,
+        ''
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet(allRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Combined Budget');
+      
+      // Auto-size columns
+      const colWidths = headers.map((_, colIndex) => {
+        const maxLength = Math.max(
+          headers[colIndex].length,
+          ...allRows.map(row => String(row[colIndex] || '').length)
+        );
+        return { wch: Math.min(maxLength + 2, 50) };
+      });
+      ws['!cols'] = colWidths;
+
+      // Style subtotal and grand total rows
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      allRows.forEach((row, rowIndex) => {
+        if (row[0] && (row[0].includes('Subtotal') || row[0] === 'GRAND TOTAL')) {
+          headers.forEach((_, colIndex) => {
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: colIndex });
+            if (!ws[cellAddress]) return;
+            ws[cellAddress].s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: colIndex === 5 ? 'FFE6E6E6' : 'FFFFFFFF' } }
+            };
+          });
+        }
+      });
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `combined_budget_${combinedBudgetView.combinedBudget.budgetName?.replace(/[^a-z0-9]/gi, '_') || 'export'}_${dateStr}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      
+      setSnackbar({ 
+        open: true, 
+        message: `Exported combined budget with ${combinedBudgetView.totalItems} item(s) to Excel successfully!`, 
+        severity: 'success' 
+      });
+    } catch (err) {
+      console.error('Error exporting combined budget to Excel:', err);
+      setSnackbar({ open: true, message: 'Failed to export to Excel. Please try again.', severity: 'error' });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExportCombinedBudgetToPDF = () => {
+    setExportingPdf(true);
+    try {
+      if (!combinedBudgetView || !combinedBudgetView.containerItems) {
+        setSnackbar({ open: true, message: 'No data to export', severity: 'warning' });
+        return;
+      }
+
+      const doc = new jsPDF('landscape', 'pt', 'a4');
+      let startY = 40;
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.setFont(undefined, 'bold');
+      doc.text(combinedBudgetView.combinedBudget.budgetName || 'Combined Budget', 40, startY);
+      
+      startY += 25;
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Financial Year: ${combinedBudgetView.combinedBudget.finYearName || 'N/A'}`, 40, startY);
+      startY += 15;
+      doc.text(`Containers: ${combinedBudgetView.containerCount || 0}`, 40, startY);
+      startY += 15;
+      doc.text(`Total Items: ${combinedBudgetView.totalItems || 0}`, 40, startY);
+      startY += 15;
+      doc.setFont(undefined, 'bold');
+      doc.text(`Grand Total: ${formatCurrency(combinedBudgetView.grandTotal || 0)}`, 40, startY);
+      startY += 25;
+
+      // Process each container
+      combinedBudgetView.containerItems.forEach((containerData, containerIndex) => {
+        const container = containerData.container;
+        const items = containerData.items || [];
+        
+        if (items.length > 0) {
+          // Add container header
+          if (startY > 650) {
+            doc.addPage();
+            startY = 40;
+          }
+          
+          doc.setFontSize(12);
+          doc.setFont(undefined, 'bold');
+          doc.setTextColor(102, 126, 234);
+          doc.text(`${formatToSentenceCase(container.budgetName)}`, 40, startY);
+          startY += 15;
+          
+          doc.setFontSize(9);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${formatToSentenceCase(container.departmentName) || 'No Department'} • Subtotal: ${formatCurrency(parseFloat(container.totalAmount) || 0)}`, 40, startY);
+          startY += 20;
+
+          // Prepare table data for this container
+          const headers = ['#', 'Project Name', 'Department', 'Subcounty', 'Ward', 'Amount (KES)'];
+          const dataRows = items.map((item, itemIndex) => [
+            itemIndex + 1,
+            formatToSentenceCase(item.projectName) || 'N/A',
+            item.departmentName || 'N/A',
+            formatToSentenceCase(item.subcountyName) || 'N/A',
+            formatToSentenceCase(item.wardName) || 'N/A',
+            formatCurrency(item.amount || 0)
+          ]);
+
+          // Add subtotal row
+          dataRows.push([
+            '',
+            `${formatToSentenceCase(container.budgetName)} - Subtotal`,
+            '',
+            '',
+            '',
+            formatCurrency(parseFloat(container.totalAmount) || 0)
+          ]);
+
+          // Add table
+          autoTable(doc, {
+            head: [headers],
+            body: dataRows,
+            startY: startY,
+            styles: { 
+              fontSize: 8, 
+              cellPadding: 3,
+              overflow: 'linebreak',
+              halign: 'left'
+            },
+            headStyles: { 
+              fillColor: [102, 126, 234], 
+              textColor: 255, 
+              fontStyle: 'bold' 
+            },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 30 },
+              5: { halign: 'right' }
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { top: startY, left: 40, right: 40 },
+            didDrawPage: (data) => {
+              startY = data.cursor.y + 20;
+            }
+          });
+
+          startY = doc.lastAutoTable.finalY + 20;
+        }
+      });
+
+      // Add grand total
+      if (startY > 650) {
+        doc.addPage();
+        startY = 40;
+      }
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(76, 175, 80);
+      doc.text(`GRAND TOTAL: ${formatCurrency(combinedBudgetView.grandTotal || 0)}`, 40, startY);
+      startY += 15;
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Combined total from ${combinedBudgetView.containerCount} container(s)`, 40, startY);
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `combined_budget_${combinedBudgetView.combinedBudget.budgetName?.replace(/[^a-z0-9]/gi, '_') || 'export'}_${dateStr}.pdf`;
+      doc.save(filename);
+      
+      setSnackbar({ 
+        open: true, 
+        message: `Exported combined budget with ${combinedBudgetView.totalItems} item(s) to PDF successfully!`, 
+        severity: 'success' 
+      });
+    } catch (err) {
+      console.error('Error exporting combined budget to PDF:', err);
+      setSnackbar({ open: true, message: 'Failed to export to PDF. Please try again.', severity: 'error' });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const handleFilterChange = (name, value) => {
     setFilters(prev => ({ ...prev, [name]: value }));
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -890,9 +1267,19 @@ function BudgetManagementPage() {
       flex: 2, 
       minWidth: 180,
       renderCell: (params) => (
-        <Typography variant="body2" fontWeight={600} noWrap>
-          {params.row.budgetName || 'N/A'}
-        </Typography>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="body2" fontWeight={600} noWrap>
+            {params.row.budgetName || 'N/A'}
+          </Typography>
+          {params.row.isCombined === 1 && (
+            <Chip 
+              label="Combined" 
+              size="small" 
+              color="primary"
+              sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }}
+            />
+          )}
+        </Box>
       )
     },
     { 
@@ -1064,24 +1451,46 @@ function BudgetManagementPage() {
             </Typography>
           </Box>
         </Box>
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={<AddIcon />}
-          onClick={handleOpenCreateContainerDialog}
-          sx={{ 
-            backgroundColor: '#16a34a', 
-            '&:hover': { backgroundColor: '#15803d' }, 
-            color: 'white', 
-            fontWeight: 600, 
-            borderRadius: '6px', 
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-            px: 2,
-            py: 0.75
-          }}
-        >
-          New Container
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreateContainerDialog}
+            sx={{ 
+              backgroundColor: '#16a34a', 
+              '&:hover': { backgroundColor: '#15803d' }, 
+              color: 'white', 
+              fontWeight: 600, 
+              borderRadius: '6px', 
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              px: 2,
+              py: 0.75
+            }}
+          >
+            New Container
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<MoneyIcon />}
+            onClick={handleOpenCombinedBudgetDialog}
+            sx={{ 
+              borderColor: '#667eea',
+              color: '#667eea',
+              fontWeight: 600, 
+              borderRadius: '6px', 
+              px: 2,
+              py: 0.75,
+              '&:hover': {
+                borderColor: '#5568d3',
+                backgroundColor: '#667eea15'
+              }
+            }}
+          >
+            Combine Budgets
+          </Button>
+        </Stack>
       </Box>
 
       {/* Summary Statistics Cards */}
@@ -1397,7 +1806,330 @@ function BudgetManagementPage() {
         </>
       )}
 
-      {activeTab === 1 && selectedContainer && (
+      {/* Combined Budget View */}
+      {activeTab === 1 && combinedBudgetView && (
+        <Box>
+          <Card elevation={0} sx={{ border: 1, borderColor: 'divider', mb: 2 }}>
+            <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Box>
+                  <Typography variant="h5" fontWeight={700} gutterBottom>
+                    {combinedBudgetView.combinedBudget.budgetName}
+                    <Chip label="Combined Budget" color="primary" size="small" sx={{ ml: 1.5, height: 24 }} />
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {combinedBudgetView.combinedBudget.finYearName} • {combinedBudgetView.containerCount} container(s) • {combinedBudgetView.totalItems} item(s)
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FileDownloadIcon />}
+                    onClick={handleExportCombinedBudgetToExcel}
+                    disabled={exportingExcel || !combinedBudgetView?.containerItems?.length}
+                    sx={{ 
+                      borderColor: colors.greenAccent[500],
+                      color: colors.greenAccent[700],
+                      '&:hover': {
+                        borderColor: colors.greenAccent[600],
+                        bgcolor: colors.greenAccent[50]
+                      }
+                    }}
+                  >
+                    {exportingExcel ? <CircularProgress size={16} /> : 'Excel'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<PictureAsPdfIcon />}
+                    onClick={handleExportCombinedBudgetToPDF}
+                    disabled={exportingPdf || !combinedBudgetView?.containerItems?.length}
+                    sx={{ 
+                      borderColor: colors.redAccent[500],
+                      color: colors.redAccent[700],
+                      '&:hover': {
+                        borderColor: colors.redAccent[600],
+                        bgcolor: colors.redAccent[50]
+                      }
+                    }}
+                  >
+                    {exportingPdf ? <CircularProgress size={16} /> : 'PDF'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<ViewIcon />}
+                    onClick={() => {
+                      setCombinedBudgetView(null);
+                      setSelectedContainer(null);
+                      setActiveTab(0);
+                    }}
+                  >
+                    Back
+                  </Button>
+                </Stack>
+              </Box>
+              <Grid container spacing={2} mt={0.5}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="text.secondary" display="block">Financial Year</Typography>
+                  <Typography variant="body2" fontWeight={600}>{combinedBudgetView.combinedBudget.finYearName || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="text.secondary" display="block">Containers</Typography>
+                  <Typography variant="body2" fontWeight={600}>{combinedBudgetView.containerCount || 0}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="text.secondary" display="block">Total Items</Typography>
+                  <Typography variant="body2" fontWeight={600}>{combinedBudgetView.totalItems || 0}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="caption" color="text.secondary" display="block">Grand Total</Typography>
+                  <Typography variant="body2" fontWeight={700} color="success.main" fontSize="1.1rem">
+                    {formatCurrency(combinedBudgetView.grandTotal || 0)}
+                  </Typography>
+                </Grid>
+              </Grid>
+              {combinedBudgetView.combinedBudget.description && (
+                <Box mt={1.5} pt={1.5} borderTop={1} borderColor="divider">
+                  <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>Description</Typography>
+                  <Typography variant="body2">{combinedBudgetView.combinedBudget.description}</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Combined Budget Items by Container */}
+          {(() => {
+            console.log('=== Combined Budget View Debug ===');
+            console.log('combinedBudgetView:', combinedBudgetView);
+            console.log('containerItems:', combinedBudgetView.containerItems);
+            console.log('Is array?', Array.isArray(combinedBudgetView.containerItems));
+            console.log('Length:', combinedBudgetView.containerItems?.length);
+            
+            if (!combinedBudgetView.containerItems || !Array.isArray(combinedBudgetView.containerItems)) {
+              console.warn('containerItems is not an array or is missing');
+              return (
+                <Card elevation={0} sx={{ border: 1, borderColor: 'divider', mb: 2 }}>
+                  <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No container data available
+                    </Typography>
+                  </CardContent>
+                </Card>
+              );
+            }
+            
+            if (combinedBudgetView.containerItems.length === 0) {
+              return (
+                <Card elevation={0} sx={{ border: 1, borderColor: 'divider', mb: 2 }}>
+                  <CardContent sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No containers found in this combined budget
+                    </Typography>
+                  </CardContent>
+                </Card>
+              );
+            }
+            
+            return combinedBudgetView.containerItems
+              .filter((containerData) => containerData && containerData.container) // Filter out invalid entries
+              .map((containerData, containerIndex) => {
+              const container = containerData.container;
+              const items = Array.isArray(containerData.items) ? containerData.items : [];
+              const containerTotal = parseFloat(container.totalAmount) || 0;
+              
+              console.log(`Rendering Container ${containerIndex}:`, {
+                name: container.budgetName,
+                id: container.budgetId,
+                itemCount: items.length,
+                items: items,
+                hasItems: items.length > 0,
+                containerData: containerData,
+                containerItemCount: container.itemCount
+              });
+              
+              // If items array is empty but container shows itemCount > 0, log a warning
+              if (items.length === 0 && container.itemCount > 0) {
+                console.warn(`⚠️ Container ${container.budgetName} (ID: ${container.budgetId}) shows ${container.itemCount} items in count but items array is empty!`);
+                console.warn('Full containerData:', containerData);
+              }
+            
+            return (
+              <Card 
+                key={container.budgetId} 
+                elevation={0} 
+                sx={{ 
+                  border: 1, 
+                  borderColor: 'divider', 
+                  mb: 2,
+                  borderLeft: `4px solid ${colors.blueAccent[500]}`,
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : 'white',
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 2px 8px rgba(0,0,0,0.3)' 
+                    : '0 2px 8px rgba(0,0,0,0.08)'
+                }}
+              >
+                <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                  <Box 
+                    display="flex" 
+                    justifyContent="space-between" 
+                    alignItems="center" 
+                    mb={2}
+                    pb={1.5}
+                    borderBottom={1}
+                    borderColor="divider"
+                  >
+                    <Box>
+                      <Typography variant="h6" fontWeight={700} gutterBottom sx={{ color: colors.blueAccent[700] }}>
+                        {formatToSentenceCase(container.budgetName)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+                        {formatToSentenceCase(container.departmentName) || 'No Department'} • {container.itemCount || 0} item(s)
+                      </Typography>
+                    </Box>
+                    <Box 
+                      textAlign="right"
+                      sx={{
+                        bgcolor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
+                        px: 2,
+                        py: 1,
+                        borderRadius: 1,
+                        border: `1px solid ${colors.blueAccent[200]}`
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                        Subtotal
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} sx={{ color: colors.blueAccent[700], fontSize: '1.125rem' }}>
+                        {formatCurrency(containerTotal)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  {items.length > 0 ? (
+                    <TableContainer>
+                      <Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.813rem', borderBottom: 'none' } }}>
+                        <TableHead>
+                          <TableRow sx={{ 
+                            bgcolor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
+                            '& .MuiTableCell-root': {
+                              borderBottom: `2px solid ${colors.blueAccent[200]}`,
+                              fontWeight: 700,
+                              py: 1,
+                              fontSize: '0.813rem',
+                              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.blueAccent[800]
+                            }
+                          }}>
+                            <TableCell sx={{ width: 50, textAlign: 'center' }}>#</TableCell>
+                            <TableCell>Project Name</TableCell>
+                            <TableCell>Department</TableCell>
+                            <TableCell>Subcounty</TableCell>
+                            <TableCell>Ward</TableCell>
+                            <TableCell align="right">Amount</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {items.map((item, itemIndex) => {
+                            console.log(`Rendering item ${itemIndex}:`, item);
+                            return (
+                              <TableRow 
+                                key={item.itemId} 
+                                hover
+                                sx={{ 
+                                  bgcolor: 'transparent',
+                                  '&:hover': { 
+                                    bgcolor: theme.palette.mode === 'dark' 
+                                      ? 'rgba(255, 255, 255, 0.03)' 
+                                      : 'rgba(102, 126, 234, 0.05)',
+                                    transition: 'background-color 0.2s'
+                                  },
+                                  transition: 'background-color 0.2s',
+                                  '&:nth-of-type(even)': {
+                                    bgcolor: theme.palette.mode === 'dark' 
+                                      ? 'rgba(255, 255, 255, 0.01)' 
+                                      : 'rgba(102, 126, 234, 0.02)'
+                                  }
+                                }}
+                              >
+                                <TableCell sx={{ py: 1, textAlign: 'center', fontWeight: 600, color: 'text.secondary', fontSize: '0.813rem' }}>
+                                  {itemIndex + 1}
+                                </TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{formatToSentenceCase(item.projectName) || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{item.departmentName || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{formatToSentenceCase(item.subcountyName) || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{formatToSentenceCase(item.wardName) || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, align: 'right', fontWeight: 600, fontSize: '0.813rem', color: 'success.main' }}>
+                                  {formatCurrency(item.amount || 0)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          <TableRow sx={{ 
+                            bgcolor: theme.palette.mode === 'dark' 
+                              ? 'rgba(102, 126, 234, 0.15)' 
+                              : 'rgba(102, 126, 234, 0.08)',
+                            '& .MuiTableCell-root': {
+                              borderTop: `2px solid ${colors.blueAccent[200]}`,
+                              borderBottom: 'none',
+                              py: 1.5,
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              bgcolor: 'transparent'
+                            }
+                          }}>
+                            <TableCell colSpan={5} align="right" sx={{ color: theme.palette.mode === 'dark' ? colors.grey[200] : colors.blueAccent[700] }}>
+                              Container Subtotal:
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: colors.blueAccent[700], fontSize: '0.938rem', fontWeight: 800 }}>
+                              {formatCurrency(containerTotal)}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" textAlign="center" py={3}>
+                      No items in this container
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            );
+            });
+          })()}
+
+          {/* Grand Total Card */}
+          <Card 
+            elevation={2}
+            sx={{ 
+              border: 2, 
+              borderColor: colors.greenAccent[500],
+              bgcolor: theme.palette.mode === 'dark' ? colors.greenAccent[900] : colors.greenAccent[50],
+              mt: 2
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h5" fontWeight={700} color={colors.greenAccent[700]}>
+                  Grand Total
+                </Typography>
+                <Typography variant="h4" fontWeight={700} color={colors.greenAccent[700]}>
+                  {formatCurrency(combinedBudgetView.grandTotal || 0)}
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" mt={1}>
+                Combined total from {combinedBudgetView.containerCount} container(s)
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
+
+      {/* Container Details View */}
+      {activeTab === 1 && selectedContainer && !combinedBudgetView && (
         <Box>
           {/* Compact Container Details Header */}
           <Card elevation={0} sx={{ mb: 2, border: 1, borderColor: 'divider' }}>
@@ -2066,6 +2798,197 @@ function BudgetManagementPage() {
           <Button onClick={handleCloseItemDialog} color="primary" variant="outlined">Cancel</Button>
           <Button onClick={handleItemSubmit} color="primary" variant="contained" disabled={loading}>
             {loading ? <CircularProgress size={20} /> : (currentItem ? 'Update Item' : 'Add Item')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Combined Budget Dialog */}
+      <Dialog 
+        open={openCombinedBudgetDialog} 
+        onClose={handleCloseCombinedBudgetDialog} 
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            bgcolor: theme.palette.mode === 'dark' ? colors.primary[400] : colors.grey[50],
+          }
+        }}
+      >
+        <DialogTitle 
+          sx={{ 
+            backgroundColor: colors.blueAccent[600],
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            py: 2.5
+          }}
+        >
+          <Avatar sx={{ bgcolor: colors.blueAccent[700] }}>
+            <MoneyIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              Combine Budget Containers
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              Create an organizational budget from multiple containers
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ py: 3, px: 3 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Combined Budget Name *"
+                value={combinedBudgetData.budgetName}
+                onChange={(e) => setCombinedBudgetData(prev => ({ ...prev, budgetName: e.target.value }))}
+                placeholder="e.g., 2025/2026 Organizational Budget"
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required sx={{ minWidth: 200 }}>
+                <InputLabel>Financial Year *</InputLabel>
+                <Select
+                  value={combinedBudgetData.finYearId}
+                  label="Financial Year *"
+                  onChange={(e) => setCombinedBudgetData(prev => ({ ...prev, finYearId: e.target.value }))}
+                >
+                  {financialYears.map((fy) => (
+                    <MenuItem key={fy.finYearId} value={fy.finYearId}>
+                      {fy.finYearName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={combinedBudgetData.description}
+                onChange={(e) => setCombinedBudgetData(prev => ({ ...prev, description: e.target.value }))}
+                multiline
+                rows={2}
+                placeholder="Description of the combined budget..."
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                Select Containers to Combine ({combinedBudgetData.selectedContainerIds.length} selected)
+              </Typography>
+              <Box 
+                sx={{ 
+                  maxHeight: 300, 
+                  overflowY: 'auto', 
+                  border: 1, 
+                  borderColor: 'divider', 
+                  borderRadius: 1,
+                  p: 1,
+                  bgcolor: theme.palette.mode === 'dark' ? colors.primary[500] : colors.grey[100]
+                }}
+              >
+                {containers
+                  .filter(c => c.isCombined !== 1 && !c.parentBudgetId && c.status !== 'Rejected')
+                  .map((container) => (
+                    <Box
+                      key={container.budgetId}
+                      onClick={() => handleToggleContainerSelection(container.budgetId)}
+                      sx={{
+                        p: 1.5,
+                        mb: 1,
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        bgcolor: combinedBudgetData.selectedContainerIds.includes(container.budgetId)
+                          ? colors.blueAccent[600]
+                          : theme.palette.mode === 'dark' ? colors.primary[600] : colors.grey[100],
+                        color: combinedBudgetData.selectedContainerIds.includes(container.budgetId) 
+                          ? 'white' 
+                          : theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+                        border: 1,
+                        borderColor: combinedBudgetData.selectedContainerIds.includes(container.budgetId)
+                          ? colors.blueAccent[600]
+                          : 'divider',
+                        '&:hover': {
+                          bgcolor: combinedBudgetData.selectedContainerIds.includes(container.budgetId)
+                            ? colors.blueAccent[700]
+                            : theme.palette.mode === 'dark' ? colors.primary[700] : colors.grey[200],
+                        },
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box>
+                          <Typography 
+                            variant="body2" 
+                            fontWeight={600}
+                            sx={{
+                              color: combinedBudgetData.selectedContainerIds.includes(container.budgetId) 
+                                ? 'white' 
+                                : theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+                            }}
+                          >
+                            {container.budgetName}
+                          </Typography>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              opacity: combinedBudgetData.selectedContainerIds.includes(container.budgetId) ? 0.9 : 0.8,
+                              color: combinedBudgetData.selectedContainerIds.includes(container.budgetId) 
+                                ? 'white' 
+                                : theme.palette.mode === 'dark' ? colors.grey[300] : colors.grey[600],
+                            }}
+                          >
+                            {container.departmentName || 'No Department'} • {formatCurrency(container.totalAmount || 0)}
+                          </Typography>
+                        </Box>
+                        <CheckCircleIcon 
+                          sx={{ 
+                            fontSize: 20,
+                            opacity: combinedBudgetData.selectedContainerIds.includes(container.budgetId) ? 1 : 0.3,
+                            color: combinedBudgetData.selectedContainerIds.includes(container.budgetId) 
+                              ? 'white' 
+                              : theme.palette.mode === 'dark' ? colors.grey[400] : colors.grey[600],
+                          }} 
+                        />
+                      </Box>
+                    </Box>
+                  ))}
+                {containers.filter(c => c.isCombined !== 1 && !c.parentBudgetId && c.status !== 'Rejected').length === 0 && (
+                  <Typography variant="body2" color="text.secondary" textAlign="center" p={2}>
+                    No available containers to combine
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button 
+            onClick={handleCloseCombinedBudgetDialog} 
+            variant="outlined"
+            sx={{ 
+              borderColor: colors.grey[500],
+              color: theme.palette.mode === 'dark' ? colors.grey[100] : colors.grey[800],
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateCombinedBudget} 
+            variant="contained"
+            disabled={loading || combinedBudgetData.selectedContainerIds.length === 0}
+            sx={{
+              backgroundColor: colors.blueAccent[600],
+              '&:hover': { backgroundColor: colors.blueAccent[700] },
+              fontWeight: 'bold'
+            }}
+            startIcon={<MoneyIcon />}
+          >
+            {loading ? <CircularProgress size={20} color="inherit" /> : 'Create Combined Budget'}
           </Button>
         </DialogActions>
       </Dialog>
