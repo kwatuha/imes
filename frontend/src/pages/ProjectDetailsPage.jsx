@@ -8,11 +8,11 @@ import {
     Divider, Tabs, Tab, Card, CardContent, CardMedia, Link,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
-    InputLabel, Select, FormControl
+    InputLabel, Select, FormControl, Menu, ListItemIcon
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Add as AddIcon, Edit as EditIcon,
-    Delete as DeleteIcon,
+    Delete as DeleteIcon, MoreVert as MoreVertIcon,
     Update as UpdateIcon,
     Attachment as AttachmentIcon,
     PhotoCamera as PhotoCameraIcon,
@@ -261,6 +261,8 @@ function ProjectDetailsPage() {
     const [teamsError, setTeamsError] = useState(null);
     const [openTeamDialog, setOpenTeamDialog] = useState(false);
     const [editingTeam, setEditingTeam] = useState(null);
+    const [rowActionMenuAnchor, setRowActionMenuAnchor] = useState(null);
+    const [selectedRow, setSelectedRow] = useState(null);
     const [teamFormData, setTeamFormData] = useState({
         teamName: '',
         name: '',
@@ -3957,23 +3959,18 @@ function ProjectDetailsPage() {
                                                                     />
                                                                 </TableCell>
                                                                 <TableCell sx={{ fontSize: '0.8rem', py: 0.5, px: 1 }}>
-                                                                    <Stack direction="row" spacing={0.25}>
-                                                                        <IconButton 
-                                                                            size="small" 
-                                                                            onClick={() => handleEditTeam(member)}
+                                                                    <Tooltip title="Actions">
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            onClick={(e) => {
+                                                                                setSelectedRow(member);
+                                                                                setRowActionMenuAnchor(e.currentTarget);
+                                                                            }}
                                                                             sx={{ p: 0.25 }}
                                                                         >
-                                                                            <EditIcon fontSize="small" />
+                                                                            <MoreVertIcon fontSize="small" />
                                                                         </IconButton>
-                                                                        <IconButton 
-                                                                            size="small" 
-                                                                            onClick={() => handleDeleteTeam(member.teamMemberId)}
-                                                                            sx={{ p: 0.25 }}
-                                                                            color="error"
-                                                                        >
-                                                                            <DeleteIcon fontSize="small" />
-                                                                        </IconButton>
-                                                                    </Stack>
+                                                                    </Tooltip>
                                                                 </TableCell>
                                                             </TableRow>
                                                         ))}
@@ -4120,6 +4117,49 @@ function ProjectDetailsPage() {
                                 </Button>
                             </DialogActions>
                         </Dialog>
+
+                        {/* Row Action Menu */}
+                        <Menu
+                            anchorEl={rowActionMenuAnchor}
+                            open={Boolean(rowActionMenuAnchor)}
+                            onClose={() => {
+                                setRowActionMenuAnchor(null);
+                                setSelectedRow(null);
+                            }}
+                            anchorOrigin={{
+                                vertical: 'bottom',
+                                horizontal: 'right',
+                            }}
+                            transformOrigin={{
+                                vertical: 'top',
+                                horizontal: 'right',
+                            }}
+                        >
+                            {selectedRow && (
+                                <>
+                                    <MenuItem onClick={() => {
+                                        handleEditTeam(selectedRow);
+                                        setRowActionMenuAnchor(null);
+                                        setSelectedRow(null);
+                                    }}>
+                                        <ListItemIcon>
+                                            <EditIcon fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>Edit</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => {
+                                        handleDeleteTeam(selectedRow.teamMemberId);
+                                        setRowActionMenuAnchor(null);
+                                        setSelectedRow(null);
+                                    }}>
+                                        <ListItemIcon>
+                                            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
+                                        </ListItemIcon>
+                                        <ListItemText>Delete</ListItemText>
+                                    </MenuItem>
+                                </>
+                            )}
+                        </Menu>
                     </Box>
                 )}
             </Paper>

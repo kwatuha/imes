@@ -93,10 +93,25 @@ const ReportingView = () => {
     const [yearModalOpen, setYearModalOpen] = useState(false);
     const [selectedYear, setSelectedYear] = useState(null);
 
+    // Helper function to clean filters - remove empty strings, null, and undefined values
+    const cleanFilters = (filters) => {
+        const cleaned = {};
+        Object.keys(filters).forEach(key => {
+            const value = filters[key];
+            // Only include non-empty values
+            if (value !== '' && value !== null && value !== undefined) {
+                cleaned[key] = value;
+            }
+        });
+        return cleaned;
+    };
+
     // API Integration Functions
     const fetchProjectStatusData = async (filters) => {
         try {
-            const response = await projectService.analytics.getProjectStatusCounts();
+            // Clean filters and pass to the API call to ensure KPI cards reflect filtered data
+            const cleanedFilters = cleanFilters(filters);
+            const response = await projectService.analytics.getProjectStatusCounts(cleanedFilters);
             console.log('ReportingView - Raw status data from API:', response);
             // Group statuses by normalized categories
             const grouped = groupStatusesByNormalized(response, 'status', 'count');
@@ -116,7 +131,9 @@ const ReportingView = () => {
 
     const fetchProjectTypesData = async (filters) => {
         try {
-            const response = await projectService.analytics.getProjectsByDirectorateCounts();
+            // Clean filters and pass to the API call to ensure KPI cards reflect filtered data
+            const cleanedFilters = cleanFilters(filters);
+            const response = await projectService.analytics.getProjectsByDirectorateCounts(cleanedFilters);
             return response.map((item, index) => ({
                 name: item.directorate,
                 value: item.count,
@@ -130,7 +147,8 @@ const ReportingView = () => {
 
     const fetchBudgetAllocationData = async (filters) => {
         try {
-            const response = await reportsService.getFinancialStatusByProjectStatus(filters);
+            const cleanedFilters = cleanFilters(filters);
+            const response = await reportsService.getFinancialStatusByProjectStatus(cleanedFilters);
             return response.map(item => ({
                 name: item.status,
                 contracted: parseFloat(item.totalBudget) || 0,
@@ -180,7 +198,8 @@ const ReportingView = () => {
                         const fallbackFilters = { ...filters };
                         fallbackFilters.status = statusFilter;
                         delete fallbackFilters.projectStatus;
-                        const fallbackResponse = await reportsService.getDepartmentSummaryReport(fallbackFilters);
+                        const cleanedFallbackFilters = cleanFilters(fallbackFilters);
+                        const fallbackResponse = await reportsService.getDepartmentSummaryReport(cleanedFallbackFilters);
                         console.log(`ReportingView - Fallback direct filter returned ${fallbackResponse.length} departments`);
                         return fallbackResponse.map(dept => ({
                             department: dept.departmentAlias || dept.departmentName,
@@ -215,7 +234,8 @@ const ReportingView = () => {
                     statusFilters.status = originalStatus;
                     
                     try {
-                        const response = await reportsService.getDepartmentSummaryReport(statusFilters);
+                        const cleanedStatusFilters = cleanFilters(statusFilters);
+                        const response = await reportsService.getDepartmentSummaryReport(cleanedStatusFilters);
                         
                         // Aggregate data by department
                         response.forEach(dept => {
@@ -264,7 +284,8 @@ const ReportingView = () => {
                 return Array.from(departmentMap.values());
             } else {
                 // Not a normalized status, use normal filtering
-                const response = await reportsService.getDepartmentSummaryReport(filters);
+                const cleanedFilters = cleanFilters(filters);
+                const response = await reportsService.getDepartmentSummaryReport(cleanedFilters);
                 return response.map(dept => ({
                     department: dept.departmentAlias || dept.departmentName,
                     departmentName: dept.departmentName,
@@ -286,8 +307,9 @@ const ReportingView = () => {
     };
 
     // Calculate financial summary metrics from department data
-    const calculateFinancialSummary = (departmentData) => {
-        if (!departmentData || departmentData.length === 0) {
+    const calculateFinancialSummary = (departmentData, totalProjectsCount) => {
+        // If there are no projects, return zeros for all financial metrics
+        if (!departmentData || departmentData.length === 0 || totalProjectsCount === 0) {
             return {
                 totalContracted: 0,
                 totalPaid: 0,
@@ -316,7 +338,8 @@ const ReportingView = () => {
 
     const fetchStatusDistributionData = async (filters) => {
         try {
-            const response = await reportsService.getProjectStatusSummary(filters);
+            const cleanedFilters = cleanFilters(filters);
+            const response = await reportsService.getProjectStatusSummary(cleanedFilters);
             // Group statuses by normalized categories
             const grouped = groupStatusesByNormalized(response, 'name', 'value');
             return grouped.map(item => ({
@@ -917,11 +940,13 @@ const ReportingView = () => {
     const budgetFormatted = totalBudget >= 1000000 ? `${(totalBudget / 1000000).toFixed(1)}M` : `${(totalBudget / 1000).toFixed(0)}K`;
 
     // Calculate financial summary from department data - use useMemo to ensure it updates when filtered data changes
+    // IMPORTANT: Use totalProjects to ensure financial metrics are zero when there are no projects
     const financialSummary = useMemo(() => {
-        const summary = calculateFinancialSummary(dashboardData.projectProgress);
+        const summary = calculateFinancialSummary(dashboardData.projectProgress, totalProjects);
         // Debug logging to verify calculations
         console.log('Financial Summary Debug:', {
             departmentData: dashboardData.projectProgress,
+            totalProjects: totalProjects,
             totalContracted: summary.totalContracted,
             totalPaid: summary.totalPaid,
             absorptionRate: summary.absorptionRate,
@@ -929,7 +954,7 @@ const ReportingView = () => {
             filteredDataLength: dashboardData.projectProgress?.length || 0
         });
         return summary;
-    }, [dashboardData.projectProgress, filters.globalSearch]);
+    }, [dashboardData.projectProgress, totalProjects, filters.globalSearch]);
     
     const formatCurrency = (amount) => {
         const numAmount = parseFloat(amount) || 0;
@@ -1300,7 +1325,7 @@ const ReportingView = () => {
                 }}>
                     <>
                     {activeTab === 0 && (
-                        <Grid container spacing={1}>
+                        <Grid container spacing={0.75}>
                             {/* Enhanced Overview Tab Layout */}
                             
                             {/* KPI Cards - 2x3 Grid with Improved Information Flow */}
@@ -1376,8 +1401,8 @@ const ReportingView = () => {
                                 </Fade>
                             </Grid>
 
-                            {/* Middle Row: Chart (Left) + Status Count & Performance Metrics (Right) */}
-                            <Grid item xs={12} md={8}>
+                            {/* Middle Row: Chart (Left) + Status Count (Right) */}
+                            <Grid item xs={12} lg={6}>
                                 <Fade in timeout={1200}>
                                     <Card sx={{ 
                                         height: 'calc(3 * 105px + 2 * 8px + 40px)', // Match 3 KPI cards height + extra 40px to prevent scrollbar: 3 cards (~105px each) + 2 gaps (8px each) + 40px = ~371px
@@ -1416,10 +1441,10 @@ const ReportingView = () => {
                                             }
                                             sx={{ pb: 0.25, px: 1, pt: 0.75 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 0, pb: 1, display: 'flex', flexDirection: 'column' }}>
+                                        <CardContent sx={{ flexGrow: 1, p: 1, pt: 0, pb: 0.75, display: 'flex', flexDirection: 'column' }}>
                                             <Box sx={{ 
                                                 flex: 1,
-                                                minWidth: { xs: '280px', sm: '300px' },
+                                                width: '100%',
                                                 overflow: 'visible',
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -1440,13 +1465,13 @@ const ReportingView = () => {
                                 </Fade>
                             </Grid>
 
-                            {/* Right Column: Status Count & Performance Metrics */}
-                            <Grid item xs={12} md={4}>
+                            {/* Right Column: Status Count & Issues Summary */}
+                            <Grid item xs={12} lg={6}>
                                 <Fade in timeout={1400}>
                                     <Box sx={{ 
                                         display: 'flex', 
-                                        flexDirection: { xs: 'column', md: 'row' }, 
-                                        gap: 1, 
+                                        flexDirection: { xs: 'column', lg: 'row' }, 
+                                        gap: 0.75, 
                                         height: 'calc(3 * 105px + 2 * 8px + 40px)', // Match 3 KPI cards height + extra 40px to prevent scrollbar: 3 cards (~105px each) + 2 gaps (8px each) + 40px = ~371px
                                     }}>
                                     {/* Project Count Distribution by Status */}
@@ -1459,10 +1484,10 @@ const ReportingView = () => {
                                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        flex: { xs: '1 1 auto', md: '1 1 60%' },
+                                        flex: { xs: '1 1 auto', lg: '1 1 70%' },
                                         minHeight: 0,
                                         height: '100%',
-                                        width: { xs: '100%', md: '60%' },
+                                        width: { xs: '100%', lg: '70%' },
                                         '&:hover': {
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
                                             border: '1px solid rgba(25, 118, 210, 0.2)'
@@ -1487,9 +1512,9 @@ const ReportingView = () => {
                                                     </Typography>
                                                 </Box>
                                             }
-                                            sx={{ pb: 0.4, px: 0.75, pt: 0.6 }}
+                                            sx={{ pb: 0.3, px: 0.6, pt: 0.5 }}
                                         />
-                                        <CardContent sx={{ p: 1, pt: 0, pb: 1, height: '100%', overflow: 'auto' }}>
+                                        <CardContent sx={{ p: 0.75, pt: 0, pb: 0.75, height: '100%', overflow: 'auto' }}>
                                             <Box sx={{ 
                                                 display: 'flex',
                                                 flexDirection: 'column',
@@ -1627,7 +1652,7 @@ const ReportingView = () => {
                                         </CardContent>
                                     </Card>
                                     
-                                    {/* Performance Metrics */}
+                                    {/* Issues Summary */}
                                     <Card sx={{ 
                                         borderRadius: '8px',
                                         background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
@@ -1637,13 +1662,13 @@ const ReportingView = () => {
                                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                         position: 'relative',
                                         overflow: 'hidden',
-                                        flex: { xs: '1 1 auto', md: '1 1 40%' },
+                                        flex: { xs: '1 1 auto', lg: '1 1 30%' },
                                         minHeight: 0,
                                         height: '100%',
-                                        width: { xs: '100%', md: '40%' },
+                                        width: { xs: '100%', lg: '30%' },
                                         '&:hover': {
                                             boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                                            border: '1px solid rgba(33, 150, 243, 0.2)'
+                                            border: '1px solid rgba(244, 67, 54, 0.2)'
                                         },
                                         '&::before': {
                                             content: '""',
@@ -1652,209 +1677,131 @@ const ReportingView = () => {
                                             left: 0,
                                             right: 0,
                                             height: '2px',
-                                            background: 'linear-gradient(90deg, #2196f3, #42a5f5)',
+                                            background: 'linear-gradient(90deg, #f44336, #e91e63)',
                                             borderRadius: '8px 8px 0 0'
                                         }
                                     }}>
                                         <CardHeader
                                             title={
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                    <Speed sx={{ color: 'info.main', fontSize: '0.9rem' }} />
-                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.75rem' }}>
-                                                        Performance Metrics
+                                                    <Warning sx={{ color: 'error.main', fontSize: '0.85rem' }} />
+                                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'rgba(0, 0, 0, 0.85)', fontSize: '0.7rem' }}>
+                                                        Issues Summary
                                                     </Typography>
                                                 </Box>
                                             }
-                                            sx={{ pb: 0.1, px: 0.75, pt: 0.5 }}
+                                            sx={{ pb: 0.3, px: 0.6, pt: 0.5 }}
                                         />
-                                        <CardContent sx={{ flexGrow: 1, p: 0.5, pt: 0, height: '100%', overflow: 'auto' }}>
-                                            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 0.5, justifyContent: 'flex-start' }}>
-                                                {/* Completion Rate */}
-                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(76, 175, 80, 0.08)', borderRadius: '6px' }}>
-                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.4 }}>
-                                                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600 }}>
-                                                            Completion Rate
-                                                        </Typography>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '1.1rem' }}>
-                                                            {completionRate}%
-                                                        </Typography>
-                                                    </Box>
-                                                    <LinearProgress 
-                                                        variant="determinate" 
-                                                        value={completionRate} 
-                                                        sx={{ 
-                                                            height: 6, 
-                                                            borderRadius: 3,
-                                                            backgroundColor: 'rgba(76, 175, 80, 0.15)',
-                                                            '& .MuiLinearProgress-bar': {
-                                                                backgroundColor: '#4caf50',
-                                                                borderRadius: 3
-                                                            }
-                                                        }} 
-                                                    />
-                                                </Box>
-
-                                                {/* Health Score */}
-                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(33, 150, 243, 0.08)', borderRadius: '6px' }}>
-                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.4 }}>
-                                                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600 }}>
-                                                            Health Score
-                                                        </Typography>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1565c0', fontSize: '1.1rem' }}>
-                                                            {healthScore}%
-                                                        </Typography>
-                                                    </Box>
-                                                    <LinearProgress 
-                                                        variant="determinate" 
-                                                        value={healthScore} 
-                                                        sx={{ 
-                                                            height: 6, 
-                                                            borderRadius: 3,
-                                                            backgroundColor: 'rgba(33, 150, 243, 0.15)',
-                                                            '& .MuiLinearProgress-bar': {
-                                                                backgroundColor: '#2196f3',
-                                                                borderRadius: 3
-                                                            }
-                                                        }} 
-                                                    />
-                                                </Box>
-
-                                                {/* Average Progress */}
-                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(255, 152, 0, 0.08)', borderRadius: '6px' }}>
-                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.4 }}>
-                                                        <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600 }}>
-                                                            Average Progress
-                                                        </Typography>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e65100', fontSize: '1.1rem' }}>
-                                                            {averageProgress}%
-                                                        </Typography>
-                                                    </Box>
-                                                    <LinearProgress 
-                                                        variant="determinate" 
-                                                        value={averageProgress} 
-                                                        sx={{ 
-                                                            height: 6, 
-                                                            borderRadius: 3,
-                                                            backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                                                            '& .MuiLinearProgress-bar': {
-                                                                backgroundColor: '#ff9800',
-                                                                borderRadius: 3
-                                                            }
-                                                        }} 
-                                                    />
-                                                </Box>
-
-                                                {/* Issues Summary - Compact */}
-                                                <Box sx={{ p: 0.75, bgcolor: 'rgba(244, 67, 54, 0.05)', borderRadius: '6px', border: '1px solid rgba(244, 67, 54, 0.1)' }}>
-                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.7rem', fontWeight: 600, mb: 0.5, display: 'block' }}>
-                                                        Issues Summary
+                                        <CardContent sx={{ p: 0.75, pt: 0, pb: 0.75, height: '100%', overflow: 'auto' }}>
+                                            <Box sx={{ 
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 0.6,
+                                                width: '100%'
+                                            }}>
+                                                {/* Stalled - Clickable */}
+                                                <Box 
+                                                    onClick={() => {
+                                                        const isActive = filters.projectStatus === 'Stalled' || filters.status === 'Stalled';
+                                                        if (isActive) {
+                                                            handleFilterChange('projectStatus', '');
+                                                            handleFilterChange('status', '');
+                                                        } else {
+                                                            handleFilterChange('projectStatus', 'Stalled');
+                                                            handleFilterChange('status', 'Stalled');
+                                                        }
+                                                    }}
+                                                    sx={{ 
+                                                        textAlign: 'center', 
+                                                        p: 1, 
+                                                        bgcolor: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled') 
+                                                            ? 'rgba(255, 152, 0, 0.25)' 
+                                                            : 'rgba(255, 152, 0, 0.1)', 
+                                                        borderRadius: '6px',
+                                                        border: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled')
+                                                            ? '2px solid #e65100'
+                                                            : '1px solid rgba(255, 152, 0, 0.3)',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        position: 'relative',
+                                                        overflow: 'hidden',
+                                                        '&:hover': {
+                                                            transform: 'translateY(-2px)',
+                                                            boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+                                                            border: '2px solid #e65100',
+                                                            bgcolor: 'rgba(255, 152, 0, 0.2)',
+                                                        },
+                                                        '&::before': {
+                                                            content: '""',
+                                                            position: 'absolute',
+                                                            left: 0,
+                                                            top: 0,
+                                                            bottom: 0,
+                                                            width: '3px',
+                                                            background: 'linear-gradient(180deg, #e65100, #ff9800)',
+                                                            opacity: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled') ? 1 : 0.5,
+                                                            transition: 'opacity 0.2s ease'
+                                                        }
+                                                    }}
+                                                >
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.25, fontSize: '1.5rem' }}>
+                                                        {stalledProjects}
                                                     </Typography>
-                                                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0.5 }}>
-                                                        {/* Stalled - Clickable */}
-                                                        <Box 
-                                                            onClick={() => {
-                                                                const isActive = filters.projectStatus === 'Stalled' || filters.status === 'Stalled';
-                                                                if (isActive) {
-                                                                    handleFilterChange('projectStatus', '');
-                                                                    handleFilterChange('status', '');
-                                                                } else {
-                                                                    handleFilterChange('projectStatus', 'Stalled');
-                                                                    handleFilterChange('status', 'Stalled');
-                                                                }
-                                                            }}
-                                                            sx={{ 
-                                                                textAlign: 'center', 
-                                                                p: 0.5, 
-                                                                bgcolor: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled') 
-                                                                    ? 'rgba(255, 152, 0, 0.25)' 
-                                                                    : 'rgba(255, 152, 0, 0.1)', 
-                                                                borderRadius: '4px',
-                                                                border: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled')
-                                                                    ? '2px solid #e65100'
-                                                                    : '1px solid rgba(255, 152, 0, 0.3)',
-                                                                cursor: 'pointer',
-                                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                                position: 'relative',
-                                                                overflow: 'hidden',
-                                                                '&:hover': {
-                                                                    transform: 'translateY(-2px)',
-                                                                    boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
-                                                                    border: '2px solid #e65100',
-                                                                    bgcolor: 'rgba(255, 152, 0, 0.2)',
-                                                                },
-                                                                '&::before': {
-                                                                    content: '""',
-                                                                    position: 'absolute',
-                                                                    left: 0,
-                                                                    top: 0,
-                                                                    bottom: 0,
-                                                                    width: '3px',
-                                                                    background: 'linear-gradient(180deg, #e65100, #ff9800)',
-                                                                    opacity: (filters.projectStatus === 'Stalled' || filters.status === 'Stalled') ? 1 : 0.5,
-                                                                    transition: 'opacity 0.2s ease'
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#e65100', mb: 0.15, fontSize: '1rem' }}>
-                                                                {stalledProjects}
-                                                            </Typography>
-                                                            <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.6rem', fontWeight: 500 }}>
-                                                                Stalled
-                                                            </Typography>
-                                                        </Box>
-                                                        {/* Suspended - Clickable */}
-                                                        <Box 
-                                                            onClick={() => {
-                                                                const isActive = filters.projectStatus === 'Suspended' || filters.status === 'Suspended';
-                                                                if (isActive) {
-                                                                    handleFilterChange('projectStatus', '');
-                                                                    handleFilterChange('status', '');
-                                                                } else {
-                                                                    handleFilterChange('projectStatus', 'Suspended');
-                                                                    handleFilterChange('status', 'Suspended');
-                                                                }
-                                                            }}
-                                                            sx={{ 
-                                                                textAlign: 'center', 
-                                                                p: 0.5, 
-                                                                bgcolor: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended')
-                                                                    ? 'rgba(233, 30, 99, 0.25)' 
-                                                                    : 'rgba(233, 30, 99, 0.1)', 
-                                                                borderRadius: '4px',
-                                                                border: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended')
-                                                                    ? '2px solid #c2185b'
-                                                                    : '1px solid rgba(233, 30, 99, 0.3)',
-                                                                cursor: 'pointer',
-                                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                                position: 'relative',
-                                                                overflow: 'hidden',
-                                                                '&:hover': {
-                                                                    transform: 'translateY(-2px)',
-                                                                    boxShadow: '0 4px 12px rgba(233, 30, 99, 0.3)',
-                                                                    border: '2px solid #c2185b',
-                                                                    bgcolor: 'rgba(233, 30, 99, 0.2)',
-                                                                },
-                                                                '&::before': {
-                                                                    content: '""',
-                                                                    position: 'absolute',
-                                                                    left: 0,
-                                                                    top: 0,
-                                                                    bottom: 0,
-                                                                    width: '3px',
-                                                                    background: 'linear-gradient(180deg, #c2185b, #e91e63)',
-                                                                    opacity: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended') ? 1 : 0.5,
-                                                                    transition: 'opacity 0.2s ease'
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#c2185b', mb: 0.15, fontSize: '1rem' }}>
-                                                                {suspendedProjects}
-                                                            </Typography>
-                                                            <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.6rem', fontWeight: 500 }}>
-                                                                Suspended
-                                                            </Typography>
-                                                        </Box>
-                                                    </Box>
+                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                                                        Stalled
+                                                    </Typography>
+                                                </Box>
+                                                {/* Suspended - Clickable */}
+                                                <Box 
+                                                    onClick={() => {
+                                                        const isActive = filters.projectStatus === 'Suspended' || filters.status === 'Suspended';
+                                                        if (isActive) {
+                                                            handleFilterChange('projectStatus', '');
+                                                            handleFilterChange('status', '');
+                                                        } else {
+                                                            handleFilterChange('projectStatus', 'Suspended');
+                                                            handleFilterChange('status', 'Suspended');
+                                                        }
+                                                    }}
+                                                    sx={{ 
+                                                        textAlign: 'center', 
+                                                        p: 1, 
+                                                        bgcolor: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended')
+                                                            ? 'rgba(233, 30, 99, 0.25)' 
+                                                            : 'rgba(233, 30, 99, 0.1)', 
+                                                        borderRadius: '6px',
+                                                        border: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended')
+                                                            ? '2px solid #c2185b'
+                                                            : '1px solid rgba(233, 30, 99, 0.3)',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        position: 'relative',
+                                                        overflow: 'hidden',
+                                                        '&:hover': {
+                                                            transform: 'translateY(-2px)',
+                                                            boxShadow: '0 4px 12px rgba(233, 30, 99, 0.3)',
+                                                            border: '2px solid #c2185b',
+                                                            bgcolor: 'rgba(233, 30, 99, 0.2)',
+                                                        },
+                                                        '&::before': {
+                                                            content: '""',
+                                                            position: 'absolute',
+                                                            left: 0,
+                                                            top: 0,
+                                                            bottom: 0,
+                                                            width: '3px',
+                                                            background: 'linear-gradient(180deg, #c2185b, #e91e63)',
+                                                            opacity: (filters.projectStatus === 'Suspended' || filters.status === 'Suspended') ? 1 : 0.5,
+                                                            transition: 'opacity 0.2s ease'
+                                                        }
+                                                    }}
+                                                >
+                                                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#c2185b', mb: 0.25, fontSize: '1.5rem' }}>
+                                                        {suspendedProjects}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'rgba(0, 0, 0, 0.7)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                                                        Suspended
+                                                    </Typography>
                                                 </Box>
                                             </Box>
                                         </CardContent>
@@ -1863,184 +1810,10 @@ const ReportingView = () => {
                                 </Fade>
                             </Grid>
 
-                        {/* Visual Separator */}
-                        <Grid item xs={12}>
-                            <Box sx={{ 
-                                mt: 2, 
-                                mb: 1,
-                                position: 'relative',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 2,
-                                py: 1.5,
-                                px: 2,
-                                background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(25, 118, 210, 0.02) 100%)',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(25, 118, 210, 0.1)',
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '2px',
-                                    background: 'linear-gradient(90deg, transparent, rgba(25, 118, 210, 0.3), transparent)',
-                                    borderRadius: '12px 12px 0 0'
-                                }
-                            }}>
-                                <Divider 
-                                    sx={{ 
-                                        flex: 1,
-                                        borderWidth: 1.5,
-                                        borderColor: 'primary.main',
-                                        opacity: 0.2,
-                                        '&::before, &::after': {
-                                            borderWidth: 1.5
-                                        }
-                                    }} 
-                                />
-                                <Box sx={{
-                                    px: 3,
-                                    py: 1,
-                                    background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-                                    borderRadius: '24px',
-                                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
-                                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                                    position: 'relative',
-                                    '&::before': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        inset: 0,
-                                        borderRadius: '24px',
-                                        padding: '1px',
-                                        background: 'linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1))',
-                                        WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                                        WebkitMaskComposite: 'xor',
-                                        maskComposite: 'exclude'
-                                    }
-                                }}>
-                                    <Typography 
-                                        variant="subtitle2" 
-                                        sx={{ 
-                                            fontWeight: 700,
-                                            color: 'white',
-                                            fontSize: '0.875rem',
-                                            letterSpacing: '1px',
-                                            textTransform: 'uppercase',
-                                            position: 'relative',
-                                            zIndex: 1,
-                                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                                        }}
-                                    >
-                                        Detailed View
-                                    </Typography>
-                                </Box>
-                                <Divider 
-                                    sx={{ 
-                                        flex: 1,
-                                        borderWidth: 1.5,
-                                        borderColor: 'primary.main',
-                                        opacity: 0.2,
-                                        '&::before, &::after': {
-                                            borderWidth: 1.5
-                                        }
-                                    }} 
-                                />
-                                {/* Action Buttons */}
-                                <Stack direction="row" spacing={0.5} sx={{ ml: 1 }}>
-                                    <Tooltip title="Export to Excel">
-                                        <IconButton
-                                            size="small"
-                                            onClick={handleExportExcel}
-                                            sx={{
-                                                color: '#2e7d32',
-                                                backgroundColor: 'rgba(46, 125, 50, 0.1)',
-                                                border: '1px solid rgba(46, 125, 50, 0.2)',
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(46, 125, 50, 0.15)',
-                                                    border: '1px solid rgba(46, 125, 50, 0.3)',
-                                                    transform: 'translateY(-1px)'
-                                                },
-                                                width: '32px',
-                                                height: '32px'
-                                            }}
-                                        >
-                                            <FileDownload sx={{ fontSize: '0.9rem' }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Export to PDF">
-                                        <IconButton
-                                            size="small"
-                                            onClick={handleExportPDF}
-                                            sx={{
-                                                color: '#d32f2f',
-                                                backgroundColor: 'rgba(211, 47, 47, 0.1)',
-                                                border: '1px solid rgba(211, 47, 47, 0.2)',
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(211, 47, 47, 0.15)',
-                                                    border: '1px solid rgba(211, 47, 47, 0.3)',
-                                                    transform: 'translateY(-1px)'
-                                                },
-                                                width: '32px',
-                                                height: '32px'
-                                            }}
-                                        >
-                                            <PictureAsPdf sx={{ fontSize: '0.9rem' }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Print">
-                                        <IconButton
-                                            size="small"
-                                            onClick={handlePrint}
-                                            sx={{
-                                                color: '#1976d2',
-                                                backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                                                border: '1px solid rgba(25, 118, 210, 0.2)',
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(25, 118, 210, 0.15)',
-                                                    border: '1px solid rgba(25, 118, 210, 0.3)',
-                                                    transform: 'translateY(-1px)'
-                                                },
-                                                width: '32px',
-                                                height: '32px'
-                                            }}
-                                        >
-                                            <Print sx={{ fontSize: '0.9rem' }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Refresh Data">
-                                        <IconButton
-                                            size="small"
-                                            onClick={handleRefresh}
-                                            disabled={isLoading}
-                                            sx={{
-                                                color: '#ff9800',
-                                                backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                                                border: '1px solid rgba(255, 152, 0, 0.2)',
-                                                '&:hover': {
-                                                    backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                                                    border: '1px solid rgba(255, 152, 0, 0.3)',
-                                                    transform: 'translateY(-1px)'
-                                                },
-                                                '&:disabled': {
-                                                    opacity: 0.5
-                                                },
-                                                width: '32px',
-                                                height: '32px'
-                                            }}
-                                        >
-                                            <Refresh sx={{ fontSize: '0.9rem' }} />
-                                        </IconButton>
-                                    </Tooltip>
-                                </Stack>
-                            </Box>
-                        </Grid>
-
                         {/* Overview Detail Table */}
                         <Grid item xs={12}>
                             <Box sx={{ 
-                                mt: 0,
+                                mt: 2,
                                 pt: 2,
                                 pb: 2,
                                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -2059,6 +1832,130 @@ const ReportingView = () => {
                                     borderRadius: '12px 12px 0 0'
                                 }
                             }}>
+                                {/* Table Header with Action Buttons */}
+                                <Box sx={{ 
+                                    px: 1.25, 
+                                    py: 1,
+                                    borderBottom: '2px solid rgba(25, 118, 210, 0.15)',
+                                    background: 'linear-gradient(90deg, rgba(25, 118, 210, 0.05) 0%, rgba(255,255,255,0.95) 100%)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
+                                    <Box>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9375rem', mb: 0.25 }}>
+                                            Department Overview Details
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                            {transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
+                                                id: dept.departmentId || dept.department,
+                                                department: dept.departmentName || dept.department,
+                                                departmentAlias: dept.departmentAlias || dept.department,
+                                                percentCompleted: Math.round((parseFloat(dept.percentCompleted) || 0) * 100) / 100,
+                                                healthScore: dept.healthScore || 0,
+                                                numProjects: dept.numProjects || 0,
+                                                allocatedBudget: dept.allocatedBudget || 0,
+                                                amountPaid: dept.amountPaid || 0
+                                            }))).length} {transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
+                                                id: dept.departmentId || dept.department,
+                                                department: dept.departmentName || dept.department,
+                                                departmentAlias: dept.departmentAlias || dept.department,
+                                                percentCompleted: Math.round((parseFloat(dept.percentCompleted) || 0) * 100) / 100,
+                                                healthScore: dept.healthScore || 0,
+                                                numProjects: dept.numProjects || 0,
+                                                allocatedBudget: dept.allocatedBudget || 0,
+                                                amountPaid: dept.amountPaid || 0
+                                            }))).length === 1 ? 'record' : 'records'}
+                                        </Typography>
+                                    </Box>
+                                    {/* Action Buttons */}
+                                    <Stack direction="row" spacing={0.5}>
+                                        <Tooltip title="Export to Excel">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleExportExcel}
+                                                sx={{
+                                                    color: '#2e7d32',
+                                                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                                                    border: '1px solid rgba(46, 125, 50, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(46, 125, 50, 0.15)',
+                                                        border: '1px solid rgba(46, 125, 50, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <FileDownload sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Export to PDF">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleExportPDF}
+                                                sx={{
+                                                    color: '#d32f2f',
+                                                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                                                    border: '1px solid rgba(211, 47, 47, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(211, 47, 47, 0.15)',
+                                                        border: '1px solid rgba(211, 47, 47, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <PictureAsPdf sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Print">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handlePrint}
+                                                sx={{
+                                                    color: '#1976d2',
+                                                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                                                    border: '1px solid rgba(25, 118, 210, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(25, 118, 210, 0.15)',
+                                                        border: '1px solid rgba(25, 118, 210, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <Print sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Refresh Data">
+                                            <IconButton
+                                                size="small"
+                                                onClick={handleRefresh}
+                                                disabled={isLoading}
+                                                sx={{
+                                                    color: '#ff9800',
+                                                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                                                    border: '1px solid rgba(255, 152, 0, 0.2)',
+                                                    '&:hover': {
+                                                        backgroundColor: 'rgba(255, 152, 0, 0.15)',
+                                                        border: '1px solid rgba(255, 152, 0, 0.3)',
+                                                        transform: 'translateY(-1px)'
+                                                    },
+                                                    '&:disabled': {
+                                                        opacity: 0.5
+                                                    },
+                                                    width: '32px',
+                                                    height: '32px'
+                                                }}
+                                            >
+                                                <Refresh sx={{ fontSize: '0.9rem' }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Stack>
+                                </Box>
                                 <ProjectDetailTable
                                     data={transformOverviewData(dashboardData.projectProgress.map(dept => ({ 
                                         id: dept.departmentId || dept.department,
@@ -2071,7 +1968,7 @@ const ReportingView = () => {
                                         amountPaid: dept.amountPaid || 0
                                     })))}
                                     columns={overviewTableColumns}
-                                    title="Department Overview Details"
+                                    title=""
                                     onRowClick={(row) => handleDepartmentClick(row)}
                                 />
                             </Box>

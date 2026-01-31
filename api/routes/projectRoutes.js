@@ -5,6 +5,7 @@ const fs = require('fs');
 const pool = require('../config/db'); // Import the database connection pool
 const multer = require('multer');
 const xlsx = require('xlsx');
+const { addStatusFilter } = require('../utils/statusFilterHelper');
 
 // --- Consolidated Imports for All Sub-Routers ---
 const appointmentScheduleRoutes = require('./appointmentScheduleRoutes');
@@ -1645,19 +1646,91 @@ router.get('/template', async (req, res) => {
 // --- Analytics Endpoints (MUST come before parameterized routes) ---
 /**
  * @route GET /api/projects/status-counts
- * @description Get count of projects by status
+ * @description Get count of projects by status with optional filters
  */
 router.get('/status-counts', async (req, res) => {
     try {
-        const [rows] = await pool.query(`
+        const { 
+            finYearId, 
+            status, 
+            department, 
+            departmentId,
+            projectType, 
+            section,
+            subCounty,
+            ward
+        } = req.query;
+
+        let whereConditions = ['p.voided = 0', 'p.status IS NOT NULL'];
+        const queryParams = [];
+
+        if (finYearId) {
+            whereConditions.push('p.finYearId = ?');
+            queryParams.push(finYearId);
+        }
+
+        // Use shared status filter helper for consistent normalization
+        const statusValue = status || req.query.projectStatus;
+        addStatusFilter(statusValue, whereConditions, queryParams, 'p');
+
+        if (department || departmentId) {
+            whereConditions.push('(d.name = ? OR d.alias = ? OR p.departmentId = ?)');
+            const deptValue = department || departmentId;
+            queryParams.push(deptValue, deptValue, deptValue);
+        }
+
+        if (projectType) {
+            whereConditions.push('(pc.categoryName = ? OR pc.name = ?)');
+            queryParams.push(projectType, projectType);
+        }
+
+        if (section) {
+            whereConditions.push('s.name = ?');
+            queryParams.push(section);
+        }
+
+        if (subCounty) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_subcounties psc 
+                WHERE psc.projectId = p.id 
+                AND (psc.subcountyId IN (SELECT subcountyId FROM kemri_subcounties WHERE name = ? OR alias = ?))
+                AND psc.voided = 0
+            )`);
+            queryParams.push(subCounty, subCounty);
+        }
+
+        if (ward) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_wards pw 
+                WHERE pw.projectId = p.id 
+                AND (pw.wardId IN (SELECT wardId FROM kemri_wards WHERE name = ? OR alias = ?))
+                AND pw.voided = 0
+            )`);
+            queryParams.push(ward, ward);
+        }
+
+        let sqlQuery = `
             SELECT
                 p.status AS status,
                 COUNT(p.id) AS count
             FROM kemri_projects p
-            WHERE p.voided = 0 AND p.status IS NOT NULL
+            LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+        `;
+        
+        // Add joins only if needed
+        if (projectType) {
+            sqlQuery += ` LEFT JOIN kemri_project_milestone_implementations pc ON p.categoryId = pc.categoryId`;
+        }
+        if (section) {
+            sqlQuery += ` LEFT JOIN kemri_sections s ON p.sectionId = s.sectionId`;
+        }
+        
+        sqlQuery += ` WHERE ${whereConditions.join(' AND ')}
             GROUP BY p.status
             ORDER BY p.status
-        `);
+        `;
+        
+        const [rows] = await pool.query(sqlQuery, queryParams);
         res.status(200).json(rows);
     } catch (error) {
         console.error('Error fetching project status counts:', error);
@@ -1667,19 +1740,92 @@ router.get('/status-counts', async (req, res) => {
 
 /**
  * @route GET /api/projects/directorate-counts
- * @description Get count of projects by directorate
+ * @description Get count of projects by directorate with optional filters
  */
 router.get('/directorate-counts', async (req, res) => {
     try {
-        const [rows] = await pool.query(`
+        const { 
+            finYearId, 
+            status, 
+            department, 
+            departmentId,
+            projectType, 
+            section,
+            subCounty,
+            ward
+        } = req.query;
+
+        let whereConditions = ['p.voided = 0', 'p.directorate IS NOT NULL'];
+        const queryParams = [];
+
+        if (finYearId) {
+            whereConditions.push('p.finYearId = ?');
+            queryParams.push(finYearId);
+        }
+
+        if (status || req.query.projectStatus) {
+            whereConditions.push('p.status = ?');
+            queryParams.push(status || req.query.projectStatus);
+        }
+
+        if (department || departmentId) {
+            whereConditions.push('(d.name = ? OR d.alias = ? OR p.departmentId = ?)');
+            const deptValue = department || departmentId;
+            queryParams.push(deptValue, deptValue, deptValue);
+        }
+
+        if (projectType) {
+            whereConditions.push('(pc.categoryName = ? OR pc.name = ?)');
+            queryParams.push(projectType, projectType);
+        }
+
+        if (section) {
+            whereConditions.push('s.name = ?');
+            queryParams.push(section);
+        }
+
+        if (subCounty) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_subcounties psc 
+                WHERE psc.projectId = p.id 
+                AND (psc.subcountyId IN (SELECT subcountyId FROM kemri_subcounties WHERE name = ? OR alias = ?))
+                AND psc.voided = 0
+            )`);
+            queryParams.push(subCounty, subCounty);
+        }
+
+        if (ward) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_wards pw 
+                WHERE pw.projectId = p.id 
+                AND (pw.wardId IN (SELECT wardId FROM kemri_wards WHERE name = ? OR alias = ?))
+                AND pw.voided = 0
+            )`);
+            queryParams.push(ward, ward);
+        }
+
+        let sqlQuery = `
             SELECT
                 p.directorate AS directorate,
                 COUNT(p.id) AS count
             FROM kemri_projects p
-            WHERE p.voided = 0 AND p.directorate IS NOT NULL
+            LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
+        `;
+        
+        // Add joins only if needed
+        if (projectType) {
+            sqlQuery += ` LEFT JOIN kemri_project_milestone_implementations pc ON p.categoryId = pc.categoryId`;
+        }
+        if (section) {
+            sqlQuery += ` LEFT JOIN kemri_sections s ON p.sectionId = s.sectionId`;
+        }
+        
+        sqlQuery += ` WHERE ${whereConditions.join(' AND ')}
             GROUP BY p.directorate
             ORDER BY p.directorate
-        `);
+        `;
+        
+        const [rows] = await pool.query(sqlQuery, queryParams);
         res.status(200).json(rows);
     } catch (error) {
         console.error('Error fetching project directorate counts:', error);

@@ -13,6 +13,8 @@ import { Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { PageTitleProvider } from '../context/PageTitleContext.jsx';
 import { ProfileModalProvider } from '../context/ProfileModalContext.jsx';
+import { MenuCategoryProvider } from '../context/MenuCategoryContext.jsx';
+import { SidebarProvider, useSidebar } from '../context/SidebarContext.jsx';
 import { usePageTitleEffect } from '../hooks/usePageTitle.js';
 import { ROUTES } from '../configs/appConfig.js';
 import logo from '../assets/logo.png';
@@ -23,8 +25,8 @@ import Sidebar from "./Sidebar.jsx";
 import FloatingChatButton from "../components/chat/FloatingChatButton.jsx";
 import RibbonMenu from "./RibbonMenu.jsx";
 
-const expandedSidebarWidth = 240;
-const collapsedSidebarWidth = 64;
+const expandedSidebarWidth = 200; // Width with labels
+const collapsedSidebarWidth = 64; // Width with icons only
 
 function MainLayoutContent() {
   const theme = useTheme();
@@ -36,6 +38,10 @@ function MainLayoutContent() {
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isCollapsed } = useSidebar();
+  
+  // Calculate current sidebar width
+  const currentSidebarWidth = isCollapsed ? collapsedSidebarWidth : expandedSidebarWidth;
 
   // Auto-update page title based on route
   usePageTitleEffect();
@@ -131,9 +137,10 @@ function MainLayoutContent() {
             flexGrow: 1, 
             p: 0,
             mt: '48px',
-            // Do not shift on hover; only shift when pinned open
-            width: { sm: `calc(100% - ${isSidebarPinnedOpen ? expandedSidebarWidth : collapsedSidebarWidth}px)` },
-            ml: { sm: `${isSidebarPinnedOpen ? expandedSidebarWidth : collapsedSidebarWidth}px` },
+            // Adjust width based on sidebar collapse state
+            width: { sm: `calc(100% - ${currentSidebarWidth}px)` },
+            ml: { sm: `${currentSidebarWidth}px` },
+            transition: 'margin-left 0.3s ease-in-out, width 0.3s ease-in-out',
             minHeight: 'calc(100vh - 48px)',
             backgroundColor: theme.palette.mode === 'dark' 
               ? theme.palette.background.default
@@ -167,7 +174,11 @@ function MainLayout() {
   return (
     <PageTitleProvider>
       <ProfileModalProvider>
-        <MainLayoutContent />
+        <MenuCategoryProvider>
+          <SidebarProvider>
+            <MainLayoutContent />
+          </SidebarProvider>
+        </MenuCategoryProvider>
       </ProfileModalProvider>
     </PageTitleProvider>
   );

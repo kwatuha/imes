@@ -21,6 +21,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../configs/appConfig.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getFilteredMenuCategories } from '../configs/menuConfigUtils.js';
+import { useMenuCategory } from '../context/MenuCategoryContext.jsx';
 
 // Icon mapping for Material-UI icons
 const ICON_MAP = {
@@ -43,40 +44,82 @@ const ICON_MAP = {
   PublicIcon,
 };
 
-// Simple ribbon-like top menu with grouped actions
+// Simple ribbon-like top menu with grouped actions - Click-based only, no hover switching
 export default function RibbonMenu({ isAdmin = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { hasPrivilege, user } = useAuth();
+  const { selectedCategoryId, setSelectedCategoryId } = useMenuCategory();
   const [collapsed, setCollapsed] = useState(false);
-  const [hoveredTab, setHoveredTab] = useState(null);
-  const timeoutRefs = useRef({});
+  const manualSelectionRef = useRef(false); // Track manual category selections
   
   // Get filtered menu categories based on user permissions (memoized to prevent unnecessary recalculations)
   const menuCategories = useMemo(() => {
     return getFilteredMenuCategories(isAdmin, hasPrivilege, user);
   }, [isAdmin, hasPrivilege, user]);
   
-  const [tab, setTab] = useState(isAdmin ? 3 : 0); // Default to Admin tab if admin, otherwise Dashboard
+  // Find the index of the selected category
+  const selectedCategoryIndex = useMemo(() => {
+    const index = menuCategories.findIndex(cat => cat.id === selectedCategoryId);
+    return index >= 0 ? index : (isAdmin ? 3 : 0);
+  }, [selectedCategoryId, menuCategories, isAdmin]);
   
-  // Ensure tab is always valid
-  const validTab = tab >= 0 && tab < menuCategories.length ? tab : 0;
+  // Set initial category based on route - only when route changes, not when category is manually selected
+  useEffect(() => {
+    // Skip auto-detection if user just manually selected a category
+    if (manualSelectionRef.current) {
+      manualSelectionRef.current = false; // Reset flag after one check
+      return;
+    }
+    
+    const currentPath = location.pathname;
+    
+    // Check if current path matches any submenu in the currently selected category
+    const currentCategory = menuCategories.find(cat => cat.id === selectedCategoryId);
+    if (currentCategory && currentCategory.submenus) {
+      const matchesCurrentCategory = currentCategory.submenus.some(sub => {
+        const route = sub.route && ROUTES[sub.route] ? ROUTES[sub.route] : sub.to;
+        if (!route) return false;
+        const routePath = String(route).split('?')[0];
+        // Check for exact match or if current path starts with route path
+        return currentPath === routePath || currentPath.startsWith(routePath + '/');
+      });
+      
+      // If current path matches the selected category, don't change it
+      if (matchesCurrentCategory) {
+        return;
+      }
+    }
+    
+    // Only update category if we find a match in a different category
+    // This prevents resetting to dashboard when navigating within the same category
+    for (const category of menuCategories) {
+      if (category.submenus && category.id !== selectedCategoryId) {
+        const matchingSubmenu = category.submenus.find(sub => {
+          const route = sub.route && ROUTES[sub.route] ? ROUTES[sub.route] : sub.to;
+          if (!route) return false;
+          const routePath = String(route).split('?')[0];
+          // Check for exact match or if current path starts with route path
+          return currentPath === routePath || currentPath.startsWith(routePath + '/');
+        });
+        if (matchingSubmenu) {
+          setSelectedCategoryId(category.id);
+          break;
+        }
+      }
+    }
+  }, [location.pathname, menuCategories, setSelectedCategoryId, selectedCategoryId]);
 
   const go = (to) => () => navigate(to);
 
-  // Only collapse the primary menu bar height on scroll, but keep submenu visible when tab is active or hovered
+  // Only collapse the primary menu bar height on scroll
   useEffect(() => {
     let ticking = false;
     const onScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          // Collapse primary menu height when scrolled, but don't hide submenu if tab is active
-          // The submenu visibility is controlled separately by validTab and hoveredTab
-          // Only update if hoveredTab is null to prevent conflicts
-          if (hoveredTab === null) {
-            setCollapsed(window.scrollY > 80);
-          }
+          setCollapsed(window.scrollY > 80);
           ticking = false;
         });
         ticking = true;
@@ -85,39 +128,40 @@ export default function RibbonMenu({ isAdmin = false }) {
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [hoveredTab]);
+  }, []);
 
-  // Auto-navigate to Citizen feedback when Admin tab is selected
+  // Auto-navigate to Citizen feedback when Public tab is selected (for admin)
   useEffect(() => {
-    if (isAdmin && tab === 3 && (hasPrivilege?.('feedback.respond') || user?.roleName === 'admin')) {
-      navigate(ROUTES.FEEDBACK_MANAGEMENT);
+    if (isAdmin && selectedCategoryId === 'public' && (hasPrivilege?.('feedback.respond') || user?.roleName === 'admin')) {
+      // Only navigate if not already on a public route
+      const currentPath = location.pathname;
+      const publicRoutes = menuCategories.find(cat => cat.id === 'public')?.submenus?.map(s => {
+        const route = s.route && ROUTES[s.route] ? ROUTES[s.route] : s.to;
+        return route ? String(route).split('?')[0] : null;
+      }).filter(Boolean) || [];
+      
+      if (!publicRoutes.some(route => currentPath.includes(route))) {
+        navigate(ROUTES.FEEDBACK_MANAGEMENT);
+      }
     }
-  }, [tab, isAdmin, hasPrivilege, user, navigate]);
+  }, [selectedCategoryId, isAdmin, hasPrivilege, user, navigate, location.pathname, menuCategories]);
 
-  // Keyboard shortcuts: Alt+1..4 to switch tabs quickly
+  // Keyboard shortcuts: Alt+1..4 to switch categories quickly
   useEffect(() => {
     const onKey = (e) => {
       if (!e.altKey) return;
       const num = parseInt(e.key, 10);
-      if (!isNaN(num)) {
-        if (num >= 1 && num <= (isAdmin ? 4 : 3)) {
-          setTab(num - 1);
+      if (!isNaN(num) && num >= 1 && num <= menuCategories.length) {
+        const category = menuCategories[num - 1];
+        if (category) {
+          setSelectedCategoryId(category.id);
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isAdmin]);
+  }, [isAdmin, menuCategories, setSelectedCategoryId]);
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(timeoutRefs.current).forEach(timeout => {
-        if (timeout) clearTimeout(timeout);
-      });
-      timeoutRefs.current = {};
-    };
-  }, []);
 
   const Btn = ({ title, icon, to, route, onClick }) => {
     const IconComponent = ICON_MAP[icon] || DashboardIcon;
@@ -203,19 +247,9 @@ export default function RibbonMenu({ isAdmin = false }) {
       setCollapsed(false);
     }}
     onMouseLeave={() => { 
-      // Only collapse if scrolled and no tab is hovered
-      if (window.scrollY > 80 && hoveredTab === null) {
-        // Clear any existing timeout
-        if (timeoutRefs.current.ribbonLeave) {
-          clearTimeout(timeoutRefs.current.ribbonLeave);
-        }
-        // Use setTimeout to prevent rapid state changes
-        timeoutRefs.current.ribbonLeave = setTimeout(() => {
-          if (hoveredTab === null) {
-            setCollapsed(true);
-          }
-          delete timeoutRefs.current.ribbonLeave;
-        }, 100);
+      // Collapse if scrolled
+      if (window.scrollY > 80) {
+        setCollapsed(true);
       }
     }}
     >
@@ -231,27 +265,14 @@ export default function RibbonMenu({ isAdmin = false }) {
       }}>
         {menuCategories.map((category, idx, arr) => {
           const IconComponent = ICON_MAP[category.icon] || DashboardIcon;
-          const isActiveOrHovered = idx === validTab || idx === hoveredTab;
+          const isActive = category.id === selectedCategoryId;
           return (
             <Button
             key={category.label}
-            onClick={() => setTab(idx)}
-            onMouseEnter={() => {
-              setHoveredTab(idx);
-              setCollapsed(false); // Show submenu when hovering
-            }}
-            onMouseLeave={() => {
-              // Clear any existing timeout for this tab
-              if (timeoutRefs.current[`tab-${idx}`]) {
-                clearTimeout(timeoutRefs.current[`tab-${idx}`]);
-              }
-              // Delay clearing hover to allow moving to submenu
-              timeoutRefs.current[`tab-${idx}`] = setTimeout(() => {
-                if (window.scrollY > 80 && idx !== validTab) {
-                  setHoveredTab(null);
-                }
-                delete timeoutRefs.current[`tab-${idx}`];
-              }, 200);
+            onClick={() => {
+              manualSelectionRef.current = true; // Mark as manual selection
+              setSelectedCategoryId(category.id);
+              setCollapsed(false);
             }}
             startIcon={<IconComponent fontSize="small" />}
             disableElevation
@@ -269,12 +290,12 @@ export default function RibbonMenu({ isAdmin = false }) {
               borderBottomLeftRadius: idx === 0 ? 8 : 0,
               borderTopRightRadius: idx === arr.length - 1 ? 8 : 0,
               borderBottomRightRadius: idx === arr.length - 1 ? 8 : 0,
-              background: idx === validTab
+              background: isActive
                 ? 'linear-gradient(180deg, #1099b6, #0e8ea9)'
                 : 'linear-gradient(180deg, #28b9d4, #18a8c4)',
-              boxShadow: idx === validTab ? 'inset 0 0 0 1px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.15)' : 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+              boxShadow: isActive ? 'inset 0 0 0 1px rgba(255,255,255,0.15), 0 2px 6px rgba(0,0,0,0.15)' : 'inset 0 0 0 1px rgba(255,255,255,0.12)',
               '&:hover': {
-                background: idx === validTab
+                background: isActive
                   ? 'linear-gradient(180deg, #0f91ae, #0c86a2)'
                   : 'linear-gradient(180deg, #22b2ce, #159fba)'
               },
@@ -287,58 +308,7 @@ export default function RibbonMenu({ isAdmin = false }) {
         })}
       </Box>
 
-      {/* Ribbon group row - Always show when tab is active or hovered, regardless of scroll */}
-      {(() => {
-        const activeTabIndex = hoveredTab !== null ? hoveredTab : validTab;
-        const activeCategory = menuCategories[activeTabIndex];
-        const shouldShowSubmenu = activeCategory && activeCategory.submenus && activeCategory.submenus.length > 0;
-        
-        // Always show submenu when a tab is active or hovered, regardless of scroll position
-        return shouldShowSubmenu && (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              gap: 0, 
-              px: 0.75, 
-              py: 0.25, 
-              flexWrap: 'wrap', 
-              borderTop: `1px solid ${theme.palette.divider}`, 
-              minHeight: 42,
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(20,25,30,0.95)' : 'rgba(255,255,255,0.95)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-            }}
-            onMouseEnter={() => {
-              if (hoveredTab === null) {
-                setHoveredTab(activeTabIndex);
-              }
-            }}
-            onMouseLeave={() => {
-              // Clear any existing timeout for submenu
-              if (timeoutRefs.current.submenu) {
-                clearTimeout(timeoutRefs.current.submenu);
-              }
-              // Only clear hover if we're not leaving to another tab
-              timeoutRefs.current.submenu = setTimeout(() => {
-                if (hoveredTab === activeTabIndex) {
-                  setHoveredTab(null);
-                }
-                delete timeoutRefs.current.submenu;
-              }, 100);
-            }}
-          >
-            {activeCategory.submenus.map((submenu, subIdx) => (
-              <Btn 
-                key={subIdx}
-                title={submenu.title} 
-                icon={submenu.icon} 
-                route={submenu.route}
-                to={submenu.to}
-              />
-            ))}
-          </Box>
-        );
-      })()}
+      {/* Removed submenu row - submenus now appear in sidebar */}
     </Box>
   );
 }

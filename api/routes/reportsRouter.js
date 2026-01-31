@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Adjust the path as needed
+const { addStatusFilter } = require('../utils/statusFilterHelper');
 
 // --- Department Summary Report Calls ---
 /**
@@ -34,10 +35,9 @@ router.get('/department-summary', async (req, res) => {
             queryParams.push(finYearId);
         }
 
-        if (status || projectStatus) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status || projectStatus);
-        }
+        // Use shared status filter helper for consistent normalization
+        const statusValue = status || projectStatus;
+        addStatusFilter(statusValue, whereConditions, queryParams, 'p');
 
         if (department) {
             whereConditions.push('d.name = ?');
@@ -45,8 +45,35 @@ router.get('/department-summary', async (req, res) => {
         }
 
         if (projectType) {
-            whereConditions.push('pc.name = ?');
-            queryParams.push(projectType);
+            whereConditions.push('(pc.categoryName = ? OR pc.name = ?)');
+            queryParams.push(projectType, projectType);
+        }
+
+        if (section) {
+            whereConditions.push('(s.name = ? OR s.sectionName = ?)');
+            queryParams.push(section, section);
+        }
+        
+        if (subCounty) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_subcounties psc 
+                JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
+                WHERE psc.projectId = p.id 
+                AND (sc.name = ? OR sc.alias = ?)
+                AND psc.voided = 0
+            )`);
+            queryParams.push(subCounty, subCounty);
+        }
+        
+        if (ward) {
+            whereConditions.push(`EXISTS (
+                SELECT 1 FROM kemri_project_wards pw 
+                JOIN kemri_wards w ON pw.wardId = w.wardId
+                WHERE pw.projectId = p.id 
+                AND (w.name = ? OR w.alias = ?)
+                AND pw.voided = 0
+            )`);
+            queryParams.push(ward, ward);
         }
 
         if (startDate) {
@@ -59,7 +86,7 @@ router.get('/department-summary', async (req, res) => {
             queryParams.push(endDate);
         }
 
-        const sqlQuery = `
+        let sqlQuery = `
             SELECT
                 d.name AS departmentName,
                 d.alias AS departmentAlias,
@@ -93,7 +120,29 @@ router.get('/department-summary', async (req, res) => {
                 kemri_projects p
             LEFT JOIN
                 kemri_departments d ON p.departmentId = d.departmentId AND d.voided = 0
-            ${whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')} AND d.name IS NOT NULL` : 'WHERE d.name IS NOT NULL'}
+        `;
+        
+        // Add project categories join if filtering by projectType
+        if (projectType) {
+            sqlQuery += ` LEFT JOIN kemri_project_milestone_implementations pc ON p.categoryId = pc.categoryId`;
+        }
+        
+        // Add sections join if filtering by section
+        if (section) {
+            sqlQuery += ` LEFT JOIN kemri_sections s ON p.sectionId = s.sectionId`;
+        }
+        
+        // Add subcounty/ward joins if filtering by location
+        if (subCounty || ward) {
+            if (subCounty) {
+                sqlQuery += ` LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId AND psc.voided = 0`;
+            }
+            if (ward) {
+                sqlQuery += ` LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId AND pw.voided = 0`;
+            }
+        }
+        
+        sqlQuery += ` ${whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')} AND d.name IS NOT NULL` : 'WHERE d.name IS NOT NULL'}
             GROUP BY
                 d.name, d.alias
             ORDER BY
@@ -413,10 +462,8 @@ router.get('/projects-over-time', async (req, res) => {
             whereConditions.push('sc.subcountyId = ?');
             queryParams.push(subcountyId);
         }
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         const sqlQuery = `
             SELECT
@@ -472,10 +519,8 @@ router.get('/project-list-detailed', async (req, res) => {
             whereConditions.push('p.departmentId = ?');
             queryParams.push(departmentId);
         }
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         const sqlQuery = `
             SELECT
@@ -546,10 +591,8 @@ router.get('/subcounty-summary', async (req, res) => {
             whereConditions.push('sc.countyId = ?');
             queryParams.push(countyId);
         }
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         const sqlQuery = `
             SELECT
@@ -608,10 +651,8 @@ router.get('/ward-summary', async (req, res) => {
             whereConditions.push('sc.subcountyId = ?');
             queryParams.push(subcountyId);
         }
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         const sqlQuery = `
             SELECT
@@ -669,10 +710,8 @@ router.get('/yearly-trends', async (req, res) => {
             whereConditions.push('sc.subcountyId = ?');
             queryParams.push(subcountyId);
         }
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         const sqlQuery = `
             SELECT
@@ -833,10 +872,8 @@ router.get('/summary-kpis', async (req, res) => {
             whereConditions.push('pw.wardId = ?');
             queryParams.push(wardId);
         }
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         const sqlQuery = `
             SELECT
@@ -1694,10 +1731,8 @@ router.get('/absorption-report', async (req, res) => {
             queryParams.push(departmentId);
         }
 
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         if (startDate) {
             whereConditions.push('p.startDate >= ?');
@@ -1849,10 +1884,8 @@ router.get('/performance-management-report', async (req, res) => {
             queryParams.push(departmentId);
         }
 
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         if (startDate) {
             whereConditions.push('p.startDate >= ?');
@@ -1997,10 +2030,8 @@ router.get('/capr-report', async (req, res) => {
             queryParams.push(subCounty);
         }
 
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         if (programme) {
             whereConditions.push('p.programme LIKE ?');
@@ -2141,10 +2172,8 @@ router.get('/quarterly-implementation-report', async (req, res) => {
             queryParams.push(departmentId);
         }
 
-        if (status) {
-            whereConditions.push('p.status = ?');
-            queryParams.push(status);
-        }
+        // Use shared status filter helper for consistent normalization
+        addStatusFilter(status, whereConditions, queryParams, 'p');
 
         if (startDate) {
             whereConditions.push('p.startDate >= ?');

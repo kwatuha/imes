@@ -99,12 +99,12 @@ const projectService = {
 
   // --- Project Analytics API Calls ---
   analytics: {
-    getProjectStatusCounts: async () => {
-      const response = await axiosInstance.get('/projects/status-counts');
+    getProjectStatusCounts: async (filters = {}) => {
+      const response = await axiosInstance.get('/projects/status-counts', { params: filters });
       return response.data;
     },
-    getProjectsByDirectorateCounts: async () => {
-      const response = await axiosInstance.get('/projects/directorate-counts');
+    getProjectsByDirectorateCounts: async (filters = {}) => {
+      const response = await axiosInstance.get('/projects/directorate-counts', { params: filters });
       return response.data;
     },
     getProjectFundingOverview: async () => {

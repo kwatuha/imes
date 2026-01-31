@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
     Box, Typography, Button, Stack, IconButton, CircularProgress, Tooltip, Paper,Grid,Autocomplete,TextField,
+    Card, Chip, Menu, MenuItem, ListItemIcon, ListItemText
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { 
+    Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon,
+    MoreVert as MoreVertIcon, EventNote as EventNoteIcon,
+    CalendarToday as CalendarTodayIcon, AttachMoney as AttachMoneyIcon
+} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../api';
 import AddEditLeaveEntitlementModal from './modals/AddEditLeaveEntitlementModal';
@@ -21,6 +26,8 @@ export default function LeaveEntitlementsSection({ employees, leaveTypes, showNo
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editedItem, setEditedItem] = useState(null);
+    const [rowActionMenuAnchor, setRowActionMenuAnchor] = useState(null);
+    const [selectedRow, setSelectedRow] = useState(null);
 
     const fetchEntitlements = async () => {
         if (!selectedEmployee) return;
@@ -55,9 +62,65 @@ export default function LeaveEntitlementsSection({ employees, leaveTypes, showNo
     };
 
     const columns = [
-        { field: 'leaveTypeName', headerName: 'Leave Type', flex: 1, minWidth: 200 },
-        { field: 'year', headerName: 'Year', flex: 1, minWidth: 150 },
-        { field: 'allocatedDays', headerName: 'Allocated Days', flex: 1, minWidth: 150 },
+        { 
+            field: 'leaveTypeName', 
+            headerName: 'Leave Type', 
+            flex: 1, 
+            minWidth: 180,
+            renderCell: (params) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EventNoteIcon fontSize="small" sx={{ color: colors.blueAccent[300] }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[100] }}>
+                        {params.value || 'N/A'}
+                    </Typography>
+                </Box>
+            )
+        },
+        { 
+            field: 'year', 
+            headerName: 'Year', 
+            flex: 1, 
+            minWidth: 120,
+            headerAlign: 'center',
+            align: 'center',
+            renderCell: (params) => (
+                <Chip 
+                    label={params.value || 'N/A'} 
+                    size="small" 
+                    sx={{ 
+                        fontSize: '0.75rem',
+                        backgroundColor: colors.blueAccent[600],
+                        color: 'white',
+                        fontWeight: 500,
+                        height: '24px'
+                    }} 
+                />
+            )
+        },
+        { 
+            field: 'allocatedDays', 
+            headerName: 'Days', 
+            flex: 0.8, 
+            minWidth: 100,
+            headerAlign: 'center',
+            align: 'center',
+            renderCell: (params) => (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'center' }}>
+                    <CalendarTodayIcon fontSize="small" sx={{ color: colors.greenAccent[400] }} />
+                    <Chip 
+                        label={params.value || 0} 
+                        size="small" 
+                        sx={{ 
+                            fontSize: '0.75rem',
+                            backgroundColor: colors.greenAccent[600],
+                            color: 'white',
+                            fontWeight: 600,
+                            height: '24px'
+                        }} 
+                    />
+                </Box>
+            )
+        },
         {
             field: 'actions',
             headerName: 'Actions',
@@ -65,84 +128,225 @@ export default function LeaveEntitlementsSection({ employees, leaveTypes, showNo
             filterable: false,
             align: 'center',
             headerAlign: 'center',
-            flex: 1,
-            minWidth: 150,
+            width: 60,
+            minWidth: 60,
             renderCell: (params) => (
-                <Stack direction="row" spacing={1} justifyContent="center">
-                    {hasPrivilege('leave.entitlement.update') && (
-                        <Tooltip title="Edit"><IconButton color="primary" onClick={() => handleOpenEditModal(params.row)}><EditIcon /></IconButton></Tooltip>
-                    )}
-                    {hasPrivilege('leave.entitlement.delete') && (
-                        <Tooltip title="Delete"><IconButton color="error" onClick={() => handleOpenDeleteConfirmModal(params.row.id, `Entitlement for ${params.row.leaveTypeName}`, 'leave.entitlement')}><DeleteIcon /></IconButton></Tooltip>
-                    )}
-                </Stack>
+                <Tooltip title="Actions">
+                    <IconButton
+                        size="small"
+                        onClick={(e) => {
+                            setSelectedRow(params.row);
+                            setRowActionMenuAnchor(e.currentTarget);
+                        }}
+                        sx={{ color: colors.blueAccent[300] }}
+                    >
+                        <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            ),
+            renderHeader: () => (
+                <Tooltip title="Actions">
+                    <IconButton
+                        size="small"
+                        sx={{ 
+                            color: 'inherit',
+                            padding: '4px',
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                            }
+                        }}
+                    >
+                        <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
             ),
         },
     ];
 
     return (
         <Box>
-            <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', mb: 2 }}>Leave Entitlements</Typography>
-            <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={6}>
-                        <Autocomplete
-                            options={employees}
-                            getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.staffId})`}
-                            value={selectedEmployee}
-                            onChange={(event, newValue) => setSelectedEmployee(newValue)}
-                            renderInput={(params) => <TextField {...params} label="Select Employee to Manage" />}
-                            sx={{ minWidth: 300 }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                        {selectedEmployee && hasPrivilege('leave.entitlement.create') && (
-                            <Button
-                                variant="contained"
-                                startIcon={<AddIcon />}
-                                onClick={handleOpenAddModal}
-                            >
-                                Add New Entitlement
-                            </Button>
-                        )}
-                    </Grid>
-                </Grid>
-            </Paper>
-
-            <Box
-                m="20px 0 0 0"
-                height="75vh"
-                sx={{
-                    "& .MuiDataGrid-root": {
-                        border: "none",
-                    },
-                    "& .MuiDataGrid-cell": {
-                        borderBottom: "none",
-                    },
-                                "& .MuiDataGrid-columnHeaders": {
-                backgroundColor: `${colors.blueAccent[700]} !important`,
-                borderBottom: "none",
-            },
-            "& .MuiDataGrid-virtualScroller": {
-                backgroundColor: colors.primary[400],
-            },
-            "& .MuiDataGrid-footerContainer": {
-                borderTop: "none",
-                backgroundColor: `${colors.blueAccent[700]} !important`,
-            },
-                    "& .MuiCheckbox-root": {
-                        color: `${colors.greenAccent[200]} !important`,
-                    },
+            <Card 
+                sx={{ 
+                    p: 2, 
+                    backgroundColor: colors.primary[400],
+                    borderRadius: '8px',
+                    boxShadow: theme.palette.mode === 'dark' ? '0 4px 6px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.1)'
                 }}
             >
-                <DataGrid
-                    rows={entitlements}
-                    columns={columns}
-                    getRowId={(row) => row.id}
-                    loading={loading}
-                    autoPageSize
-                />
-            </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AttachMoneyIcon sx={{ color: colors.blueAccent[300], fontSize: 28 }} />
+                        <Typography 
+                            variant="h5" 
+                            component="h2" 
+                            sx={{ 
+                                fontWeight: 'bold',
+                                color: colors.grey[100]
+                            }}
+                        >
+                            Leave Entitlements
+                        </Typography>
+                    </Box>
+                </Box>
+
+                <Paper 
+                    elevation={0}
+                    sx={{ 
+                        p: 2, 
+                        mb: 3,
+                        backgroundColor: colors.primary[500],
+                        borderRadius: '6px',
+                        border: `1px solid ${colors.grey[700]}`
+                    }}
+                >
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} md={8}>
+                            <Autocomplete
+                                options={employees || []}
+                                getOptionLabel={(option) => `${option.firstName} ${option.lastName} (${option.staffId})`}
+                                value={selectedEmployee}
+                                onChange={(event, newValue) => setSelectedEmployee(newValue)}
+                                renderInput={(params) => (
+                                    <TextField 
+                                        {...params} 
+                                        label="Select Employee to Manage" 
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                backgroundColor: colors.primary[400],
+                                                '& fieldset': {
+                                                    borderColor: colors.grey[700],
+                                                },
+                                            },
+                                            '& .MuiInputLabel-root': {
+                                                color: colors.grey[300],
+                                            },
+                                        }}
+                                    />
+                                )}
+                                sx={{ minWidth: 300 }}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            {selectedEmployee && hasPrivilege('leave.entitlement.create') && (
+                                <Button
+                                    variant="contained"
+                                    startIcon={<AddIcon />}
+                                    onClick={handleOpenAddModal}
+                                    sx={{ 
+                                        backgroundColor: colors.blueAccent[500],
+                                        '&:hover': {
+                                            backgroundColor: colors.blueAccent[600],
+                                        },
+                                        fontWeight: 600,
+                                        textTransform: 'none',
+                                        borderRadius: '6px',
+                                        px: 2
+                                    }}
+                                >
+                                    Add Entitlement
+                                </Button>
+                            )}
+                        </Grid>
+                    </Grid>
+                </Paper>
+
+                <Box
+                    height="75vh"
+                    sx={{
+                        "& .MuiDataGrid-root": {
+                            border: "none",
+                        },
+                        "& .MuiDataGrid-cell": {
+                            borderBottom: `1px solid ${colors.grey[700]}`,
+                            py: 1,
+                        },
+                        "& .MuiDataGrid-columnHeaders": {
+                            backgroundColor: `${colors.blueAccent[700]} !important`,
+                            borderBottom: "none",
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                        },
+                        "& .MuiDataGrid-virtualScroller": {
+                            backgroundColor: colors.primary[400],
+                        },
+                        "& .MuiDataGrid-footerContainer": {
+                            borderTop: "none",
+                            backgroundColor: `${colors.blueAccent[700]} !important`,
+                        },
+                        "& .MuiDataGrid-row:hover": {
+                            backgroundColor: `${colors.primary[500]} !important`,
+                        },
+                        "& .MuiCheckbox-root": {
+                            color: `${colors.greenAccent[200]} !important`,
+                        },
+                    }}
+                >
+                    <DataGrid
+                        rows={entitlements}
+                        columns={columns}
+                        getRowId={(row) => row.id}
+                        loading={loading}
+                        pageSizeOptions={[10, 25, 50, 100]}
+                        initialState={{
+                            pagination: {
+                                paginationModel: { pageSize: 25 },
+                            },
+                        }}
+                        sx={{
+                            '& .MuiDataGrid-cell': {
+                                fontSize: '0.85rem',
+                            },
+                        }}
+                    />
+                </Box>
+            </Card>
+
+            {/* Row Action Menu */}
+            <Menu
+                anchorEl={rowActionMenuAnchor}
+                open={Boolean(rowActionMenuAnchor)}
+                onClose={() => {
+                    setRowActionMenuAnchor(null);
+                    setSelectedRow(null);
+                }}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                {selectedRow && (
+                    <>
+                        {hasPrivilege('leave.entitlement.update') && (
+                            <MenuItem onClick={() => {
+                                handleOpenEditModal(selectedRow);
+                                setRowActionMenuAnchor(null);
+                                setSelectedRow(null);
+                            }}>
+                                <ListItemIcon>
+                                    <EditIcon fontSize="small" color="primary" />
+                                </ListItemIcon>
+                                <ListItemText>Edit</ListItemText>
+                            </MenuItem>
+                        )}
+                        {hasPrivilege('leave.entitlement.delete') && (
+                            <MenuItem onClick={() => {
+                                handleOpenDeleteConfirmModal(selectedRow.id, `Entitlement for ${selectedRow.leaveTypeName}`, 'leave.entitlement');
+                                setRowActionMenuAnchor(null);
+                                setSelectedRow(null);
+                            }}>
+                                <ListItemIcon>
+                                    <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
+                                </ListItemIcon>
+                                <ListItemText>Delete</ListItemText>
+                            </MenuItem>
+                        )}
+                    </>
+                )}
+            </Menu>
 
             {isModalOpen && (
                 <AddEditLeaveEntitlementModal

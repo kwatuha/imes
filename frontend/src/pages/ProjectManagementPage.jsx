@@ -140,7 +140,7 @@ function ProjectManagementPage() {
 
   // States for column visibility and menu
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(() => {
-    // Default columns to show: Project Name, Status, Budget, Progress, Department, Fin. Year, Sub-Counties, Wards, Actions
+    // Default columns to show: Project Name, Status, Budget, Progress, Department, Fin. Year, Ward
     const defaultVisibleColumns = [
       'projectName',
       'status',
@@ -148,8 +148,7 @@ function ProjectManagementPage() {
       'overallProgress', // Progress
       'departmentName', // Department
       'financialYearName', // Fin. Year
-      'subcountyNames', // Sub-Counties
-      'wardNames', // Wards
+      'wardNames', // Ward
       'actions' // Always visible
     ];
     
@@ -325,13 +324,13 @@ function ProjectManagementPage() {
   
   // Calculate optimal height based on page size
   const calculateGridHeight = () => {
-    const rowHeight = 48; // Standard DataGrid row height
-    const headerHeight = 52; // Column header height
-    const footerHeight = 48; // Pagination footer height
-    const padding = 24; // Extra padding
+    const rowHeight = 36; // Compact DataGrid row height
+    const headerHeight = 40; // Compact column header height
+    const footerHeight = 40; // Compact pagination footer height
+    const padding = 16; // Reduced padding
     
     const totalHeight = headerHeight + (paginationModel.pageSize * rowHeight) + footerHeight + padding;
-    return Math.max(totalHeight, 380); // Minimum height of 380px
+    return Math.max(totalHeight, 320); // Minimum height of 320px
   };
 
   // Format currency in millions for KPI cards
@@ -970,7 +969,7 @@ function ProjectManagementPage() {
   };
 
   const handleResetColumns = () => {
-    // Default columns to show: Project Name, Status, Budget, Progress, Department, Fin. Year, Sub-Counties, Wards, Actions
+    // Default columns to show: Project Name, Status, Budget, Progress, Department, Fin. Year, Ward
     const defaultVisibleColumns = [
       'projectName',
       'status',
@@ -978,8 +977,7 @@ function ProjectManagementPage() {
       'overallProgress', // Progress
       'departmentName', // Department
       'financialYearName', // Fin. Year
-      'subcountyNames', // Sub-Counties
-      'wardNames', // Wards
+      'wardNames', // Ward
       'actions' // Always visible
     ];
     
@@ -1033,11 +1031,11 @@ function ProjectManagementPage() {
             <Box
               sx={{
                 width: '100%',
-                minHeight: '52px',
+                minHeight: '36px',
                 display: 'flex',
                 alignItems: 'flex-start',
-                py: 1.5,
-                px: 1,
+                py: 0.75,
+                px: 0.75,
                 maxWidth: '100%',
                 boxSizing: 'border-box',
                 overflow: 'visible',
@@ -1051,7 +1049,8 @@ function ProjectManagementPage() {
                   overflowWrap: 'break-word',
                   wordBreak: 'break-word',
                   hyphens: 'auto',
-                  lineHeight: 1.5,
+                  lineHeight: 1.4,
+                  fontSize: '0.8125rem', // Compact font size (13px)
                   width: '100%',
                   maxWidth: '100%',
                   overflow: 'visible',
@@ -2265,29 +2264,43 @@ function ProjectManagementPage() {
       {!loading && !error && projects.length > 0 && columns && columns.length > 0 && (
         <Box
           ref={dataGridRef}
-          sx={{
-            mt: 1.25,
-            backgroundColor: ui.bodyBg,
-            borderRadius: '12px',
-            overflow: 'hidden',
-            boxShadow: ui.elevatedShadow,
-            border: `1px solid ${ui.border}`,
-            height: `${calculateGridHeight()}px`,
-            width: '100%',
-            ...getThemedDataGridSx(theme, colors),
-          }}
+            sx={{
+              mt: 1,
+              backgroundColor: ui.bodyBg,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: ui.elevatedShadow,
+              border: `1px solid ${ui.border}`,
+              height: `${calculateGridHeight()}px`,
+              width: '100%',
+              ...getThemedDataGridSx(theme, colors),
+              '& .MuiDataGrid-columnHeaders': {
+                minHeight: '40px !important',
+                maxHeight: '40px !important',
+                fontSize: '0.8125rem', // Compact header font
+                '& .MuiDataGrid-columnHeaderTitle': {
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                },
+              },
+              '& .MuiDataGrid-footerContainer': {
+                minHeight: '40px !important',
+                maxHeight: '40px !important',
+                fontSize: '0.8125rem', // Compact footer font
+              },
+            }}
         >
           <DataGrid
             rows={dataGridFilteredProjects || []}
             columns={columns}
             getRowId={(row) => row?.id || Math.random()}
             getRowHeight={(params) => {
-              // Calculate row height based on project name length
+              // Calculate row height based on project name length (compact)
               const projectName = params.row?.projectName || '';
-              const lineHeight = 22; // Approximate line height in pixels
-              const padding = 20; // Top and bottom padding
-              const minHeight = 48;
-              const estimatedLines = Math.ceil(projectName.length / 40); // Rough estimate: ~40 chars per line
+              const lineHeight = 18; // Compact line height in pixels
+              const padding = 12; // Reduced top and bottom padding
+              const minHeight = 36; // Compact minimum height
+              const estimatedLines = Math.ceil(projectName.length / 50); // Rough estimate: ~50 chars per line
               const calculatedHeight = Math.max(minHeight, (estimatedLines * lineHeight) + padding);
               return calculatedHeight;
             }}
@@ -2327,9 +2340,9 @@ function ProjectManagementPage() {
                 wordWrap: 'break-word !important',
                 overflowWrap: 'break-word !important',
                 wordBreak: 'break-word !important',
-                paddingTop: '12px !important',
-                paddingBottom: '12px !important',
-                minHeight: '52px !important',
+                paddingTop: '6px !important',
+                paddingBottom: '6px !important',
+                minHeight: '36px !important',
                 display: 'flex !important',
                 alignItems: 'flex-start !important',
                 overflow: 'visible !important',
@@ -2377,8 +2390,11 @@ function ProjectManagementPage() {
               '& .MuiDataGrid-cell': {
                 display: 'flex',
                 alignItems: 'center',
-                paddingTop: '8px',
-                paddingBottom: '8px',
+                paddingTop: '4px',
+                paddingBottom: '4px',
+                paddingLeft: '8px',
+                paddingRight: '8px',
+                fontSize: '0.8125rem', // Compact font size (13px)
                 overflow: 'visible !important',
                 position: 'relative',
                 zIndex: 'auto',

@@ -123,7 +123,13 @@ const ProjectOverviewDashboard = () => {
 
     const fetchBudgetAllocationData = async (filters) => {
         try {
-            const response = await reportsService.getFinancialStatusByProjectStatus(filters);
+            // Remove normalized status filter from API call since API doesn't support it
+            // We'll filter client-side after normalization
+            const apiFilters = { ...filters };
+            delete apiFilters.status;
+            delete apiFilters.projectStatus;
+            
+            const response = await reportsService.getFinancialStatusByProjectStatus(apiFilters);
             // Aggregate financial data by normalized status
             const financialMap = {};
             response.forEach(item => {
@@ -155,7 +161,13 @@ const ProjectOverviewDashboard = () => {
 
     const fetchProjectProgressData = async (filters) => {
         try {
-            const response = await reportsService.getDepartmentSummaryReport(filters);
+            // Remove normalized status filter from API call since API doesn't support it
+            // We'll filter client-side after normalization
+            const apiFilters = { ...filters };
+            delete apiFilters.status;
+            delete apiFilters.projectStatus;
+            
+            const response = await reportsService.getDepartmentSummaryReport(apiFilters);
             return response.map(dept => ({
                 department: dept.departmentAlias || dept.departmentName, // Use alias for display, fallback to name
                 departmentName: dept.departmentName, // Keep full name for tooltips
@@ -206,8 +218,29 @@ const ProjectOverviewDashboard = () => {
 
     const fetchStatusDistributionData = async (filters) => {
         try {
-            const response = await reportsService.getProjectStatusSummary(filters);
-            return response.map(item => ({
+            // Remove normalized status filter from API call since API doesn't support it
+            // We'll filter client-side after normalization
+            const apiFilters = { ...filters };
+            delete apiFilters.status;
+            delete apiFilters.projectStatus;
+            
+            const response = await reportsService.getProjectStatusSummary(apiFilters);
+            // Normalize statuses and group by normalized status (similar to fetchProjectStatusData)
+            const normalizedMap = {};
+            response.forEach(item => {
+                const normalizedStatus = normalizeProjectStatus(item.name);
+                if (!normalizedMap[normalizedStatus]) {
+                    normalizedMap[normalizedStatus] = {
+                        name: normalizedStatus,
+                        value: 0,
+                        count: 0
+                    };
+                }
+                normalizedMap[normalizedStatus].value += item.value || 0;
+                normalizedMap[normalizedStatus].count += item.value || 0;
+            });
+            
+            return Object.values(normalizedMap).map(item => ({
                 name: item.name,
                 value: item.value,
                 color: getProjectStatusBackgroundColor(item.name),
@@ -242,8 +275,13 @@ const ProjectOverviewDashboard = () => {
             ]);
 
             // Apply client-side filtering if needed
-            let filteredProjectStatus = filters.status 
-                ? projectStatusData.filter(item => item.name === filters.status) 
+            // Normalize the filter status to ensure consistent comparison
+            const normalizedFilterStatus = filters.status ? normalizeProjectStatus(filters.status) : null;
+            let filteredProjectStatus = normalizedFilterStatus 
+                ? projectStatusData.filter(item => {
+                    const itemNormalized = normalizeProjectStatus(item.name);
+                    return itemNormalized === normalizedFilterStatus;
+                }) 
                 : projectStatusData;
             
             // Filter by department - check both department (alias) and departmentName (full name)
@@ -270,12 +308,18 @@ const ProjectOverviewDashboard = () => {
                 ? projectTypesData.filter(item => item.name === filters.projectType) 
                 : projectTypesData;
             
-            let filteredBudgetAllocation = filters.status 
-                ? budgetAllocationData.filter(item => item.name === filters.status) 
+            let filteredBudgetAllocation = normalizedFilterStatus 
+                ? budgetAllocationData.filter(item => {
+                    const itemNormalized = normalizeProjectStatus(item.name);
+                    return itemNormalized === normalizedFilterStatus;
+                }) 
                 : budgetAllocationData;
             
-            let filteredStatusDistribution = filters.status 
-                ? statusDistributionData.filter(item => item.name === filters.status) 
+            let filteredStatusDistribution = normalizedFilterStatus 
+                ? statusDistributionData.filter(item => {
+                    const itemNormalized = normalizeProjectStatus(item.name);
+                    return itemNormalized === normalizedFilterStatus;
+                }) 
                 : statusDistributionData;
 
             // Ensure all data has correct colors and verify normalization

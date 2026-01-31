@@ -27,6 +27,8 @@ import "react-pro-sidebar/dist/css/styles.css";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
@@ -45,13 +47,43 @@ import Comment from '@mui/icons-material/Comment';
 import StarIcon from '@mui/icons-material/Star';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import PublicIcon from '@mui/icons-material/Public';
+import FeedbackIcon from '@mui/icons-material/Feedback';
+import ApprovalIcon from '@mui/icons-material/Approval';
+import StorageIcon from '@mui/icons-material/Storage';
 
 import { useAuth } from '../context/AuthContext.jsx';
+import { useMenuCategory } from '../context/MenuCategoryContext.jsx';
+import { useSidebar } from '../context/SidebarContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
+import { getFilteredMenuCategories } from '../configs/menuConfigUtils.js';
 import logo from '../assets/logo.png';
 import userProfilePicture from '../assets/user.png';
 
-const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme }) => {
+// Icon mapping for Material-UI icons
+const ICON_MAP = {
+  DashboardIcon,
+  AssessmentIcon,
+  SettingsIcon,
+  GroupIcon,
+  CloudUploadIcon,
+  MapIcon,
+  PaidIcon,
+  AdminPanelSettingsIcon,
+  PeopleIcon,
+  AccountTreeIcon,
+  ApprovalIcon,
+  FeedbackIcon,
+  StorageIcon,
+  BusinessIcon,
+  AssignmentIcon,
+  AnnouncementIcon,
+  PublicIcon,
+};
+
+const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme, isCollapsed }) => {
   const navigate = useNavigate();
   
   if (privilegeCheck && !privilegeCheck()) {
@@ -65,94 +97,118 @@ const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme })
   };
 
   return (
-    <Box
-      onClick={handleClick}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '8px 12px',
-        margin: '2px 8px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        backgroundColor: selected === to ? theme.palette.action.selected : 'transparent',
-        color: selected === to ? theme.palette.primary.main : theme.palette.text.primary,
-        '&:hover': {
-          backgroundColor: theme.palette.action.hover,
-          transform: 'translateX(2px)',
-          transition: 'all 0.2s ease-in-out',
-        },
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}>
-        {icon}
-      </Box>
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          fontSize: '0.9rem', 
-          fontWeight: selected === to ? '600' : '500',
-          overflow: 'visible', 
-          whiteSpace: 'nowrap', 
-          textOverflow: 'unset' 
-        }}
-      >
-        {title}
-      </Typography>
-    </Box>
-  );
-};
-
-const MenuGroup = ({ title, icon, children, isOpen, onToggle, theme, colors }) => {
-
-  return (
-    <Box>
+    <Tooltip title={isCollapsed ? title : ''} placement="right" arrow>
       <Box
-        onClick={onToggle}
+        onClick={handleClick}
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 12px',
-          margin: '4px 8px',
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
+          padding: isCollapsed ? '8px' : '6px 10px',
+          margin: '2px 6px',
           borderRadius: '6px',
           cursor: 'pointer',
-          backgroundColor: theme.palette.action.hover,
-          color: theme.palette.text.primary,
+          backgroundColor: selected === to ? theme.palette.action.selected : 'transparent',
+          color: selected === to ? theme.palette.primary.main : theme.palette.text.primary,
           '&:hover': {
-            backgroundColor: theme.palette.action.selected,
+            backgroundColor: theme.palette.action.hover,
+            transform: isCollapsed ? 'scale(1.1)' : 'translateX(2px)',
             transition: 'all 0.2s ease-in-out',
           },
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}>
-            {icon}
-          </Box>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        marginRight: isCollapsed ? 0 : '10px',
+        minWidth: isCollapsed ? 'auto' : '20px',
+        justifyContent: 'center',
+        '& svg': {
+          fontSize: isCollapsed ? '20px' : '18px',
+        },
+      }}>
+        {icon}
+      </Box>
+        {!isCollapsed && (
           <Typography 
             variant="body2" 
             sx={{ 
-              fontSize: '0.9rem', 
-              fontWeight: '600', 
-              overflow: 'visible', 
+              fontSize: '0.8rem', 
+              fontWeight: selected === to ? '600' : '500',
+              overflow: 'hidden', 
               whiteSpace: 'nowrap', 
-              textOverflow: 'unset' 
+              textOverflow: 'ellipsis',
+              lineHeight: 1.2,
             }}
           >
             {title}
           </Typography>
-        </Box>
-        {isOpen ? <ExpandLessIcon sx={{ fontSize: '18px' }} /> : <ExpandMoreIcon sx={{ fontSize: '18px' }} />}
+        )}
       </Box>
-      <Collapse in={isOpen} timeout="auto" unmountOnExit>
-        <Box sx={{ pl: 0.5 }}>
-          {children}
+    </Tooltip>
+  );
+};
+
+const MenuGroup = ({ title, icon, children, isOpen, onToggle, theme, colors, isCollapsed }) => {
+
+  return (
+    <Box>
+      <Tooltip title={isCollapsed ? title : ''} placement="right" arrow>
+        <Box
+          onClick={onToggle}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'space-between',
+            padding: isCollapsed ? '10px' : '10px 12px',
+            margin: '4px 8px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.selected,
+              transition: 'all 0.2s ease-in-out',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', width: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', marginRight: isCollapsed ? 0 : '12px' }}>
+              {icon}
+            </Box>
+            {!isCollapsed && (
+              <>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontSize: '0.9rem', 
+                    fontWeight: '600', 
+                    overflow: 'visible', 
+                    whiteSpace: 'nowrap', 
+                    textOverflow: 'unset',
+                    flex: 1,
+                  }}
+                >
+                  {title}
+                </Typography>
+                {isOpen ? <ExpandLessIcon sx={{ fontSize: '18px' }} /> : <ExpandMoreIcon sx={{ fontSize: '18px' }} />}
+              </>
+            )}
+          </Box>
         </Box>
-      </Collapse>
+      </Tooltip>
+      {!isCollapsed && (
+        <Collapse in={isOpen} timeout="auto" unmountOnExit>
+          <Box sx={{ pl: 0.5 }}>
+            {children}
+          </Box>
+        </Collapse>
+      )}
     </Box>
   );
 };
 
-const SearchableMenu = ({ items, selected, setSelected, theme }) => {
+const SearchableMenu = ({ items, selected, setSelected, theme, isCollapsed }) => {
   return (
     <Fade in={true} timeout={300}>
       <Box>
@@ -167,6 +223,7 @@ const SearchableMenu = ({ items, selected, setSelected, theme }) => {
                 setSelected={setSelected}
                 privilegeCheck={item.privilege}
                 theme={theme}
+                isCollapsed={isCollapsed}
               />
             </Box>
           </Zoom>
@@ -178,6 +235,8 @@ const SearchableMenu = ({ items, selected, setSelected, theme }) => {
 
 const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
   const theme = useTheme();
+  const { selectedCategoryId } = useMenuCategory();
+  const { user, hasPrivilege } = useAuth();
   
   // ✨ Compatibility layer for theme colors (simplified from old token system)
   const colors = {
@@ -207,27 +266,47 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const [selected, setSelected] = useState(location.pathname);
-  const [openGroups, setOpenGroups] = useState({
-    dashboard: true,
-    reporting: true,
-    management: true,
-    admin: false
-  });
-
-  const { user, hasPrivilege } = useAuth();
+  
+  // Get sidebar collapse state from context
+  const { isCollapsed, toggleSidebar } = useSidebar();
+  
+  // Get filtered menu categories
+  const menuCategories = useMemo(() => {
+    return getFilteredMenuCategories(user?.roleName === 'admin', hasPrivilege, user);
+  }, [hasPrivilege, user]);
+  
+  // Get the selected category and its submenus
+  const selectedCategory = useMemo(() => {
+    return menuCategories.find(cat => cat.id === selectedCategoryId) || menuCategories[0];
+  }, [selectedCategoryId, menuCategories]);
+  
+  // Get submenu items for the selected category
+  const submenuItems = useMemo(() => {
+    if (!selectedCategory || !selectedCategory.submenus) return [];
+    
+    return selectedCategory.submenus
+      .filter(submenu => {
+        // Filter based on permissions and visibility
+        if (submenu.hidden) return false;
+        if (submenu.permission && !hasPrivilege?.(submenu.permission)) return false;
+        if (submenu.roles && !submenu.roles.includes(user?.roleName)) return false;
+        return true;
+      })
+      .map(submenu => {
+        const route = submenu.route && ROUTES[submenu.route] ? ROUTES[submenu.route] : submenu.to;
+        const IconComponent = ICON_MAP[submenu.icon] || DashboardIcon;
+        return {
+          title: submenu.title,
+          to: route,
+          icon: <IconComponent />,
+        };
+      });
+  }, [selectedCategory, hasPrivilege, user]);
   
   // Update selected state when route changes
   useEffect(() => {
     setSelected(location.pathname);
   }, [location]);
-
-  // Handle group toggle with useCallback for performance
-  const toggleGroup = useCallback((groupName) => {
-    setOpenGroups(prev => ({
-      ...prev,
-      [groupName]: !prev[groupName]
-    }));
-  }, []);
 
   // Organized menu groups
   const dashboardItems = [
@@ -286,13 +365,10 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
     return [...dashboardItems, ...reportingItems, ...managementItems];
   }, [user?.roleName]);
 
-  const [collapsed, setCollapsed] = useState(!isPinnedOpen);
-  const expandedWidth = 240;
-  const collapsedWidth = 64;
-
-  useEffect(() => {
-    setCollapsed(!isPinnedOpen);
-  }, [isPinnedOpen]);
+  // Sidebar width based on collapsed state
+  const expandedWidth = 200; // Width with labels
+  const collapsedWidth = 64; // Width with icons only
+  const currentWidth = isCollapsed ? collapsedWidth : expandedWidth;
 
   return (
     <Box
@@ -308,10 +384,11 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
         top: '64px',
         left: 0,
         height: 'calc(100vh - 64px)',
-        width: collapsed ? `${collapsedWidth}px` : `${expandedWidth}px`,
+        width: `${currentWidth}px`,
         zIndex: 999,
         display: 'block',
         visibility: 'visible',
+        transition: 'width 0.3s ease-in-out',
         clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%)',
         '&::before': {
           content: '""',
@@ -441,9 +518,10 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
           top: "64px !important", // Start below the AppBar
           left: "0 !important",
           height: "calc(100vh - 64px) !important", // Adjust height to account for AppBar
-          width: `${collapsedWidth}px !important`,
+          width: `${currentWidth}px !important`,
           display: "block !important",
           visibility: "visible !important",
+          transition: "width 0.3s ease-in-out !important",
         },
       }}
     >
@@ -453,7 +531,7 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
           top: '64px',
           left: 0,
           height: 'calc(100vh - 64px)',
-          width: `${collapsedWidth}px`, // Always collapsed - just show colored strip
+          width: `${currentWidth}px`,
           zIndex: 999,
           display: 'block',
           visibility: 'visible',
@@ -463,11 +541,115 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
           borderRight: `1px solid ${theme.palette.mode === 'dark' 
             ? colors.primary[400] 
             : '#4fc3f7'}`,
+          transition: 'width 0.3s ease-in-out',
         }}
       >
-        {/* Empty sidebar - just the colored strip */}
-        <Box sx={{ height: '100%', width: '100%' }} />
+        <Box sx={{ 
+          height: '100%', 
+          width: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          py: 1.5,
+          px: 0.5,
+          position: 'relative',
+        }}>
+          {/* Toggle Button */}
+          <Box sx={{
+            position: 'absolute',
+            top: 8,
+            right: isCollapsed ? 4 : 8,
+            zIndex: 1000,
+            transition: 'right 0.3s ease-in-out',
+          }}>
+            <Tooltip title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'} placement="right" arrow>
+              <IconButton
+                onClick={toggleSidebar}
+                size="small"
+                sx={{
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255,255,255,0.1)' 
+                    : 'rgba(255,255,255,0.8)',
+                  color: theme.palette.mode === 'dark' 
+                    ? colors.blueAccent[400] 
+                    : '#0284c7',
+                  border: `1px solid ${theme.palette.mode === 'dark' 
+                    ? 'rgba(255,255,255,0.2)' 
+                    : 'rgba(0,0,0,0.1)'}`,
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(255,255,255,0.2)' 
+                      : 'rgba(255,255,255,1)',
+                    transform: 'scale(1.1)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  width: 28,
+                  height: 28,
+                }}
+              >
+                {isCollapsed ? <ChevronRightIcon sx={{ fontSize: 16 }} /> : <ChevronLeftIcon sx={{ fontSize: 16 }} />}
+              </IconButton>
+            </Tooltip>
+          </Box>
 
+          {/* Category Title */}
+          {selectedCategory && !isCollapsed && (
+            <Box sx={{ 
+              px: 1.5, 
+              py: 1, 
+              mb: 1.5,
+              mt: 4, // Add top margin to account for toggle button
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(255,255,255,0.1)' 
+                : 'rgba(255,255,255,0.5)',
+              borderRadius: '6px',
+              border: `1px solid ${theme.palette.mode === 'dark' 
+                ? 'rgba(255,255,255,0.1)' 
+                : 'rgba(0,0,0,0.1)'}`,
+            }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: theme.palette.mode === 'dark' 
+                    ? colors.blueAccent[400] 
+                    : '#0284c7',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {selectedCategory.label}
+              </Typography>
+            </Box>
+          )}
+          
+          {selectedCategory && isCollapsed && (
+            <Box sx={{ mt: 4, mb: 1 }} /> // Spacer when collapsed
+          )}
+          
+          {/* Submenu Items */}
+          {submenuItems.length > 0 ? (
+            <SearchableMenu 
+              items={submenuItems}
+              selected={selected}
+              setSelected={setSelected}
+              theme={theme}
+              isCollapsed={isCollapsed}
+            />
+          ) : (
+            !isCollapsed && (
+              <Box sx={{ px: 2, py: 4, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  No items available
+                </Typography>
+              </Box>
+            )
+          )}
+        </Box>
       </ProSidebar>
     </Box>
   );
