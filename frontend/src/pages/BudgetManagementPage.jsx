@@ -1433,8 +1433,13 @@ function BudgetManagementPage() {
     { 
       field: 'departmentName', 
       headerName: 'Department', 
-      flex: 1.2, 
-      minWidth: 120 
+      flex: 1.5, 
+      minWidth: 220,
+      renderCell: (params) => (
+        <Typography variant="body2" noWrap title={params.value || 'N/A'}>
+          {params.value || 'N/A'}
+        </Typography>
+      )
     },
     { 
       field: 'totalAmount', 
@@ -2231,8 +2236,8 @@ function BudgetManagementPage() {
                   </Box>
                   
                   {items.length > 0 ? (
-                    <TableContainer>
-                      <Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.813rem', borderBottom: 'none' } }}>
+                    <TableContainer sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+                      <Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.813rem', borderBottom: 'none' }, minWidth: 950 }}>
                         <TableHead>
                           <TableRow sx={{ 
                             bgcolor: theme.palette.mode === 'dark' ? colors.blueAccent[900] : colors.blueAccent[50],
@@ -2245,11 +2250,11 @@ function BudgetManagementPage() {
                             }
                           }}>
                             <TableCell sx={{ width: 50, textAlign: 'center' }}>#</TableCell>
-                            <TableCell>Project Name</TableCell>
-                            <TableCell>Department</TableCell>
-                            <TableCell>Subcounty</TableCell>
-                            <TableCell>Ward</TableCell>
-                            <TableCell align="right">Amount</TableCell>
+                            <TableCell sx={{ minWidth: 200 }}>Project Name</TableCell>
+                            <TableCell sx={{ minWidth: 170, maxWidth: 170 }}>Department</TableCell>
+                            <TableCell sx={{ minWidth: 120 }}>Subcounty</TableCell>
+                            <TableCell sx={{ minWidth: 120 }}>Ward</TableCell>
+                            <TableCell align="right" sx={{ minWidth: 160, whiteSpace: 'nowrap' }}>Amount</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -2278,10 +2283,12 @@ function BudgetManagementPage() {
                                 <TableCell sx={{ py: 1, textAlign: 'center', fontWeight: 600, color: 'text.secondary', fontSize: '0.813rem' }}>
                                   {itemIndex + 1}
                                 </TableCell>
-                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{formatToSentenceCase(item.projectName) || 'N/A'}</TableCell>
-                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{item.departmentName || 'N/A'}</TableCell>
-                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{formatToSentenceCase(item.subcountyName) || 'N/A'}</TableCell>
-                                <TableCell sx={{ py: 1, fontSize: '0.813rem' }}>{formatToSentenceCase(item.wardName) || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem', minWidth: 200 }}>{formatToSentenceCase(item.projectName) || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem', minWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.departmentName || 'N/A'}>
+                                  {item.departmentName || 'N/A'}
+                                </TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem', minWidth: 120 }}>{formatToSentenceCase(item.subcountyName) || 'N/A'}</TableCell>
+                                <TableCell sx={{ py: 1, fontSize: '0.813rem', minWidth: 120 }}>{formatToSentenceCase(item.wardName) || 'N/A'}</TableCell>
                                 <TableCell sx={{ py: 1, align: 'right', fontWeight: 600, fontSize: '0.813rem', color: 'success.main' }}>
                                   {formatCurrency(item.amount || 0)}
                                 </TableCell>
@@ -2469,25 +2476,14 @@ function BudgetManagementPage() {
                       </Tooltip>
                     </>
                   )}
-                  {selectedContainer.status !== 'Approved' || selectedContainer.isFrozen !== 1 ? (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<AddIcon />}
-                      onClick={handleOpenAddItemDialog}
-                      sx={{ height: 32 }}
-                    >
-                      Add Item
-                    </Button>
-                  ) : (
-                    <Chip 
-                      icon={<LockIcon sx={{ fontSize: 14 }} />}
-                      label="Locked" 
-                      color="warning"
-                      size="small"
-                      sx={{ height: 24 }}
-                    />
-                  )}
+                  {/* Add Item button disabled - items should be imported only */}
+                  <Chip 
+                    icon={<LockIcon sx={{ fontSize: 14 }} />}
+                    label="Items via Import Only" 
+                    color="info"
+                    size="small"
+                    sx={{ height: 24 }}
+                  />
                 </Stack>
               </Box>
               
@@ -2582,16 +2578,16 @@ function BudgetManagementPage() {
                 </Grid>
               </Box>
               
-              <TableContainer>
-                <Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.813rem' } }}>
+              <TableContainer sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+                <Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.813rem' }, minWidth: 950 }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'action.hover' }}>
                       <TableCell sx={{ fontWeight: 700, py: 0.75, width: 50, textAlign: 'center', fontSize: '0.75rem' }}>#</TableCell>
-                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem' }}>Project Name</TableCell>
-                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem' }}>Department</TableCell>
-                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem' }}>Subcounty</TableCell>
-                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem' }}>Ward</TableCell>
-                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem' }} align="right">Amount</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem', minWidth: 200 }}>Project Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem', minWidth: 220, whiteSpace: 'nowrap' }}>Department</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem', minWidth: 120 }}>Subcounty</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem', minWidth: 120 }}>Ward</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem', minWidth: 150, whiteSpace: 'nowrap' }} align="right">Amount</TableCell>
                       <TableCell sx={{ fontWeight: 700, py: 0.75, fontSize: '0.813rem' }} align="center" width={90}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -2609,10 +2605,12 @@ function BudgetManagementPage() {
                           <TableCell sx={{ py: 0.75, textAlign: 'center', fontWeight: 600, color: 'text.secondary', fontSize: '0.813rem' }}>
                             {index + 1}
                           </TableCell>
-                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem' }}>{formatToSentenceCase(item.projectName) || 'N/A'}</TableCell>
-                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem' }}>{item.departmentName || 'N/A'}</TableCell>
-                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem' }}>{formatToSentenceCase(item.subcountyName) || 'N/A'}</TableCell>
-                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem' }}>{formatToSentenceCase(item.wardName) || 'N/A'}</TableCell>
+                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem', minWidth: 200 }}>{formatToSentenceCase(item.projectName) || 'N/A'}</TableCell>
+                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem', minWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.departmentName || 'N/A'}>
+                            {item.departmentName || 'N/A'}
+                          </TableCell>
+                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem', minWidth: 120 }}>{formatToSentenceCase(item.subcountyName) || 'N/A'}</TableCell>
+                          <TableCell sx={{ py: 0.75, fontSize: '0.813rem', minWidth: 120 }}>{formatToSentenceCase(item.wardName) || 'N/A'}</TableCell>
                           <TableCell sx={{ py: 0.75, align: 'right', fontWeight: 600, fontSize: '0.813rem', color: 'success.main' }}>
                             {formatCurrency(item.amount || 0)}
                           </TableCell>

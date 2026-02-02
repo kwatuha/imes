@@ -7,7 +7,6 @@ const auth = require('../middleware/authenticate');
 const privilege = require('../middleware/privilegeMiddleware');
 const multer = require('multer');
 const xlsx = require('xlsx');
-const metadataService = require('../services/metadataService');
 
 /**
  * ============================================
@@ -105,7 +104,7 @@ router.get('/containers', async (req, res) => {
                 u.lastName as createdByLastName,
                 approver.firstName as approvedByFirstName,
                 approver.lastName as approvedByLastName,
-                (SELECT COUNT(*) FROM kemri_budget_items WHERE budgetId = b.budgetId AND voided = 0) as itemCount
+                (SELECT COUNT(*) FROM kemri_projects WHERE budgetId = b.budgetId AND voided = 0) as itemCount
             FROM kemri_budgets b
             LEFT JOIN kemri_financialyears fy ON b.finYearId = fy.finYearId
             LEFT JOIN kemri_departments d ON b.departmentId = d.departmentId
@@ -118,42 +117,16 @@ router.get('/containers', async (req, res) => {
         
         queryParams.push(parseInt(limit), offset);
         
-        const startTime = Date.now();
         console.log('Executing query with params:', queryParams);
         console.log('Query:', query);
-        console.log('Where clause:', whereClause);
-        
         const [budgets] = await pool.query(query, queryParams);
-        const queryTime = Date.now() - startTime;
-        console.log(`Query executed successfully in ${queryTime}ms`);
+        console.log('Query executed successfully');
 
         console.log('Found budgets:', budgets.length);
         console.log('Total count:', total);
-        
-        if (queryTime > 5000) {
-            console.warn(`⚠️ WARNING: Query took ${queryTime}ms - this is slow and may cause timeout issues.`);
-        }
-        
-        if (budgets.length > 0) {
-            console.log('Sample budget:', {
-                budgetId: budgets[0].budgetId,
-                budgetName: budgets[0].budgetName,
-                voided: 'N/A (filtered)',
-                finYearId: budgets[0].finYearId,
-                departmentId: budgets[0].departmentId,
-                status: budgets[0].status,
-                budgetType: budgets[0].budgetType
-            });
-        } else if (total > 0) {
-            console.warn('⚠️ WARNING: Total count > 0 but no budgets returned. This suggests a pagination issue or query problem.');
-            console.warn('Query params:', queryParams);
-            console.warn('Where clause:', whereClause);
-        } else {
-            console.log('No budgets found matching criteria');
-        }
 
         res.json({
-            budgets: budgets || [],
+            budgets,
             pagination: {
                 total,
                 page: parseInt(page),
@@ -207,27 +180,41 @@ router.get('/containers/:budgetId', auth, async (req, res) => {
 
         const budget = budgets[0];
 
-        // Get budget items
+        // Get budget items directly from kemri_projects using budgetId
+        // We no longer rely on kemri_budget_items for viewing - only projects with this budgetId
         const itemsQuery = `
             SELECT 
-                bi.*,
+                p.id as projectId,
+                p.projectName,
+                p.costOfProject as amount,
+                p.status as projectStatus,
+                p.departmentId,
+                p.finYearId,
+                p.budgetId,
+                p.createdAt,
+                p.updatedAt,
                 d.name as departmentName,
                 sc.name as subcountyName,
                 w.name as wardName,
-                p.projectName as linkedProjectName,
                 u.firstName as createdByFirstName,
-                u.lastName as createdByLastName
-            FROM kemri_budget_items bi
-            LEFT JOIN kemri_departments d ON bi.departmentId = d.departmentId
-            LEFT JOIN kemri_subcounties sc ON bi.subcountyId = sc.subcountyId
-            LEFT JOIN kemri_wards w ON bi.wardId = w.wardId
-            LEFT JOIN kemri_projects p ON bi.projectId = p.id
-            LEFT JOIN kemri_users u ON bi.userId = u.userId
-            WHERE bi.budgetId = ? AND bi.voided = 0
-            ORDER BY bi.createdAt DESC
+                u.lastName as createdByLastName,
+                bi.itemId,
+                bi.remarks,
+                bi.addedAfterApproval,
+                bi.changeRequestId
+            FROM kemri_projects p
+            LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
+            LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId
+            LEFT JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
+            LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId
+            LEFT JOIN kemri_wards w ON pw.wardId = w.wardId
+            LEFT JOIN kemri_users u ON p.userId = u.userId
+            LEFT JOIN kemri_budget_items bi ON p.id = bi.projectId AND bi.budgetId = ? AND bi.voided = 0
+            WHERE p.budgetId = ? AND p.voided = 0
+            ORDER BY p.createdAt DESC
         `;
 
-        const [items] = await pool.query(itemsQuery, [budgetId]);
+        const [items] = await pool.query(itemsQuery, [budgetId, budgetId]);
 
         // Get pending change requests
         const changesQuery = `
@@ -284,8 +271,8 @@ router.post('/containers', auth, async (req, res) => {
 
         const query = `
             INSERT INTO kemri_budgets 
-            (budgetName, budgetType, finYearId, departmentId, description, requiresApprovalForChanges, userId, voided)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            (budgetName, budgetType, finYearId, departmentId, description, requiresApprovalForChanges, userId)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
 
         const [result] = await pool.query(query, [
@@ -536,26 +523,40 @@ router.get('/containers/:budgetId/items', auth, async (req, res) => {
     try {
         const { budgetId } = req.params;
 
+        // Query projects directly using budgetId, with optional budget_items metadata
         const query = `
             SELECT 
-                bi.*,
+                p.id as projectId,
+                p.projectName,
+                p.costOfProject as amount,
+                p.status,
+                p.departmentId,
+                p.budgetId,
+                p.createdAt,
+                p.updatedAt,
                 d.name as departmentName,
                 sc.name as subcountyName,
                 w.name as wardName,
-                p.projectName as linkedProjectName,
+                bi.itemId,
+                bi.remarks,
+                bi.addedAfterApproval,
+                bi.changeRequestId,
+                bi.userId,
                 u.firstName as createdByFirstName,
                 u.lastName as createdByLastName
-            FROM kemri_budget_items bi
-            LEFT JOIN kemri_departments d ON bi.departmentId = d.departmentId
-            LEFT JOIN kemri_subcounties sc ON bi.subcountyId = sc.subcountyId
-            LEFT JOIN kemri_wards w ON bi.wardId = w.wardId
-            LEFT JOIN kemri_projects p ON bi.projectId = p.id
-            LEFT JOIN kemri_users u ON bi.userId = u.userId
-            WHERE bi.budgetId = ? AND bi.voided = 0
-            ORDER BY bi.createdAt DESC
+            FROM kemri_projects p
+            LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
+            LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId
+            LEFT JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
+            LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId
+            LEFT JOIN kemri_wards w ON pw.wardId = w.wardId
+            LEFT JOIN kemri_budget_items bi ON p.id = bi.projectId AND bi.budgetId = ? AND bi.voided = 0
+            LEFT JOIN kemri_users u ON COALESCE(bi.userId, p.userId) = u.userId
+            WHERE p.budgetId = ? AND p.voided = 0
+            ORDER BY p.createdAt DESC
         `;
 
-        const [items] = await pool.query(query, [budgetId]);
+        const [items] = await pool.query(query, [budgetId, budgetId]);
 
         res.json({ items });
     } catch (error) {
@@ -584,6 +585,7 @@ router.post('/containers/:budgetId/items', auth, privilege(['budget.update']), a
         } = req.body;
 
         // Validation
+        // Note: amount is now stored in kemri_projects.costOfProject, not in kemri_budget_items
         if (!projectName || !departmentId || !amount || amount <= 0) {
             return res.status(400).json({ 
                 message: 'Missing required fields: projectName, departmentId, and amount (must be > 0) are required' 
@@ -603,6 +605,65 @@ router.post('/containers/:budgetId/items', auth, privilege(['budget.update']), a
         const budgetData = budget[0];
         const userId = req.user?.userId || 1;
 
+        // Get or create project - amount goes into costOfProject
+        let finalProjectId = projectId;
+        if (!finalProjectId) {
+            // Check if project exists by name
+            const [existingProjects] = await pool.query(
+                'SELECT id FROM kemri_projects WHERE voided = 0 AND projectName = ? LIMIT 1',
+                [projectName]
+            );
+
+            if (existingProjects.length > 0) {
+                finalProjectId = existingProjects[0].id;
+                // Update costOfProject if the new amount is higher, set status to 'Under Procurement' if null, and update budgetId to current budget
+                await pool.query(
+                    'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                    [amount, 'Under Procurement', budgetId, finalProjectId]
+                );
+            } else {
+                // Create new project with amount in costOfProject
+                const [projectResult] = await pool.query(
+                    'INSERT INTO kemri_projects (projectName, departmentId, finYearId, costOfProject, status, budgetId, userId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [projectName, departmentId, budgetData.finYearId, amount, 'Under Procurement', budgetId, userId]
+                );
+                finalProjectId = projectResult.insertId;
+            }
+        } else {
+            // Update existing project's costOfProject if amount is provided, set status to 'Under Procurement' if null, and update budgetId to current budget
+            await pool.query(
+                'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                [amount, 'Under Procurement', budgetId, finalProjectId]
+            );
+        }
+
+        // Link project to locations via junction tables
+        if (wardId) {
+            const [existingWardLink] = await pool.query(
+                'SELECT * FROM kemri_project_wards WHERE projectId = ? AND wardId = ?',
+                [finalProjectId, wardId]
+            );
+            if (existingWardLink.length === 0) {
+                await pool.query(
+                    'INSERT INTO kemri_project_wards (projectId, wardId) VALUES (?, ?)',
+                    [finalProjectId, wardId]
+                );
+            }
+        }
+
+        if (subcountyId) {
+            const [existingSubcountyLink] = await pool.query(
+                'SELECT * FROM kemri_project_subcounties WHERE projectId = ? AND subcountyId = ?',
+                [finalProjectId, subcountyId]
+            );
+            if (existingSubcountyLink.length === 0) {
+                await pool.query(
+                    'INSERT INTO kemri_project_subcounties (projectId, subcountyId) VALUES (?, ?)',
+                    [finalProjectId, subcountyId]
+                );
+            }
+        }
+
         // Check if budget is approved and frozen - requires change request
         if (budgetData.status === 'Approved' && budgetData.isFrozen && budgetData.requiresApprovalForChanges) {
             if (!changeReason) {
@@ -618,13 +679,9 @@ router.post('/containers/:budgetId/items', auth, privilege(['budget.update']), a
                 VALUES (?, 'Item Added', ?, 'Pending Approval', ?, ?)
             `;
 
+            // Note: projectName, departmentId, subcountyId, wardId, amount are removed - get these from the project instead
             const newValue = JSON.stringify({
-                projectId: projectId || null,
-                projectName,
-                departmentId,
-                subcountyId: subcountyId || null,
-                wardId: wardId || null,
-                amount,
+                projectId: finalProjectId || null,
                 remarks: remarks || null
             });
 
@@ -642,20 +699,17 @@ router.post('/containers/:budgetId/items', auth, privilege(['budget.update']), a
         }
 
         // Directly add item if budget is not approved/frozen
+        // Note: projectName, departmentId, subcountyId, wardId, amount are removed - get these from the project instead
+        // Amount is stored in kemri_projects.costOfProject
         const itemQuery = `
             INSERT INTO kemri_budget_items 
-            (budgetId, projectId, projectName, departmentId, subcountyId, wardId, amount, remarks, userId)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (budgetId, projectId, remarks, userId)
+            VALUES (?, ?, ?, ?)
         `;
 
         const [result] = await pool.query(itemQuery, [
             budgetId,
-            projectId || null,
-            projectName,
-            departmentId,
-            subcountyId || null,
-            wardId || null,
-            amount,
+            finalProjectId,
             remarks || null,
             userId
         ]);
@@ -701,9 +755,28 @@ router.put('/items/:itemId', auth, privilege(['budget.update']), async (req, res
 
         // Get item and budget info
         const [items] = await pool.query(
-            `SELECT bi.*, b.status, b.isFrozen, b.requiresApprovalForChanges 
+            `SELECT 
+                bi.itemId,
+                bi.budgetId,
+                bi.projectId,
+                bi.remarks,
+                bi.addedAfterApproval,
+                bi.changeRequestId,
+                bi.userId,
+                bi.voided,
+                bi.voidedBy,
+                bi.voidedAt,
+                bi.createdAt,
+                bi.updatedAt,
+                p.projectName,
+                p.costOfProject as amount,
+                p.status as projectStatus,
+                b.status as budgetStatus,
+                b.isFrozen,
+                b.requiresApprovalForChanges 
              FROM kemri_budget_items bi
              INNER JOIN kemri_budgets b ON bi.budgetId = b.budgetId
+             LEFT JOIN kemri_projects p ON bi.projectId = p.id
              WHERE bi.itemId = ? AND bi.voided = 0`,
             [itemId]
         );
@@ -714,7 +787,7 @@ router.put('/items/:itemId', auth, privilege(['budget.update']), async (req, res
 
         const item = items[0];
         const budget = {
-            status: items[0].status,
+            status: items[0].budgetStatus,
             isFrozen: items[0].isFrozen,
             requiresApprovalForChanges: items[0].requiresApprovalForChanges
         };
@@ -730,24 +803,15 @@ router.put('/items/:itemId', auth, privilege(['budget.update']), async (req, res
             }
 
             // Create change request
+            // Note: projectName, departmentId, subcountyId, wardId, amount are removed - get these from the project instead
             const oldValue = JSON.stringify({
-                projectId: item.projectId,
-                projectName: item.projectName,
-                departmentId: item.departmentId,
-                subcountyId: item.subcountyId,
-                wardId: item.wardId,
-                amount: item.amount,
-                remarks: item.remarks
+                projectId: item.projectId || null,
+                remarks: item.remarks || null
             });
 
             const newValue = JSON.stringify({
-                projectId: projectId !== undefined ? (projectId || null) : item.projectId,
-                projectName: projectName !== undefined ? projectName : item.projectName,
-                departmentId: departmentId !== undefined ? departmentId : item.departmentId,
-                subcountyId: subcountyId !== undefined ? (subcountyId || null) : item.subcountyId,
-                wardId: wardId !== undefined ? (wardId || null) : item.wardId,
-                amount: amount !== undefined ? amount : item.amount,
-                remarks: remarks !== undefined ? (remarks || null) : item.remarks
+                projectId: projectId !== undefined ? (projectId || null) : item.projectId || null,
+                remarks: remarks !== undefined ? (remarks || null) : item.remarks || null
             });
 
             const changeQuery = `
@@ -772,6 +836,7 @@ router.put('/items/:itemId', auth, privilege(['budget.update']), async (req, res
         }
 
         // Directly update if budget is not approved/frozen
+        // Note: projectName, departmentId, subcountyId, wardId, amount are removed - update these on the project instead
         const updates = [];
         const values = [];
 
@@ -779,32 +844,18 @@ router.put('/items/:itemId', auth, privilege(['budget.update']), async (req, res
             updates.push('projectId = ?');
             values.push(projectId || null);
         }
-        if (projectName !== undefined) {
-            updates.push('projectName = ?');
-            values.push(projectName);
-        }
-        if (departmentId !== undefined) {
-            updates.push('departmentId = ?');
-            values.push(departmentId);
-        }
-        if (subcountyId !== undefined) {
-            updates.push('subcountyId = ?');
-            values.push(subcountyId || null);
-        }
-        if (wardId !== undefined) {
-            updates.push('wardId = ?');
-            values.push(wardId || null);
-        }
-        if (amount !== undefined) {
-            if (amount <= 0) {
-                return res.status(400).json({ message: 'Amount must be greater than 0' });
-            }
-            updates.push('amount = ?');
-            values.push(amount);
-        }
         if (remarks !== undefined) {
             updates.push('remarks = ?');
             values.push(remarks || null);
+        }
+        
+        // If amount is provided, update the project's costOfProject, set status to 'Under Procurement' if null, and update budgetId
+        const finalProjectIdForUpdate = projectId !== undefined ? projectId : item.projectId;
+        if (amount !== undefined && amount > 0 && finalProjectIdForUpdate) {
+            await pool.query(
+                'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                [amount, 'Under Procurement', item.budgetId, finalProjectIdForUpdate]
+            );
         }
 
         if (updates.length === 0) {
@@ -841,9 +892,28 @@ router.delete('/items/:itemId', auth, privilege(['budget.update']), async (req, 
 
         // Get item and budget info
         const [items] = await pool.query(
-            `SELECT bi.*, b.status, b.isFrozen, b.requiresApprovalForChanges 
+            `SELECT 
+                bi.itemId,
+                bi.budgetId,
+                bi.projectId,
+                bi.remarks,
+                bi.addedAfterApproval,
+                bi.changeRequestId,
+                bi.userId,
+                bi.voided,
+                bi.voidedBy,
+                bi.voidedAt,
+                bi.createdAt,
+                bi.updatedAt,
+                p.projectName,
+                p.costOfProject as amount,
+                p.status as projectStatus,
+                b.status as budgetStatus,
+                b.isFrozen,
+                b.requiresApprovalForChanges 
              FROM kemri_budget_items bi
              INNER JOIN kemri_budgets b ON bi.budgetId = b.budgetId
+             LEFT JOIN kemri_projects p ON bi.projectId = p.id
              WHERE bi.itemId = ? AND bi.voided = 0`,
             [itemId]
         );
@@ -854,7 +924,7 @@ router.delete('/items/:itemId', auth, privilege(['budget.update']), async (req, 
 
         const item = items[0];
         const budget = {
-            status: items[0].status,
+            status: items[0].budgetStatus,
             isFrozen: items[0].isFrozen,
             requiresApprovalForChanges: items[0].requiresApprovalForChanges
         };
@@ -868,11 +938,9 @@ router.delete('/items/:itemId', auth, privilege(['budget.update']), async (req, 
             }
 
             // Create change request
+            // Note: projectName, departmentId, amount are removed - get these from the project instead
             const oldValue = JSON.stringify({
-                projectId: item.projectId,
-                projectName: item.projectName,
-                departmentId: item.departmentId,
-                amount: item.amount
+                projectId: item.projectId || null
             });
 
             const changeQuery = `
@@ -939,11 +1007,12 @@ router.get('/containers/:budgetId/changes', auth, async (req, res) => {
                 u.lastName as requestedByLastName,
                 reviewer.firstName as reviewedByFirstName,
                 reviewer.lastName as reviewedByLastName,
-                bi.projectName as itemProjectName
+                p.projectName as itemProjectName
             FROM kemri_budget_changes bc
             LEFT JOIN kemri_users u ON bc.requestedBy = u.userId
             LEFT JOIN kemri_users reviewer ON bc.reviewedBy = reviewer.userId
             LEFT JOIN kemri_budget_items bi ON bc.itemId = bi.itemId
+            LEFT JOIN kemri_projects p ON bi.projectId = p.id
             WHERE ${whereClause}
             ORDER BY bc.requestedAt DESC
         `;
@@ -987,18 +1056,14 @@ router.put('/changes/:changeId/approve', auth, privilege(['budget.approve']), as
         // Apply the change based on change type
         if (change.changeType === 'Item Added') {
             const newValue = JSON.parse(change.newValue);
+            // Note: projectName, departmentId, subcountyId, wardId, amount are removed - get these from the project instead
             await pool.query(
                 `INSERT INTO kemri_budget_items 
-                 (budgetId, projectId, projectName, departmentId, subcountyId, wardId, amount, remarks, addedAfterApproval, changeRequestId, userId)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+                 (budgetId, projectId, remarks, addedAfterApproval, changeRequestId, userId)
+                 VALUES (?, ?, ?, 1, ?, ?)`,
                 [
                     change.budgetId,
                     newValue.projectId || null,
-                    newValue.projectName,
-                    newValue.departmentId,
-                    newValue.subcountyId || null,
-                    newValue.wardId || null,
-                    newValue.amount,
                     newValue.remarks || null,
                     changeId,
                     change.requestedBy
@@ -1006,17 +1071,13 @@ router.put('/changes/:changeId/approve', auth, privilege(['budget.approve']), as
             );
         } else if (change.changeType === 'Item Modified') {
             const newValue = JSON.parse(change.newValue);
+            // Note: projectName, departmentId, subcountyId, wardId, amount are removed - get these from the project instead
             await pool.query(
                 `UPDATE kemri_budget_items 
-                 SET projectId = ?, projectName = ?, departmentId = ?, subcountyId = ?, wardId = ?, amount = ?, remarks = ?, changeRequestId = ?
+                 SET projectId = ?, remarks = ?, changeRequestId = ?
                  WHERE itemId = ?`,
                 [
                     newValue.projectId || null,
-                    newValue.projectName,
-                    newValue.departmentId,
-                    newValue.subcountyId || null,
-                    newValue.wardId || null,
-                    newValue.amount,
                     newValue.remarks || null,
                     changeId,
                     change.itemId
@@ -1253,7 +1314,7 @@ router.get('/containers/:budgetId/combined', auth, async (req, res) => {
                 d.name as departmentName,
                 d.departmentId,
                 bc.displayOrder,
-                (SELECT COUNT(*) FROM kemri_budget_items WHERE budgetId = b.budgetId AND voided = 0) as itemCount
+                (SELECT COUNT(*) FROM kemri_projects WHERE budgetId = b.budgetId AND voided = 0) as itemCount
              FROM kemri_budget_combinations bc
              INNER JOIN kemri_budgets b ON bc.containerBudgetId = b.budgetId
              LEFT JOIN kemri_departments d ON b.departmentId = d.departmentId
@@ -1269,28 +1330,41 @@ router.get('/containers/:budgetId/combined', auth, async (req, res) => {
         for (const container of containers) {
             console.log(`Fetching items for container ${container.budgetId} (${container.budgetName})`);
             
-            // First check if items exist at all for this container
+            // Query projects directly using budgetId (primary source), with optional budget_items metadata
             const [itemCountCheck] = await pool.query(
-                `SELECT COUNT(*) as count FROM kemri_budget_items WHERE budgetId = ? AND voided = 0`,
+                `SELECT COUNT(*) as count FROM kemri_projects WHERE budgetId = ? AND voided = 0`,
                 [container.budgetId]
             );
-            console.log(`Container ${container.budgetId} has ${itemCountCheck[0].count} items in database (before joins)`);
+            console.log(`Container ${container.budgetId} has ${itemCountCheck[0].count} projects in database`);
             
             const [items] = await pool.query(
                 `SELECT 
-                    bi.*,
+                    p.id as projectId,
+                    p.projectName,
+                    p.costOfProject as amount,
+                    p.status,
+                    p.departmentId,
+                    p.budgetId,
+                    p.createdAt,
+                    p.updatedAt,
                     d.name as departmentName,
                     sc.name as subcountyName,
                     w.name as wardName,
-                    p.projectName as linkedProjectName
-                 FROM kemri_budget_items bi
-                 LEFT JOIN kemri_departments d ON bi.departmentId = d.departmentId
-                 LEFT JOIN kemri_subcounties sc ON bi.subcountyId = sc.subcountyId
-                 LEFT JOIN kemri_wards w ON bi.wardId = w.wardId
-                 LEFT JOIN kemri_projects p ON bi.projectId = p.id
-                 WHERE bi.budgetId = ? AND bi.voided = 0
-                 ORDER BY bi.createdAt DESC`,
-                [container.budgetId]
+                    bi.itemId,
+                    bi.remarks,
+                    bi.addedAfterApproval,
+                    bi.changeRequestId,
+                    bi.userId
+                 FROM kemri_projects p
+                 LEFT JOIN kemri_departments d ON p.departmentId = d.departmentId
+                 LEFT JOIN kemri_project_subcounties psc ON p.id = psc.projectId
+                 LEFT JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
+                 LEFT JOIN kemri_project_wards pw ON p.id = pw.projectId
+                 LEFT JOIN kemri_wards w ON pw.wardId = w.wardId
+                 LEFT JOIN kemri_budget_items bi ON p.id = bi.projectId AND bi.budgetId = ? AND bi.voided = 0
+                 WHERE p.budgetId = ? AND p.voided = 0
+                 ORDER BY p.createdAt DESC`,
+                [container.budgetId, container.budgetId]
             );
 
             console.log(`Container ${container.budgetId} query returned ${items.length} items after joins`);
@@ -1495,24 +1569,10 @@ router.delete('/containers/:budgetId/combined/:containerId', auth, privilege(['b
  * ============================================
  */
 
-// Configure multer for file uploads (matching projectRoutes.js pattern)
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '..', 'uploads');
-        // Ensure uploads directory exists
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
-
+// Configure multer for file uploads
 const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit (increased for large budget files)
+    dest: 'uploads/temp/',
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
 // Normalize string for matching
@@ -1525,41 +1585,19 @@ const normalizeStr = (v) => {
     return normalized;
 };
 
-// Check if a value represents CountyWide (handles various user input formats)
-const isCountyWide = (value) => {
-    if (!value || value === 'unknown') return false;
-    
-    const normalized = normalizeStr(String(value)).toLowerCase();
-    
-    // CountyWide variations
-    if (normalized === 'countywide' || normalized === 'county wide' || normalized === 'county-wide') {
-        return true;
-    }
-    
-    // "All Wards" / "All Ward" variations
-    if (normalized === 'all wards' || normalized === 'all ward' || 
-        normalized === 'all-wards' || normalized === 'all-ward') {
-        return true;
-    }
-    
-    // "All Subcounties" / "All Subcounty" variations
-    if (normalized === 'all subcounties' || normalized === 'all subcounty' ||
-        normalized === 'all-subcounties' || normalized === 'all-subcounty') {
-        return true;
-    }
-    
-    // Check if contains both "all" and ("ward" or "subcount" or "subcounty")
-    // This handles variations like "All Wards", "All Subcounties", etc.
-    const words = normalized.split(/[\s-]+/); // Split on spaces and dashes
-    const hasAll = words.some(w => w === 'all');
-    const hasWard = words.some(w => w.includes('ward'));
-    const hasSubcount = words.some(w => w.includes('subcount'));
-    
-    if (hasAll && (hasWard || hasSubcount)) {
-        return true;
-    }
-    
-    return false;
+// Check if a value represents "CountyWide" (handles various formats)
+const isCountyWide = (v) => {
+    if (!v || typeof v !== 'string') return false;
+    const normalized = normalizeStr(v).toLowerCase();
+    const countyWideVariations = [
+        'countywide',
+        'county-wide',
+        'all wards',
+        'all ward',
+        'all subcounties',
+        'all subcounty'
+    ];
+    return countyWideVariations.includes(normalized);
 };
 
 /**
@@ -1568,184 +1606,15 @@ const isCountyWide = (value) => {
  * @access Private
  */
 router.post('/import-data', upload.single('file'), async (req, res) => {
-    const startTime = Date.now();
-    console.log('=== POST /api/budgets/import-data called ===');
-    
-    // Set response timeout to prevent hanging
-    req.setTimeout(30000, () => {
-        console.error('Request timeout for budget import preview');
-        if (!res.headersSent) {
-            res.status(504).json({ success: false, message: 'Request timeout. File processing took too long.' });
-        }
-    });
-    
     if (!req.file) {
         return res.status(400).json({ success: false, message: 'No file uploaded.' });
     }
     const filePath = req.file.path;
-    console.log('Processing file:', req.file.originalname, 'Size:', req.file.size, 'bytes');
-    
     try {
-        const parseStartTime = Date.now();
-        
-        // Add error handling for file reading with more specific error messages
-        let workbook;
-        try {
-            // Try reading with options to handle large/corrupted files better
-            workbook = xlsx.readFile(filePath, { 
-                cellDates: true,
-                cellNF: false,  // Don't parse number formats (faster)
-                cellStyles: false,  // Don't parse styles (faster, less memory)
-                sheetRows: 10000  // Limit rows to prevent memory issues (adjust if needed)
-            });
-        } catch (readError) {
-            console.error('Error reading Excel file:', readError);
-            console.error('File path:', filePath);
-            console.error('File size:', req.file?.size, 'bytes');
-            fs.unlink(filePath, () => {});
-            return res.status(500).json({ 
-                success: false, 
-                message: `Failed to read Excel file: ${readError.message}. The file may be corrupted or in an unsupported format. Try saving it as a new Excel file (.xlsx).`,
-                error: process.env.NODE_ENV === 'development' ? readError.stack : undefined
-            });
-        }
-        
-        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-            fs.unlink(filePath, () => {});
-            return res.status(400).json({ success: false, message: 'Excel file has no sheets or is invalid.' });
-        }
-        
+        const workbook = xlsx.readFile(filePath, { cellDates: true });
         const sheetName = workbook.SheetNames[0];
-        let worksheet = workbook.Sheets[sheetName];
-        
-        if (!worksheet) {
-            fs.unlink(filePath, () => {});
-            return res.status(400).json({ success: false, message: 'Excel file sheet is empty or invalid.' });
-        }
-        
-        // Check if the worksheet has an extremely large range (indicates many empty columns)
-        // This can cause memory issues during parsing
-        const range = xlsx.utils.decode_range(worksheet['!ref'] || 'A1');
-        const columnCount = range.e.c + 1; // End column index + 1
-        const rowCount = range.e.r + 1; // End row index + 1
-        
-        console.log(`Worksheet range: ${worksheet['!ref']}, Columns: ${columnCount}, Rows: ${rowCount}`);
-        
-        // If we have more than 100 columns, limit the range to prevent memory issues
-        // We'll read a reasonable number of columns and trim later if needed
-        if (columnCount > 100) {
-            console.log(`Large column range detected (${columnCount} columns), limiting to first 200 columns for initial parsing`);
-            // Create a limited range (first 200 columns, all rows)
-            const limitedRange = {
-                s: { c: 0, r: 0 },
-                e: { c: Math.min(199, columnCount - 1), r: range.e.r }
-            };
-            const limitedRef = xlsx.utils.encode_range(limitedRange);
-            
-            // Create a new worksheet object with limited range
-            const limitedWorksheet = {};
-            // Copy all properties from original worksheet
-            Object.keys(worksheet).forEach(key => {
-                if (key.startsWith('!')) {
-                    // Copy metadata
-                    limitedWorksheet[key] = worksheet[key];
-                } else {
-                    // Copy cell data only if within our limited range
-                    const cellAddress = xlsx.utils.decode_cell(key);
-                    if (cellAddress.c <= limitedRange.e.c) {
-                        limitedWorksheet[key] = worksheet[key];
-                    }
-                }
-            });
-            // Update the range reference
-            limitedWorksheet['!ref'] = limitedRef;
-            worksheet = limitedWorksheet;
-            console.log(`Limited worksheet range to: ${limitedRef}`);
-        }
-        
-        let rawData;
-        try {
-            rawData = xlsx.utils.sheet_to_json(worksheet, { 
-                header: 1,
-                defval: null,  // Default value for empty cells
-                raw: false  // Convert dates and numbers to strings for consistency
-            });
-        } catch (parseError) {
-            console.error('Error parsing worksheet:', parseError);
-            console.error('Parse error stack:', parseError.stack);
-            fs.unlink(filePath, () => {});
-            return res.status(500).json({ 
-                success: false, 
-                message: `Failed to parse Excel worksheet: ${parseError.message}. The file may have formatting issues or too many empty columns. Try saving it as a new Excel file (.xlsx) and removing empty columns.`,
-                error: process.env.NODE_ENV === 'development' ? parseError.stack : undefined
-            });
-        }
-        
-        // Trim empty columns to prevent memory issues with files that have large "used ranges"
-        // This is critical for files where Excel's "used range" includes many empty columns
-        const originalColumnCount = rawData[0]?.length || 0;
-        let lastColumnWithData = -1;
-        
-        // Only trim if we have a suspiciously large number of columns (more than 50)
-        // This prevents processing thousands of empty columns
-        if (originalColumnCount > 50) {
-            console.log(`Large column count detected (${originalColumnCount}), trimming empty columns...`);
-            
-            // Find the last column with data by checking from the end backwards (more efficient)
-            // Start from a reasonable maximum (e.g., 100 columns) and work backwards
-            const maxColumnsToCheck = Math.min(originalColumnCount, 200); // Don't check more than 200 columns
-            
-            for (let col = maxColumnsToCheck - 1; col >= 0; col--) {
-                let hasData = false;
-                // Check first 50 rows to determine if column has data (for performance)
-                for (let row = 0; row < Math.min(rawData.length, 50); row++) {
-                    const cell = rawData[row]?.[col];
-                    if (cell !== undefined && cell !== null && cell !== '') {
-                        hasData = true;
-                        break;
-                    }
-                }
-                if (hasData) {
-                    lastColumnWithData = col;
-                    break; // Found the last column with data, no need to check further
-                }
-            }
-            
-            // If we didn't find data in first 200 columns, check if there's data beyond that
-            if (lastColumnWithData === -1 && originalColumnCount > 200) {
-                // This is unusual, but check a few columns beyond 200
-                for (let col = 200; col < Math.min(originalColumnCount, 300); col++) {
-                    for (let row = 0; row < Math.min(rawData.length, 10); row++) {
-                        const cell = rawData[row]?.[col];
-                        if (cell !== undefined && cell !== null && cell !== '') {
-                            lastColumnWithData = col;
-                            break;
-                        }
-                    }
-                    if (lastColumnWithData >= 0) break;
-                }
-            }
-            
-            // Default to first 200 columns if we can't find data (safety fallback)
-            if (lastColumnWithData === -1) {
-                lastColumnWithData = Math.min(199, originalColumnCount - 1);
-                console.log(`No data found in first columns, limiting to first 200 columns`);
-            }
-            
-            // Trim rows to only include columns with data (add 1 to include the last column)
-            if (lastColumnWithData >= 0 && lastColumnWithData < originalColumnCount - 1) {
-                const trimStartTime = Date.now();
-                rawData = rawData.map(row => {
-                    if (!Array.isArray(row)) return row;
-                    return row.slice(0, lastColumnWithData + 1);
-                });
-                const trimTime = Date.now() - trimStartTime;
-                console.log(`Trimmed columns from ${originalColumnCount} to ${lastColumnWithData + 1} columns (removed ${originalColumnCount - lastColumnWithData - 1} empty columns) in ${trimTime}ms`);
-            }
-        }
-        
-        const parseTime = Date.now() - parseStartTime;
-        console.log(`File parsed in ${parseTime}ms. Rows: ${rawData.length}`);
+        const worksheet = workbook.Sheets[sheetName];
+        const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
 
         if (rawData.length < 2) {
             fs.unlink(filePath, () => {});
@@ -1757,10 +1626,6 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
             fs.unlink(filePath, () => {});
             return res.status(400).json({ success: false, message: 'Uploaded Excel file has no headers or invalid format.' });
         }
-        
-        // Log detected headers for debugging
-        console.log('Detected headers:', headers.filter(h => h !== null && h !== undefined && h !== ''));
-        console.log('Total header count:', headers.length);
 
         const dataRows = rawData.slice(1).filter(row => {
             if (!row || !Array.isArray(row)) return false;
@@ -1771,13 +1636,8 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
         const headerMap = {
             'BudgetName': 'budgetName',
             'Budget Name': 'budgetName',
-            'Budget': 'budgetName',  // Support singular "Budget" column
-            'budget': 'budgetName',
             'Department': 'department',
-            'department': 'department',
-            'Department Name': 'department',
             'db_department': 'dbDepartment',
-            'dbDepartment': 'dbDepartment',
             'Project Name': 'projectName',
             'projectName': 'projectName',
             'ward': 'ward',
@@ -1785,16 +1645,7 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
             'Amount': 'amount',
             'amount': 'amount',
             'db_subcounty': 'dbSubcounty',
-            'db_ward': 'dbWard',
-            'sub-county': 'subcounty',
-            'Sub County': 'subcounty',
-            'SubCounty': 'subcounty',
-            'Subcounty': 'subcounty',  // Add explicit mapping for 'Subcounty'
-            'subcounty': 'subcounty',
-            'fin_year': 'finYear',
-            'finYear': 'finYear',
-            'Financial Year': 'finYear',
-            'financialYear': 'finYear'
+            'db_ward': 'dbWard'
         };
         
         const mapRow = (headers, row) => {
@@ -1802,27 +1653,7 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
             for (let i = 0; i < headers.length; i++) {
                 const rawHeader = headers[i];
                 if (rawHeader === undefined || rawHeader === null) continue;
-                
-                // Normalize header name for matching (trim whitespace, handle case variations)
-                const normalizedHeader = String(rawHeader).trim();
-                let canonical = headerMap[normalizedHeader] || headerMap[rawHeader];
-                
-                // If not found in map, try case-insensitive matching
-                if (!canonical) {
-                    const normalizedLower = normalizedHeader.toLowerCase();
-                    for (const [key, value] of Object.entries(headerMap)) {
-                        if (String(key).toLowerCase() === normalizedLower) {
-                            canonical = value;
-                            break;
-                        }
-                    }
-                }
-                
-                // If still not found, use the original header (normalized)
-                if (!canonical) {
-                    canonical = normalizedHeader;
-                }
-                
+                const canonical = headerMap[rawHeader] || rawHeader;
                 let value = row[i];
                 if (value === undefined || value === null) {
                     value = null;
@@ -1834,117 +1665,153 @@ router.post('/import-data', upload.single('file'), async (req, res) => {
             return obj;
         };
         
-        // Log which ward/subcounty columns were found
-        const foundWardColumns = headers.filter(h => {
-            if (!h) return false;
-            const hStr = String(h).trim().toLowerCase();
-            return hStr.includes('ward') || hStr === 'db_ward';
-        });
-        const foundSubcountyColumns = headers.filter(h => {
-            if (!h) return false;
-            const hStr = String(h).trim().toLowerCase();
-            return hStr.includes('subcounty') || hStr.includes('sub-county') || hStr.includes('sub county') || hStr === 'db_subcounty';
-        });
-        console.log('Found ward columns:', foundWardColumns);
-        console.log('Found subcounty columns:', foundSubcountyColumns);
-
-        // Process rows in chunks to avoid memory issues
-        const fullData = [];
-        const chunkSize = 100;
-        for (let i = 0; i < dataRows.length; i += chunkSize) {
-            const chunk = dataRows.slice(i, i + chunkSize);
-            const mappedChunk = chunk.map(r => {
+        const fullData = dataRows.map(r => {
                 try {
                     return mapRow(headers, r);
                 } catch (err) {
-                    console.error('Error mapping row:', err);
+                console.error('Error mapping row:', err, 'Row:', r);
                     return null;
                 }
             }).filter(row => {
                 if (!row) return false;
-                // For budget imports, we need at least a budget name or project name
-                const projectName = (row.projectName || row['Project Name'] || '').toString().trim();
-                const budgetNameRaw = row.budgetName || row['BudgetName'] || row['Budget Name'] || row['Budget'] || row.budget || '';
-                const budgetName = typeof budgetNameRaw === 'string' ? budgetNameRaw.trim() : (budgetNameRaw ? String(budgetNameRaw).trim() : '');
-                const isValid = (projectName && projectName.length >= 3) || (budgetName && budgetName.length > 0);
-                return isValid;
-            });
-            fullData.push(...mappedChunk);
-        }
+            const projectName = (row.projectName || '').toString().trim();
+            return projectName && projectName.length >= 3;
+        });
 
         if (fullData.length === 0) {
             fs.unlink(filePath, () => {});
-            const sampleMappedRow = dataRows.length > 0 ? mapRow(headers, dataRows[0]) : null;
             return res.status(400).json({ 
                 success: false, 
-                message: 'No valid data rows found. Please ensure your file has at least one row with a Project Name (minimum 3 characters) or a Budget name.',
+                message: 'No valid data rows found. Please ensure your file has at least one row with a Project Name (minimum 3 characters).',
                 headers: headers,
-                dataRowCount: dataRows.length
+                sampleRow: dataRows[0] || null
             });
         }
 
         const previewLimit = 10;
         const previewData = fullData.slice(0, previewLimit);
 
-        // CRITICAL: Don't send fullData in response - it can be huge and crash the server
-        // Instead, store it temporarily or process it on the client side
-        // For now, only send preview data and total count
-        const totalRows = fullData.length;
-        
-        // Skip metadata validation in preview to speed up processing
+        // Validate metadata
         const validationErrors = [];
-        
-        const totalTime = Date.now() - startTime;
-        console.log(`Preview processing completed in ${totalTime}ms. Processed ${totalRows} rows`);
+        const budgetNames = new Set();
+        const wards = new Set();
+        const subcounties = new Set();
 
-        // Clean up file immediately
-        fs.unlink(filePath, (err) => {
-            if (err) console.error('Error deleting temp file:', err);
+        fullData.forEach((row, index) => {
+            try {
+                if (row.budgetName) budgetNames.add(normalizeStr(String(row.budgetName)));
+                if (row.dbWard && row.dbWard !== 'unknown' && row.dbWard !== 'CountyWide') {
+                    wards.add(normalizeStr(String(row.dbWard)));
+                }
+                if (row.dbSubcounty && row.dbSubcounty !== 'unknown' && row.dbSubcounty !== 'CountyWide') {
+                    subcounties.add(normalizeStr(String(row.dbSubcounty)));
+                }
+            } catch (err) {
+                console.error(`Error processing row ${index}:`, err);
+            }
         });
 
-        // Send response with only preview data (not fullData to prevent memory issues)
+        // Check if budget names exist
+        if (budgetNames.size > 0) {
+            const budgetNameList = Array.from(budgetNames);
+            const placeholders = budgetNameList.map(() => '?').join(',');
+            const [budgetRows] = await pool.query(
+                `SELECT budgetId, budgetName FROM kemri_budgets WHERE voided = 0 AND budgetName IN (${placeholders})`,
+                budgetNameList
+            );
+            const existingBudgets = new Set(budgetRows.map(b => normalizeStr(b.budgetName)));
+            budgetNames.forEach(budgetName => {
+                if (!existingBudgets.has(normalizeStr(budgetName))) {
+                    validationErrors.push({
+                        type: 'budget',
+                        value: budgetName,
+                        message: `Budget "${budgetName}" not found in system`
+                    });
+                }
+            });
+        }
+
+        // Check if wards exist
+        if (wards.size > 0) {
+            const wardList = Array.from(wards);
+            const placeholders = wardList.map(() => '?').join(',');
+            const [wardRows] = await pool.query(
+                `SELECT wardId, name FROM kemri_wards WHERE voided = 0 AND name IN (${placeholders})`,
+                wardList
+            );
+            const existingWards = new Set(wardRows.map(w => normalizeStr(w.name)));
+            wards.forEach(ward => {
+                if (!existingWards.has(normalizeStr(ward))) {
+                    validationErrors.push({
+                        type: 'ward',
+                        value: ward,
+                        message: `Ward "${ward}" not found in system`
+                    });
+                }
+            });
+        }
+
+        // Check if subcounties exist
+        if (subcounties.size > 0) {
+            const subcountyList = Array.from(subcounties);
+            const placeholders = subcountyList.map(() => '?').join(',');
+            const [subcountyRows] = await pool.query(
+                `SELECT subcountyId, name FROM kemri_subcounties WHERE voided = 0 AND name IN (${placeholders})`,
+                subcountyList
+            );
+            const existingSubcounties = new Set(subcountyRows.map(s => normalizeStr(s.name)));
+            subcounties.forEach(subcounty => {
+                if (!existingSubcounties.has(normalizeStr(subcounty))) {
+                    validationErrors.push({
+                        type: 'subcounty',
+                        value: subcounty,
+                        message: `Subcounty "${subcounty}" not found in system`
+                    });
+                }
+            });
+        }
+
+        fs.unlink(filePath, () => {});
         return res.status(200).json({
             success: true,
-            message: `File parsed successfully. Review ${previewData.length} of ${totalRows} rows.${validationErrors.length > 0 ? ` ${validationErrors.length} validation warning(s).` : ''}`,
+            message: `File parsed successfully. Review ${previewData.length} of ${fullData.length} rows.${validationErrors.length > 0 ? ` ${validationErrors.length} validation warning(s).` : ''}`,
             previewData,
-            headers: Object.keys(previewData[0] || {}),
-            totalRows: totalRows,
+            headers,
+            fullData,
             validationErrors: validationErrors.length > 0 ? validationErrors : undefined
         });
     } catch (err) {
         if (fs.existsSync(filePath)) {
-            fs.unlink(filePath, (unlinkErr) => {
-                if (unlinkErr) console.error('Error deleting temp file on error:', unlinkErr);
-            });
+            fs.unlink(filePath, () => {});
         }
         console.error('Budget import preview error:', err);
         console.error('Error stack:', err.stack);
-        
-        // Ensure response is sent even on error
-        if (!res.headersSent) {
             return res.status(500).json({ 
                 success: false, 
                 message: `File parsing failed: ${err.message}`,
                 error: process.env.NODE_ENV === 'development' ? err.stack : undefined
             });
-        }
     }
 });
 
 /**
- * @route POST /api/budgets/confirm-import-data
- * @description Confirm and import budget data
+ * @route POST /api/budgets/check-metadata-mapping
+ * @description Check metadata mappings for budget import data (departments, wards, subcounties, financial years, budgets)
  * @access Private
- * Accepts either dataToImport array OR a file upload (if dataToImport is not provided)
+ * Accepts either:
+ *   - FormData with 'file' field (for file upload)
+ *   - JSON body with 'dataToImport' array
  */
-router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
+router.post('/check-metadata-mapping', upload.single('file'), async (req, res) => {
+    const overallStart = Date.now();
+    console.log('=== POST /api/budgets/check-metadata-mapping called ===');
     let dataToImport = req.body?.dataToImport;
-    const filePath = req.file?.path;
+    let filePath = req.file?.path;
     
     // If no data provided but file uploaded, parse the file
     if ((!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) && filePath) {
         try {
-            console.log('No dataToImport provided, parsing uploaded file for import');
+            console.log('No dataToImport provided, parsing uploaded file for metadata check');
             const workbook = xlsx.readFile(filePath, { 
                 cellDates: true,
                 cellNF: false,
@@ -1952,31 +1819,6 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
             });
             const sheetName = workbook.SheetNames[0];
             let worksheet = workbook.Sheets[sheetName];
-            
-            // Check and limit large column ranges (same as preview endpoint)
-            const range = xlsx.utils.decode_range(worksheet['!ref'] || 'A1');
-            const columnCount = range.e.c + 1;
-            if (columnCount > 100) {
-                console.log(`Large column range detected (${columnCount} columns), limiting to first 200 columns`);
-                const limitedRange = {
-                    s: { c: 0, r: 0 },
-                    e: { c: Math.min(199, columnCount - 1), r: range.e.r }
-                };
-                const limitedRef = xlsx.utils.encode_range(limitedRange);
-                const limitedWorksheet = {};
-                Object.keys(worksheet).forEach(key => {
-                    if (key.startsWith('!')) {
-                        limitedWorksheet[key] = worksheet[key];
-                    } else {
-                        const cellAddress = xlsx.utils.decode_cell(key);
-                        if (cellAddress.c <= limitedRange.e.c) {
-                            limitedWorksheet[key] = worksheet[key];
-                        }
-                    }
-                });
-                limitedWorksheet['!ref'] = limitedRef;
-                worksheet = limitedWorksheet;
-            }
             
             const rawData = xlsx.utils.sheet_to_json(worksheet, { 
                 header: 1,
@@ -1995,16 +1837,31 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
                 return row.some(cell => cell !== undefined && cell !== null && cell !== '');
             });
             
-            // Use same mapping logic as preview
+            // Map headers to canonical names (same as in confirm-import-data)
             const headerMap = {
-                'BudgetName': 'budgetName', 'Budget Name': 'budgetName', 'Budget': 'budgetName', 'budget': 'budgetName',
-                'Department': 'department', 'department': 'department', 'Department Name': 'department', 'db_department': 'dbDepartment', 'dbDepartment': 'dbDepartment',
-                'Project Name': 'projectName', 'projectName': 'projectName',
-                'ward': 'ward', 'Ward': 'ward', 'db_ward': 'dbWard',
-                'Amount': 'amount', 'amount': 'amount',
-                'db_subcounty': 'dbSubcounty', 'sub-county': 'subcounty', 'Sub County': 'subcounty',
-                'SubCounty': 'subcounty', 'Subcounty': 'subcounty', 'subcounty': 'subcounty',
-                'fin_year': 'finYear', 'finYear': 'finYear', 'Financial Year': 'finYear', 'financialYear': 'finYear'
+                'budgetname': 'budgetName',
+                'budget name': 'budgetName',
+                'budget': 'budgetName',
+                'department': 'department',
+                'db_department': 'dbDepartment',
+                'project name': 'projectName',
+                'projectname': 'projectName',
+                'ward': 'ward',
+                'amount': 'amount',
+                'db_subcounty': 'dbSubcounty',
+                'db_ward': 'dbWard',
+                'subcounty': 'subcounty',
+                'sub-county': 'subcounty',
+                'sub county': 'subcounty',
+                'fin_year': 'finYear',
+                'finYear': 'finYear',
+                'financial year': 'finYear',
+                'financialYear': 'finYear'
+            };
+            
+            const normalizeHeader = (header) => {
+                if (!header || typeof header !== 'string') return '';
+                return header.trim().toLowerCase();
             };
             
             const mapRow = (headers, row) => {
@@ -2012,37 +1869,384 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
                 for (let i = 0; i < headers.length; i++) {
                     const rawHeader = headers[i];
                     if (rawHeader === undefined || rawHeader === null) continue;
-                    const canonical = headerMap[rawHeader] || rawHeader;
+                    const normalizedHeader = normalizeHeader(rawHeader);
+                    const canonical = headerMap[normalizedHeader] || normalizedHeader;
                     let value = row[i];
-                    obj[canonical] = (value === undefined || value === null || value === '') ? null : value;
+                    if (value === undefined || value === null) value = '';
+                    obj[canonical] = value;
+                    obj[rawHeader] = value; // Keep original header name too
                 }
                 return obj;
             };
             
-            dataToImport = dataRows.map(r => mapRow(headers, r)).filter(row => {
+            dataToImport = dataRows.map(row => mapRow(headers, row)).filter(row => {
                 if (!row) return false;
                 const projectName = (row.projectName || row['Project Name'] || '').toString().trim();
-                const budgetNameRaw = row.budgetName || row['BudgetName'] || row['Budget Name'] || row['Budget'] || row.budget || '';
-                const budgetName = typeof budgetNameRaw === 'string' ? budgetNameRaw.trim() : (budgetNameRaw ? String(budgetNameRaw).trim() : '');
-                return (projectName && projectName.length >= 3) || (budgetName && budgetName.length > 0);
+                return projectName && projectName.length >= 3;
             });
             
             // Clean up file after parsing
             fs.unlink(filePath, () => {});
+            filePath = null;
+            console.log(`Parsed ${dataToImport.length} rows from uploaded file`);
         } catch (parseErr) {
             if (filePath && fs.existsSync(filePath)) {
                 fs.unlink(filePath, () => {});
             }
-            console.error('Error parsing file in confirm-import:', parseErr);
+            console.error('Error parsing file in check-metadata-mapping:', parseErr);
             return res.status(400).json({ success: false, message: `Failed to parse uploaded file: ${parseErr.message}` });
         }
     }
     
+    console.log('Data to import length:', dataToImport?.length || 0);
+    
     if (!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) {
-        return res.status(400).json({ success: false, message: 'No data provided for import. Please provide dataToImport array or upload a file.' });
+        console.error('No data provided for metadata mapping check');
+        return res.status(400).json({ success: false, message: 'No data provided for metadata mapping check.' });
+    }
+
+    // Use metadataService for lookups
+    const metadataService = require('../services/metadataService');
+    
+    const mappingSummary = {
+        departments: { existing: [], new: [], unmatched: [] },
+        wards: { existing: [], new: [], unmatched: [] },
+        subcounties: { existing: [], new: [], unmatched: [] },
+        financialYears: { existing: [], new: [], unmatched: [] },
+        budgets: { existing: [], new: [], unmatched: [] },
+        totalRows: dataToImport.length,
+        rowsWithUnmatchedMetadata: []
+    };
+
+    try {
+        // Load metadata mappings
+        const metadata = await metadataService.loadMetadataMappings();
+        
+        // Collect unique values from all rows
+        const uniqueDepartments = new Set();
+        const uniqueWards = new Set();
+        const uniqueSubcounties = new Set();
+        const uniqueFinancialYears = new Set();
+        const uniqueBudgets = new Set();
+
+        dataToImport.forEach((row, index) => {
+            const projectName = (row.projectName || row['Project Name'] || '').toString().trim();
+            if (!projectName || projectName.length < 3) {
+                return; // Skip this row
+            }
+            
+            const dept = normalizeStr(row.department || row.dbDepartment || row.Department);
+            const ward = normalizeStr(row.ward || row.dbWard || row.Ward || row['Ward Name']);
+            const subcounty = normalizeStr(row.subcounty || row.dbSubcounty || row['Sub County'] || row.Subcounty || row['sub-county']);
+            const finYear = normalizeStr(row.finYear || row.financialYear || row['Financial Year'] || row.fin_year);
+            const budget = normalizeStr(row.budgetName || row.budget || row.Budget || row['Budget Name']);
+
+            if (dept) uniqueDepartments.add(dept);
+            if (ward) uniqueWards.add(ward);
+            if (subcounty) uniqueSubcounties.add(subcounty);
+            if (finYear) uniqueFinancialYears.add(finYear);
+            if (budget) uniqueBudgets.add(budget);
+        });
+
+        // Check departments
+        if (uniqueDepartments.size > 0) {
+            const deptList = Array.from(uniqueDepartments);
+            deptList.forEach(dept => {
+                const deptId = metadataService.getDepartmentId(metadata.departments, metadata.departmentAliases, dept);
+                if (deptId) {
+                    mappingSummary.departments.existing.push(dept);
+                } else {
+                    // Unmatched departments are potential new ones
+                    mappingSummary.departments.new.push(dept);
+                    mappingSummary.departments.unmatched.push(dept);
+                }
+            });
+        }
+
+        // Check wards
+        if (uniqueWards.size > 0) {
+            const wardList = Array.from(uniqueWards);
+            wardList.forEach(ward => {
+                // Skip CountyWide as it's a special case
+                if (isCountyWide(ward)) {
+                    mappingSummary.wards.existing.push(ward);
+                    return;
+                }
+                const wardInfo = metadataService.getWardInfo(metadata.wards, metadata.wardWordSets, ward);
+                if (wardInfo && wardInfo.wardId) {
+                    mappingSummary.wards.existing.push(ward);
+                } else {
+                    // Unmatched wards are potential new ones
+                    mappingSummary.wards.new.push(ward);
+                    mappingSummary.wards.unmatched.push(ward);
+                }
+            });
+        }
+
+        // Check subcounties
+        if (uniqueSubcounties.size > 0) {
+            const subcountyList = Array.from(uniqueSubcounties);
+            subcountyList.forEach(subcounty => {
+                // Skip CountyWide as it's a special case
+                if (isCountyWide(subcounty)) {
+                    mappingSummary.subcounties.existing.push(subcounty);
+                    return;
+                }
+                const subcountyId = metadataService.getSubcountyId(metadata.subcounties, metadata.subcountyWordSets, subcounty);
+                if (subcountyId) {
+                    mappingSummary.subcounties.existing.push(subcounty);
+                } else {
+                    // Unmatched subcounties are potential new ones
+                    mappingSummary.subcounties.new.push(subcounty);
+                    mappingSummary.subcounties.unmatched.push(subcounty);
+                }
+            });
+        }
+
+        // Check financial years
+        if (uniqueFinancialYears.size > 0) {
+            const finYearList = Array.from(uniqueFinancialYears);
+            const existingFinYears = new Set(metadata.financialYears.keys());
+            finYearList.forEach(finYear => {
+                const normalized = normalizeStr(finYear).toLowerCase();
+                if (existingFinYears.has(normalized)) {
+                    mappingSummary.financialYears.existing.push(finYear);
+                } else {
+                    // Unmatched financial years are potential new ones
+                    mappingSummary.financialYears.new.push(finYear);
+                    mappingSummary.financialYears.unmatched.push(finYear);
+                }
+            });
+        }
+
+        // Check budgets
+        if (uniqueBudgets.size > 0) {
+            const budgetList = Array.from(uniqueBudgets);
+            const [budgetRows] = await pool.query(
+                'SELECT budgetName FROM kemri_budgets WHERE voided = 0'
+            );
+            const existingBudgets = new Set(budgetRows.map(b => normalizeStr(b.budgetName).toLowerCase()));
+            budgetList.forEach(budget => {
+                const normalized = normalizeStr(budget).toLowerCase();
+                if (existingBudgets.has(normalized)) {
+                    mappingSummary.budgets.existing.push(budget);
+                } else {
+                    // Unmatched budgets are potential new ones
+                    mappingSummary.budgets.new.push(budget);
+                    mappingSummary.budgets.unmatched.push(budget);
+                }
+            });
+        }
+
+        const overallTime = Date.now() - overallStart;
+        console.log(`Metadata mapping check completed in ${overallTime}ms`);
+
+        res.json({
+            success: true,
+            mappingSummary
+        });
+    } catch (error) {
+        console.error('Error checking metadata mapping:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error checking metadata mapping',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/budgets/confirm-import-data
+ * @description Confirm and import budget data
+ * @access Private
+ * Accepts either:
+ *   - FormData with 'file' field (for file upload)
+ *   - JSON body with 'dataToImport' array
+ */
+router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
+    let dataToImport = [];
+    let filePath = null;
+
+    // Handle file upload
+    if (req.file) {
+        filePath = req.file.path;
+        try {
+            const workbook = xlsx.readFile(filePath, { cellDates: true });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const rawData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+            if (rawData.length < 2) {
+                if (filePath && fs.existsSync(filePath)) {
+                    fs.unlink(filePath, () => {});
+                }
+                return res.status(400).json({ success: false, message: 'Uploaded Excel file is empty or has no data rows.' });
+            }
+
+            const headers = rawData[0];
+            if (!headers || !Array.isArray(headers) || headers.length === 0) {
+                if (filePath && fs.existsSync(filePath)) {
+                    fs.unlink(filePath, () => {});
+                }
+                return res.status(400).json({ success: false, message: 'Uploaded Excel file has no headers or invalid format.' });
+            }
+            
+            // Log headers for debugging
+            console.log('File headers found:', headers);
+            console.log('Header count:', headers.length);
+
+            const dataRows = rawData.slice(1).filter(row => {
+                if (!row || !Array.isArray(row)) return false;
+                return row.some(cell => cell !== undefined && cell !== null && cell !== '');
+            });
+
+            // Map headers to canonical names (case-insensitive, trim whitespace)
+            const headerMap = {
+                'budgetname': 'budgetName',
+                'budget name': 'budgetName',
+                'department': 'department',
+                'db_department': 'dbDepartment',
+                'project name': 'projectName',
+                'projectname': 'projectName',
+                'ward': 'ward',
+                'amount': 'amount',
+                'db_subcounty': 'dbSubcounty',
+                'db_ward': 'dbWard'
+            };
+
+            // Normalize header for matching (lowercase, trim)
+            const normalizeHeader = (header) => {
+                if (!header || typeof header !== 'string') return '';
+                return header.trim().toLowerCase();
+            };
+
+            const mapRow = (headers, row) => {
+                const obj = {};
+                for (let i = 0; i < headers.length; i++) {
+                    const rawHeader = headers[i];
+                    if (rawHeader === undefined || rawHeader === null) continue;
+                    const normalizedHeader = normalizeHeader(rawHeader);
+                    const canonical = headerMap[normalizedHeader] || normalizedHeader;
+                    let value = row[i];
+                    if (value === undefined || value === null) value = '';
+                    // Also store original header name for fallback
+                    obj[canonical] = value;
+                    obj[rawHeader] = value; // Keep original header name too
+                }
+                return obj;
+            };
+
+            dataToImport = dataRows.map(row => mapRow(headers, row));
+        } catch (fileError) {
+            if (filePath && fs.existsSync(filePath)) {
+                fs.unlink(filePath, () => {});
+            }
+            console.error('Error parsing file:', fileError);
+            return res.status(400).json({ 
+                success: false, 
+                message: `Error parsing file: ${fileError.message}` 
+            });
+        }
+    } else {
+        // Fall back to dataToImport from body
+        dataToImport = req.body?.dataToImport || [];
+    }
+
+    if (!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) {
+        if (filePath && fs.existsSync(filePath)) {
+            fs.unlink(filePath, () => {});
+        }
+        return res.status(400).json({ success: false, message: 'No data provided for import.' });
     }
 
     const userId = req.user?.userId || 1; // Get from authenticated user
+    
+    // Extract budgetId from the file (budget name is in the file)
+    let budgetId = null;
+    if (dataToImport && dataToImport.length > 0) {
+        // Get unique budget names from the file
+        const budgetNames = new Set();
+        dataToImport.forEach(row => {
+            const budgetName = normalizeStr(
+                row.budgetName || row.budget || row.Budget || row['Budget Name'] || row['budget name'] || ''
+            );
+            if (budgetName) {
+                budgetNames.add(budgetName);
+            }
+        });
+        
+        if (budgetNames.size > 0) {
+            // Get all budgets from database for matching
+            const [budgetRows] = await pool.query(
+                'SELECT budgetId, budgetName FROM kemri_budgets WHERE voided = 0'
+            );
+            
+            // Find matching budgets (case-insensitive)
+            const matchingBudgets = [];
+            budgetNames.forEach(budgetName => {
+                const normalizedBudgetName = normalizeStr(budgetName).toLowerCase();
+                const match = budgetRows.find(b => 
+                    normalizeStr(b.budgetName).toLowerCase() === normalizedBudgetName
+                );
+                if (match) {
+                    matchingBudgets.push({ name: budgetName, id: match.budgetId, dbName: match.budgetName });
+                }
+            });
+            
+            if (matchingBudgets.length === 1) {
+                // Exactly one matching budget found - use it
+                budgetId = matchingBudgets[0].id;
+                console.log(`Extracted budget "${matchingBudgets[0].dbName}" (ID: ${budgetId}) from file`);
+            } else if (matchingBudgets.length > 1) {
+                // Multiple budgets found - use the first one (most common approach)
+                // Count occurrences to find the most common one
+                const budgetCounts = new Map();
+                dataToImport.forEach(row => {
+                    const budgetName = normalizeStr(
+                        row.budgetName || row.budget || row.Budget || row['Budget Name'] || row['budget name'] || ''
+                    );
+                    if (budgetName) {
+                        budgetCounts.set(budgetName, (budgetCounts.get(budgetName) || 0) + 1);
+                    }
+                });
+                
+                // Find the most common matching budget
+                let mostCommon = matchingBudgets[0];
+                let maxCount = budgetCounts.get(mostCommon.name) || 0;
+                matchingBudgets.forEach(b => {
+                    const count = budgetCounts.get(b.name) || 0;
+                    if (count > maxCount) {
+                        mostCommon = b;
+                        maxCount = count;
+                    }
+                });
+                
+                budgetId = mostCommon.id;
+                console.log(`Multiple budgets found in file. Using most common: "${mostCommon.dbName}" (ID: ${budgetId})`);
+            } else {
+                // No matching budgets found
+                const budgetNamesList = Array.from(budgetNames).join(', ');
+                if (filePath && fs.existsSync(filePath)) {
+                    fs.unlink(filePath, () => {});
+                }
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Budget(s) "${budgetNamesList}" not found in the system. Please ensure the budget name in the file matches an existing budget container.` 
+                });
+            }
+        }
+    }
+    
+    if (!budgetId) {
+        if (filePath && fs.existsSync(filePath)) {
+            fs.unlink(filePath, () => {});
+        }
+        return res.status(400).json({ 
+            success: false, 
+            message: 'No budget name found in the file. Please ensure the file contains a "budget" or "budgetName" column with a valid budget name.' 
+        });
+    }
+
     let connection;
     const summary = {
         totalRows: dataToImport.length,
@@ -2055,135 +2259,205 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // Load metadata mappings for enhanced ward/subcounty matching
-        console.log('Loading metadata mappings for import...');
-        let metadataMappings;
-        try {
-            metadataMappings = await metadataService.loadMetadataMappings();
-            console.log('Metadata mappings loaded successfully');
-        } catch (metadataError) {
-            console.error('Error loading metadata mappings, continuing with basic matching:', metadataError);
-            metadataMappings = null; // Fallback to basic matching if metadata service fails
+        // Get budget container info once (outside the loop)
+        const [budgetRows] = await connection.query(
+            'SELECT budgetId, finYearId, departmentId, budgetName FROM kemri_budgets WHERE voided = 0 AND budgetId = ? LIMIT 1',
+            [budgetId]
+        );
+
+        if (budgetRows.length === 0) {
+            await connection.rollback();
+            connection.release();
+            if (filePath && fs.existsSync(filePath)) {
+                fs.unlink(filePath, () => {});
+            }
+            return res.status(400).json({ success: false, message: `Budget with ID ${budgetId} not found.` });
         }
+
+        const budgetInfo = budgetRows[0];
+
+        // If budget is missing departmentId or finYearId, try to extract from the file
+        let finalDepartmentId = budgetInfo.departmentId;
+        let finalFinYearId = budgetInfo.finYearId;
+
+        if (!finalDepartmentId || !finalFinYearId) {
+            console.log(`Budget "${budgetInfo.budgetName}" is missing departmentId or finYearId. Attempting to extract from file...`);
+            
+            // Load metadata service
+            const metadataService = require('../services/metadataService');
+            const metadata = await metadataService.loadMetadataMappings();
+            
+            // Try to extract department and financial year from the first few rows
+            let extractedDepartmentName = null;
+            let extractedFinYearName = null;
+            
+            for (let j = 0; j < Math.min(10, dataToImport.length); j++) {
+                const sampleRow = dataToImport[j] || {};
+                
+                // Try to find department
+                if (!extractedDepartmentName) {
+                    const deptName = normalizeStr(
+                        sampleRow.department || sampleRow.Department || sampleRow['Department'] || 
+                        sampleRow.dbDepartment || sampleRow.db_department || ''
+                    );
+                    if (deptName) {
+                        const deptId = metadataService.getDepartmentId(metadata.departments, metadata.departmentAliases, deptName);
+                        if (deptId) {
+                            extractedDepartmentName = deptName;
+                            finalDepartmentId = deptId;
+                            console.log(`Extracted department "${deptName}" (ID: ${deptId}) from file`);
+                        }
+                    }
+                }
+                
+                // Try to find financial year
+                if (!extractedFinYearName) {
+                    const fyName = normalizeStr(
+                        sampleRow.financialYear || sampleRow.FinancialYear || sampleRow['Financial Year'] || 
+                        sampleRow.finYear || sampleRow.FinYear || sampleRow.ADP || sampleRow.Year || ''
+                    );
+                    if (fyName) {
+                        // Normalize financial year name using the same logic as metadataService
+                        // Remove FY prefix, normalize separators, handle concatenated years
+                        let normalizedFY = normalizeStr(fyName).toLowerCase();
+                        
+                        // Check for concatenated years like "20232024"
+                        const concatenatedMatch = normalizedFY.match(/^(\d{4})(\d{4})$/);
+                        if (concatenatedMatch) {
+                            const year1 = concatenatedMatch[1];
+                            const year2 = concatenatedMatch[2];
+                            const y1 = parseInt(year1, 10);
+                            const y2 = parseInt(year2, 10);
+                            if (y1 >= 1900 && y1 <= 2100 && y2 >= 1900 && y2 <= 2100 && y2 === y1 + 1) {
+                                normalizedFY = `${year1}/${year2}`;
+                            }
+                        }
+                        
+                        // Remove FY prefix (with optional space)
+                        normalizedFY = normalizedFY.replace(/^fy\s*/i, '');
+                        // Normalize all separators (space, dash) to slash
+                        normalizedFY = normalizedFY.replace(/[\s\-]/g, '/');
+                        // Remove any extra slashes
+                        normalizedFY = normalizedFY.replace(/\/+/g, '/').trim();
+                        
+                        // Find matching financial year (exact match first, then partial)
+                        if (metadata.financialYears.has(normalizedFY)) {
+                            const fyInfo = metadata.financialYears.get(normalizedFY);
+                            finalFinYearId = fyInfo.finYearId;
+                            extractedFinYearName = fyName;
+                            console.log(`Extracted financial year "${fyName}" (ID: ${finalFinYearId}) from file`);
+                        } else {
+                            // Try partial match
+                            for (const [key, value] of metadata.financialYears.entries()) {
+                                if (key.includes(normalizedFY) || normalizedFY.includes(key)) {
+                                    finalFinYearId = value.finYearId;
+                                    extractedFinYearName = fyName;
+                                    console.log(`Extracted financial year "${fyName}" (ID: ${finalFinYearId}) from file (partial match: "${key}")`);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // If we found both, we can break early
+                if (finalDepartmentId && finalFinYearId) {
+                    break;
+                }
+            }
+            
+            // If we successfully extracted values, optionally update the budget container
+            if (finalDepartmentId && finalFinYearId && (!budgetInfo.departmentId || !budgetInfo.finYearId)) {
+                console.log(`Updating budget container "${budgetInfo.budgetName}" with extracted values: departmentId=${finalDepartmentId}, finYearId=${finalFinYearId}`);
+                await connection.query(
+                    'UPDATE kemri_budgets SET departmentId = COALESCE(departmentId, ?), finYearId = COALESCE(finYearId, ?) WHERE budgetId = ?',
+                    [finalDepartmentId, finalFinYearId, budgetId]
+                );
+            }
+        }
+
+        // Final validation - fail only if we still don't have the required fields
+        if (!finalDepartmentId || !finalFinYearId) {
+            await connection.rollback();
+            connection.release();
+            if (filePath && fs.existsSync(filePath)) {
+                fs.unlink(filePath, () => {});
+            }
+            return res.status(400).json({ 
+                success: false, 
+                message: `Budget "${budgetInfo.budgetName}" is missing required fields: departmentId or finYearId. Could not extract from file. Please ensure the file contains department and financial year columns, or update the budget container manually.` 
+            });
+        }
+        
+        // Use the final values (either from budget container or extracted from file)
+        budgetInfo.departmentId = finalDepartmentId;
+        budgetInfo.finYearId = finalFinYearId;
 
         for (let i = 0; i < dataToImport.length; i++) {
             const row = dataToImport[i] || {};
             try {
-                // Extract and normalize fields - log first row for debugging
-                if (i === 0) {
-                    console.log('Sample row data:', JSON.stringify(row, null, 2));
-                    console.log('Available keys:', Object.keys(row));
-                }
-                
-                const budgetNameRaw = row.budgetName || row['BudgetName'] || row['Budget Name'] || row['Budget'] || row.budget || '';
-                const budgetName = normalizeStr(budgetNameRaw);
-                const projectNameRaw = row.projectName || row['Project Name'] || row['project name'] || row['Project name'] || row['PROJECT NAME'] || '';
-                let projectName = '';
-                if (projectNameRaw) {
-                    const normalized = normalizeStr(String(projectNameRaw));
-                    if (normalized && typeof normalized === 'string') {
-                        projectName = normalized.trim();
+                // Helper function to find field value by trying multiple key variations
+                const findField = (possibleKeys, defaultValue = '') => {
+                    for (const key of possibleKeys) {
+                        if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                            return String(row[key]).trim();
+                        }
                     }
-                }
-                const amount = parseFloat(row.amount || row['Amount'] || 0);
-                const dbWard = normalizeStr(row.dbWard || row['db_ward'] || row.ward || row.Ward || '');
-                const dbSubcounty = normalizeStr(row.dbSubcounty || row['db_subcounty'] || row.subcounty || row.Subcounty || row['Sub County'] || row['sub-county'] || '');
-                // Extract department name/alias from input file
-                const departmentNameRaw = row.department || row.Department || row.dbDepartment || row['db_department'] || row['Department Name'] || '';
-                const departmentName = normalizeStr(departmentNameRaw);
+                    // Try case-insensitive search through all keys
+                    const rowKeys = Object.keys(row);
+                    for (const key of possibleKeys) {
+                        const lowerKey = key.toLowerCase();
+                        const foundKey = rowKeys.find(k => k.toLowerCase() === lowerKey);
+                        if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== '') {
+                            return String(row[foundKey]).trim();
+                        }
+                    }
+                    return defaultValue;
+                };
 
-                // Log first row for debugging
-                if (i === 0) {
-                    console.log(`Row ${i + 2} extracted values:`, {
-                        budgetName,
+                // Try multiple possible field names (case-insensitive)
+                // Note: budgetName is not required from the file since we use the selected budget container
+                const projectName = normalizeStr(
+                    findField(['projectName', 'Project Name', 'project name', 'PROJECTNAME', 'project_name', 'PROJECT_NAME'])
+                );
+                const amountStr = findField(['amount', 'Amount', 'AMOUNT', 'AMOUNT_', 'Amount_']);
+                const amount = parseFloat(amountStr) || 0;
+                const dbWard = normalizeStr(
+                    findField(['dbWard', 'db_ward', 'DB_WARD', 'ward', 'Ward', 'WARD'])
+                );
+                const dbSubcounty = normalizeStr(
+                    findField(['dbSubcounty', 'db_subcounty', 'DB_SUBCOUNTY', 'subcounty', 'Subcounty', 'SUBCOUNTY'])
+                );
+                
+                // Debug logging for first few rows
+                if (i < 3) {
+                    console.log(`Row ${i + 2} data:`, {
+                        budgetId,
                         projectName,
                         amount,
+                        amountStr,
                         dbWard,
                         dbSubcounty,
-                        departmentName
+                        rowKeys: Object.keys(row),
+                        rowSample: JSON.stringify(row, null, 2)
                     });
                 }
 
-                // Validate required fields - projectName must be non-empty after normalization
-                if (!budgetName || budgetName.trim() === '' || !projectName || projectName === '' || !amount || amount <= 0) {
+                if (!projectName || !amount || amount <= 0) {
                     summary.itemsSkipped++;
+                    const missingFields = [];
+                    if (!projectName) missingFields.push('projectName');
+                    if (!amount || amount <= 0) missingFields.push('amount');
+                    
                     summary.errors.push({
                         row: i + 2,
-                        message: `Missing required fields: budgetName="${budgetName}", projectName="${projectName}", amount=${amount}`
-                    });
-                    continue;
-                }
-
-                // Get budget container
-                const [budgetRows] = await connection.query(
-                    'SELECT budgetId, finYearId, departmentId FROM kemri_budgets WHERE voided = 0 AND budgetName = ? LIMIT 1',
-                    [budgetName]
-                );
-
-                if (budgetRows.length === 0) {
-                    summary.itemsSkipped++;
-                    summary.errors.push({
-                        row: i + 2,
-                        message: `Budget "${budgetName}" not found`
-                    });
-                    continue;
-                }
-
-                const budgetId = budgetRows[0].budgetId;
-                const finYearId = budgetRows[0].finYearId;
-                
-                // Validate that budget has required fields
-                if (!finYearId || finYearId === null || finYearId === undefined) {
-                    summary.itemsSkipped++;
-                    summary.errors.push({
-                        row: i + 2,
-                        message: `Budget "${budgetName}" has no finYearId (finYearId is null or undefined)`
-                    });
-                    console.warn(`Budget "${budgetName}" (ID: ${budgetId}) found but has null/undefined finYearId`);
-                    continue;
-                }
-                
-                // Get department ID from input file using metadata service (handles both name and alias)
-                let departmentId = null;
-                if (departmentName && departmentName.trim() !== '') {
-                    if (metadataMappings) {
-                        // Use enhanced matching with metadata service (handles both name and alias)
-                        departmentId = metadataService.getDepartmentId(
-                            metadataMappings.departments,
-                            metadataMappings.departmentAliases,
-                            departmentName
-                        );
-                        if (departmentId) {
-                            console.log(`Matched department: "${departmentName}" -> Department ID: ${departmentId}`);
-                        } else {
-                            console.warn(`Could not match department: "${departmentName}"`);
+                        message: `Missing required fields: ${missingFields.join(', ')}`,
+                        foundFields: Object.keys(row).filter(k => row[k] !== undefined && row[k] !== null && row[k] !== ''),
+                        sampleData: {
+                            projectName: projectName || 'NOT FOUND',
+                            amount: amount || 'NOT FOUND'
                         }
-                    } else {
-                        // Fallback to basic SQL matching if metadata service failed
-                        const [deptRows] = await connection.query(
-                            'SELECT departmentId FROM kemri_departments WHERE (voided IS NULL OR voided = 0) AND (name = ? OR alias LIKE ?) LIMIT 1',
-                            [departmentName, `%${departmentName}%`]
-                        );
-                        if (deptRows.length > 0) {
-                            departmentId = deptRows[0].departmentId;
-                        }
-                    }
-                }
-                
-                // If department not found in input, try to get from budget as fallback
-                if (!departmentId && budgetRows[0].departmentId) {
-                    departmentId = budgetRows[0].departmentId;
-                    console.log(`Using departmentId from budget record: ${departmentId}`);
-                }
-                
-                // Validate that we have a departmentId
-                if (!departmentId || departmentId === null || departmentId === undefined) {
-                    summary.itemsSkipped++;
-                    summary.errors.push({
-                        row: i + 2,
-                        message: `Department not found: "${departmentName}" (from input file) and budget "${budgetName}" has no departmentId`
                     });
-                    console.warn(`Row ${i + 2}: No departmentId found. Input department: "${departmentName}", Budget departmentId: ${budgetRows[0].departmentId}`);
                     continue;
                 }
 
@@ -2196,62 +2470,36 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
 
                 if (projectRows.length > 0) {
                     projectId = projectRows[0].id;
+                    // Update costOfProject if the new amount is higher, set status to 'Under Procurement' if null, and update budgetId to current budget
+                    await connection.query(
+                        'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                        [amount, 'Under Procurement', budgetId, projectId]
+                    );
                 } else {
                     // Create project if it doesn't exist
-                    // Ensure projectName is not empty before inserting
-                    const trimmedProjectName = projectName ? projectName.trim() : '';
-                    if (!trimmedProjectName || trimmedProjectName === '') {
-                        throw new Error(`Cannot create project: projectName is empty for row ${i + 2}. Raw value was: "${projectNameRaw}"`);
-                    }
-                    console.log(`Creating project with name: "${trimmedProjectName}"`);
                     const [projectResult] = await connection.query(
-                        'INSERT INTO kemri_projects (projectName, departmentId, finYearId, costOfProject, userId) VALUES (?, ?, ?, ?, ?)',
-                        [trimmedProjectName, departmentId, finYearId, amount, userId]
+                        'INSERT INTO kemri_projects (projectName, departmentId, finYearId, costOfProject, status, budgetId, userId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [projectName, budgetInfo.departmentId, budgetInfo.finYearId, amount, 'Under Procurement', budgetId, userId]
                     );
                     projectId = projectResult.insertId;
-                    console.log(`Created new project: ID=${projectId}, Name="${trimmedProjectName}"`);
                 }
 
-                // Get ward and subcounty IDs using enhanced matching
+                // Get ward and subcounty IDs for linking to project
                 let wardId = null;
                 let subcountyId = null;
 
-                // Handle CountyWide - check if it exists in database
-                // CountyWide ward: wardId = 38, subcountyId = 9
-                // CountyWide subcounty: subcountyId = 9, name = "Countywide"
-                const isCountyWideWard = isCountyWide(dbWard);
-                const isCountyWideSubcounty = isCountyWide(dbSubcounty);
+                // Check for CountyWide first (handles various formats)
+                const isWardCountyWide = dbWard && isCountyWide(dbWard);
+                const isSubcountyCountyWide = dbSubcounty && isCountyWide(dbSubcounty);
 
-                if (dbWard && dbWard !== 'unknown') {
-                    if (isCountyWideWard) {
-                        // Look up CountyWide ward in database (handles both "CountyWide" and "Countywide" variations)
-                        const [countyWideWardRows] = await connection.query(
-                            'SELECT wardId, subcountyId FROM kemri_wards WHERE voided = 0 AND (LOWER(name) = ? OR LOWER(name) = ? OR LOWER(name) LIKE ?) LIMIT 1',
-                            ['countywide', 'county wide', '%countywide%']
-                        );
-                        if (countyWideWardRows.length > 0) {
-                            wardId = countyWideWardRows[0].wardId;
-                            subcountyId = countyWideWardRows[0].subcountyId;
-                            console.log(`Matched CountyWide ward -> Ward ID: ${wardId}, Subcounty ID: ${subcountyId}`);
-                        } else {
-                            console.warn(`CountyWide ward not found in database`);
-                        }
-                    } else if (metadataMappings) {
-                        // Use enhanced matching with metadata service
-                        const wardInfo = metadataService.getWardInfo(
-                            metadataMappings.wards,
-                            metadataMappings.wardWordSets,
-                            dbWard
-                        );
-                        if (wardInfo) {
-                            wardId = wardInfo.wardId;
-                            subcountyId = wardInfo.subcountyId;
-                            console.log(`Matched ward: "${dbWard}" -> Ward ID: ${wardId}, Subcounty ID: ${subcountyId}`);
-                        } else {
-                            console.warn(`Could not match ward: "${dbWard}"`);
-                        }
-                    } else {
-                        // Fallback to basic SQL matching
+                if (isWardCountyWide || isSubcountyCountyWide) {
+                    // CountyWide has specific IDs: wardId = 38, subcountyId = 9
+                    wardId = 38;
+                    subcountyId = 9;
+                    console.log(`Row ${i + 2}: Detected CountyWide - setting wardId=38, subcountyId=9`);
+                } else {
+                    // Look up regular ward
+                    if (dbWard && dbWard !== 'unknown') {
                         const [wardRows] = await connection.query(
                             'SELECT wardId, subcountyId FROM kemri_wards WHERE voided = 0 AND name = ? LIMIT 1',
                             [dbWard]
@@ -2261,36 +2509,9 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
                             subcountyId = wardRows[0].subcountyId;
                         }
                     }
-                }
 
-                if (dbSubcounty && dbSubcounty !== 'unknown' && !subcountyId) {
-                    if (isCountyWideSubcounty) {
-                        // Look up CountyWide subcounty in database (handles both "CountyWide" and "Countywide" variations)
-                        const [countyWideSubcountyRows] = await connection.query(
-                            'SELECT subcountyId FROM kemri_subcounties WHERE (voided IS NULL OR voided = 0) AND (LOWER(name) = ? OR LOWER(name) = ? OR LOWER(name) LIKE ?) LIMIT 1',
-                            ['countywide', 'county wide', '%countywide%']
-                        );
-                        if (countyWideSubcountyRows.length > 0) {
-                            subcountyId = countyWideSubcountyRows[0].subcountyId;
-                            console.log(`Matched CountyWide subcounty -> Subcounty ID: ${subcountyId}`);
-                        } else {
-                            console.warn(`CountyWide subcounty not found in database`);
-                        }
-                    } else if (metadataMappings) {
-                        // Use enhanced matching with metadata service
-                        const subcountyIdResult = metadataService.getSubcountyId(
-                            metadataMappings.subcounties,
-                            metadataMappings.subcountyWordSets,
-                            dbSubcounty
-                        );
-                        if (subcountyIdResult) {
-                            subcountyId = subcountyIdResult;
-                            console.log(`Matched subcounty: "${dbSubcounty}" -> Subcounty ID: ${subcountyId}`);
-                        } else {
-                            console.warn(`Could not match subcounty: "${dbSubcounty}"`);
-                        }
-                    } else {
-                        // Fallback to basic SQL matching
+                    // Look up regular subcounty (if not already set from ward)
+                    if (dbSubcounty && dbSubcounty !== 'unknown' && !subcountyId) {
                         const [subcountyRows] = await connection.query(
                             'SELECT subcountyId FROM kemri_subcounties WHERE voided = 0 AND name = ? LIMIT 1',
                             [dbSubcounty]
@@ -2301,14 +2522,45 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
                     }
                 }
 
-                // Create budget item
-                // Note: projectName and departmentId are required fields (NOT NULL) in kemri_budget_items
-                console.log(`Creating budget item: budgetId=${budgetId}, projectId=${projectId}, projectName="${projectName}", departmentId=${departmentId}, wardId=${wardId}, subcountyId=${subcountyId}, amount=${amount}`);
-                const [insertResult] = await connection.query(
-                    'INSERT INTO kemri_budget_items (budgetId, projectId, projectName, departmentId, wardId, subcountyId, amount, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [budgetId, projectId, projectName, departmentId, wardId, subcountyId, amount, userId]
-                );
-                console.log(`Budget item created with ID: ${insertResult.insertId}`);
+                // Link project to locations via junction tables
+                if (wardId) {
+                    const [existingWardLink] = await connection.query(
+                        'SELECT * FROM kemri_project_wards WHERE projectId = ? AND wardId = ?',
+                        [projectId, wardId]
+                    );
+                    if (existingWardLink.length === 0) {
+                        await connection.query(
+                            'INSERT INTO kemri_project_wards (projectId, wardId) VALUES (?, ?)',
+                            [projectId, wardId]
+                        );
+                    }
+                }
+
+                if (subcountyId) {
+                    const [existingSubcountyLink] = await connection.query(
+                        'SELECT * FROM kemri_project_subcounties WHERE projectId = ? AND subcountyId = ?',
+                        [projectId, subcountyId]
+                    );
+                    if (existingSubcountyLink.length === 0) {
+                        await connection.query(
+                            'INSERT INTO kemri_project_subcounties (projectId, subcountyId) VALUES (?, ?)',
+                            [projectId, subcountyId]
+                        );
+                    }
+                }
+
+                // Create budget item for tracking (optional - projects can also be queried directly via budgetId)
+                // This allows tracking of addedAfterApproval, changeRequestId, remarks, etc.
+                try {
+                    await connection.query(
+                        'INSERT INTO kemri_budget_items (budgetId, projectId, userId) VALUES (?, ?, ?)',
+                        [budgetId, projectId, userId]
+                    );
+                } catch (itemError) {
+                    // If budget item creation fails (e.g., duplicate), log but don't fail the import
+                    // Projects are already created/updated with budgetId, so they can be queried directly
+                    console.warn(`Could not create budget item for project ${projectId} in budget ${budgetId}:`, itemError.message);
+                }
 
                 summary.itemsCreated++;
             } catch (rowError) {
@@ -2321,6 +2573,12 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
         }
 
         await connection.commit();
+        
+        // Clean up uploaded file
+        if (filePath && fs.existsSync(filePath)) {
+            fs.unlink(filePath, () => {});
+        }
+        
         res.status(200).json({
             success: true,
             message: `Import completed. ${summary.itemsCreated} items created, ${summary.itemsSkipped} skipped.`,
@@ -2329,6 +2587,12 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
     } catch (error) {
         if (connection) await connection.rollback();
         console.error('Budget import error:', error);
+        
+        // Clean up uploaded file on error
+        if (filePath && fs.existsSync(filePath)) {
+            fs.unlink(filePath, () => {});
+        }
+        
         res.status(500).json({ success: false, message: `Import failed: ${error.message}` });
     } finally {
         if (connection) connection.release();
@@ -2336,757 +2600,26 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
 });
 
 /**
- * @route POST /api/budgets/check-metadata-mapping
- * @description Check metadata mappings for budget import data (budgets, financial years, departments, wards, subcounties)
+ * @route GET /api/budgets/template
+ * @description Download budget import template
  * @access Private
  */
-router.post('/check-metadata-mapping', upload.single('file'), async (req, res) => {
-    const overallStart = Date.now();
-    console.log('=== POST /api/budgets/check-metadata-mapping called ===');
-    let dataToImport = req.body?.dataToImport;
-    const filePath = req.file?.path;
-
-    // If no data provided but file uploaded, parse the file
-    if ((!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) && filePath) {
-        try {
-            console.log('No dataToImport provided, parsing uploaded file for metadata check');
-            const workbook = xlsx.readFile(filePath, { 
-                cellDates: true,
-                cellNF: false,
-                cellStyles: false
-            });
-            const sheetName = workbook.SheetNames[0];
-            let worksheet = workbook.Sheets[sheetName];
-
-            // Check and limit large column ranges
-            const range = xlsx.utils.decode_range(worksheet['!ref'] || 'A1');
-            const columnCount = range.e.c + 1;
-            if (columnCount > 100) {
-                console.log(`Large column range detected (${columnCount} columns), limiting to first 200 columns`);
-                const limitedRange = {
-                    s: { c: 0, r: 0 },
-                    e: { c: Math.min(199, columnCount - 1), r: range.e.r }
-                };
-                const limitedRef = xlsx.utils.encode_range(limitedRange);
-                const limitedWorksheet = {};
-                Object.keys(worksheet).forEach(key => {
-                    if (key.startsWith('!')) {
-                        limitedWorksheet[key] = worksheet[key];
-                    } else {
-                        const cellAddress = xlsx.utils.decode_cell(key);
-                        if (cellAddress.c <= limitedRange.e.c) {
-                            limitedWorksheet[key] = worksheet[key];
-                        }
-                    }
-                });
-                limitedWorksheet['!ref'] = limitedRef;
-                worksheet = limitedWorksheet;
-            }
-
-            const rawData = xlsx.utils.sheet_to_json(worksheet, { 
-                header: 1,
-                defval: null,
-                raw: false
-            });
-
-            if (rawData.length < 2) {
-                fs.unlink(filePath, () => {});
-                return res.status(400).json({ success: false, message: 'Uploaded Excel file is empty or has no data rows.' });
-            }
-
-            const headers = rawData[0];
-            const dataRows = rawData.slice(1).filter(row => {
-                if (!row || !Array.isArray(row)) return false;
-                return row.some(cell => cell !== undefined && cell !== null && cell !== '');
-            });
-
-            // Use same mapping logic as preview
-            const headerMap = {
-                'BudgetName': 'budgetName', 'Budget Name': 'budgetName', 'Budget': 'budgetName', 'budget': 'budgetName',
-                'Department': 'department', 'department': 'department', 'Department Name': 'department', 'db_department': 'dbDepartment', 'dbDepartment': 'dbDepartment',
-                'Project Name': 'projectName', 'projectName': 'projectName',
-                'ward': 'ward', 'Ward': 'ward', 'db_ward': 'dbWard',
-                'Amount': 'amount', 'amount': 'amount',
-                'db_subcounty': 'dbSubcounty', 'sub-county': 'subcounty', 'Sub County': 'subcounty',
-                'SubCounty': 'subcounty', 'Subcounty': 'subcounty', 'subcounty': 'subcounty',
-                'fin_year': 'finYear', 'finYear': 'finYear', 'Financial Year': 'finYear', 'financialYear': 'finYear'
-            };
-
-            const mapRow = (headers, row) => {
-                const obj = {};
-                for (let i = 0; i < headers.length; i++) {
-                    const rawHeader = headers[i];
-                    if (rawHeader === undefined || rawHeader === null) continue;
-                    const canonical = headerMap[rawHeader] || rawHeader;
-                    let value = row[i];
-                    obj[canonical] = (value === undefined || value === null || value === '') ? null : value;
-                }
-                return obj;
-            };
-
-            dataToImport = dataRows.map(r => mapRow(headers, r)).filter(row => {
-                if (!row) return false;
-                const projectName = (row.projectName || row['Project Name'] || '').toString().trim();
-                const budgetNameRaw = row.budgetName || row['BudgetName'] || row['Budget Name'] || row['Budget'] || row.budget || '';
-                const budgetName = typeof budgetNameRaw === 'string' ? budgetNameRaw.trim() : (budgetNameRaw ? String(budgetNameRaw).trim() : '');
-                return (projectName && projectName.length >= 3) || (budgetName && budgetName.length > 0);
-            });
-
-            // Clean up file after parsing
-            fs.unlink(filePath, () => {});
-            console.log(`Parsed ${dataToImport.length} rows from uploaded file`);
-        } catch (parseErr) {
-            if (filePath && fs.existsSync(filePath)) {
-                fs.unlink(filePath, () => {});
-            }
-            console.error('Error parsing file in check-metadata-mapping:', parseErr);
-            return res.status(400).json({ success: false, message: `Failed to parse uploaded file: ${parseErr.message}` });
-        }
-    }
-
-    console.log('Data to import length:', dataToImport?.length || 0);
-    console.log('First row sample:', dataToImport?.[0] || 'N/A');
-    
-    if (!dataToImport || !Array.isArray(dataToImport) || dataToImport.length === 0) {
-        console.error('No data provided for metadata mapping check');
-        return res.status(400).json({ success: false, message: 'No data provided for metadata mapping check.' });
-    }
-
-    // Enhanced normalization: trim, normalize spaces/slashes, handle apostrophes, collapse multiple spaces
-    const normalizeStr = (v) => {
-        if (typeof v !== 'string') return v;
-        let normalized = v.trim();
-        // Remove apostrophes (handle different apostrophe characters)
-        normalized = normalized.replace(/[''"`\u0027\u2018\u2019\u201A\u201B\u2032\u2035]/g, '');
-        // Normalize slashes: remove spaces around existing slashes
-        normalized = normalized.replace(/\s*\/\s*/g, '/');
-        // Collapse multiple spaces to single space
-        normalized = normalized.replace(/\s+/g, ' ');
-        return normalized;
-    };
-
-    // Normalize alias for matching: remove &, commas, and spaces, then lowercase
-    const normalizeAlias = (v) => {
-        if (typeof v !== 'string') return v;
-        return normalizeStr(v)
-            .replace(/[&,]/g, '')  // Remove ampersands and commas
-            .replace(/\s+/g, '')   // Remove all spaces
-            .toLowerCase();         // Lowercase for case-insensitive matching
-    };
-
-    let connection;
-    const mappingSummary = {
-        budgets: { existing: [], new: [], unmatched: [] },
-        financialYears: { existing: [], new: [], unmatched: [] },
-        departments: { existing: [], new: [], unmatched: [] },
-        wards: { existing: [], new: [], unmatched: [] },
-        subcounties: { existing: [], new: [], unmatched: [] },
-        totalRows: dataToImport.length,
-        rowsWithUnmatchedMetadata: [],
-        duplicateProjectNames: [] // Track duplicate project names
-    };
-
+router.get('/template', async (req, res) => {
     try {
-        connection = await pool.getConnection();
-
-        // Collect unique values from all rows
-        const uniqueBudgets = new Set();
-        const uniqueFinancialYears = new Set();
-        const uniqueDepartments = new Set();
-        const uniqueWards = new Set();
-        const uniqueSubcounties = new Set();
-        
-        // Track project names to detect duplicates
-        const projectNameMap = new Map(); // normalized name -> array of {rowNumber, projectName, budgetName}
-        const duplicateProjectNames = new Set();
-
-        console.log('Processing', dataToImport.length, 'rows for metadata check');
-        if (dataToImport.length > 0) {
-            console.log('First row sample keys:', Object.keys(dataToImport[0]));
-            console.log('First row sample:', JSON.stringify(dataToImport[0], null, 2));
+        const templatePath = path.resolve(__dirname, '..', 'templates', 'budget_import_template.xlsx');
+        if (!fs.existsSync(templatePath)) {
+            return res.status(404).json({ message: 'Budget template not found on server' });
         }
-        
-        dataToImport.forEach((row, index) => {
-            // For budget imports, we need at least a budget name or project name
-            const projectName = (row.projectName || row['Project Name'] || '').toString().trim();
-            // Check for budget in multiple possible column names: Budget, budgetName, BudgetName, Budget Name
-            // Try to find budget name in various column name variations
-            let budgetNameRaw = row.budgetName || 
-                row['BudgetName'] || 
-                row['Budget Name'] || 
-                row['Budget'] || 
-                row.budget;
-            
-            // If not found, try case-insensitive search through all keys
-            if (!budgetNameRaw) {
-                const budgetKey = Object.keys(row).find(key => {
-                    if (!key) return false;
-                    const normalized = String(key).toLowerCase().trim();
-                    return normalized === 'budgetname' || 
-                           normalized === 'budget name' || 
-                           normalized === 'budget';
-                });
-                if (budgetKey) budgetNameRaw = row[budgetKey];
-            }
-            
-            if (index === 0 && budgetNameRaw) {
-                console.log(`Budget name found in row ${index}:`, {
-                    raw: budgetNameRaw,
-                    type: typeof budgetNameRaw,
-                    keys: Object.keys(row).filter(k => k && k.toLowerCase().includes('budget'))
-                });
-            }
-            
-            const budgetName = normalizeStr(budgetNameRaw);
-            
-            // Skip rows that have neither project name nor budget name
-            if ((!projectName || projectName.length < 3) && !budgetName) {
-                if (index < 3) {
-                    console.log(`Skipping row ${index}: no project name (min 3 chars) or budget name`);
-                }
-                return; // Skip this row
-            }
-            
-            // Track project names for duplicate detection (case-insensitive)
-            if (projectName && projectName.length >= 3) {
-                const normalizedProjectName = normalizeStr(projectName).toLowerCase();
-                if (!projectNameMap.has(normalizedProjectName)) {
-                    projectNameMap.set(normalizedProjectName, []);
-                }
-                projectNameMap.get(normalizedProjectName).push({
-                    rowNumber: index + 2, // Excel row number (1-indexed header + row index)
-                    projectName: projectName,
-                    budgetName: budgetName || 'N/A'
-                });
-                
-                // Mark as duplicate if we've seen it before
-                if (projectNameMap.get(normalizedProjectName).length > 1) {
-                    duplicateProjectNames.add(normalizedProjectName);
-                }
-            }
-            
-            // Extract department from multiple possible column names (including 'Department' with capital D)
-            const department = normalizeStr(
-                row.department || 
-                row.Department || 
-                row['Department'] ||
-                row.dbDepartment || 
-                row['db_department']
-            );
-            
-            if (index === 0) {
-                console.log(`Row ${index} extracted values:`, {
-                    projectName,
-                    budgetName,
-                    department,
-                    departmentRaw: row.department || row.Department || row['Department'],
-                    ward: row.ward || row.Ward || row.dbWard || row['db_ward'],
-                    subcounty: row.subcounty || row.Subcounty || row.dbSubcounty || row['db_subcounty'] || row['sub-county'] || row['Sub County'],
-                    finYear: row.finYear || row['fin_year'] || row.financialYear,
-                    allRowKeys: Object.keys(row)  // Log all available keys for debugging
-                });
-            }
-            
-            // Try multiple variations of ward column names (case-insensitive matching)
-            let ward = null;
-            // First try exact matches
-            ward = row.dbWard || row['db_ward'] || row.db_ward || row.ward || row.Ward || row['Ward'] || row['ward'];
-            
-            // If not found, search through all keys case-insensitively
-            if (!ward) {
-                const wardKey = Object.keys(row).find(key => {
-                    if (!key) return false;
-                    const normalized = String(key).toLowerCase().trim();
-                    return normalized === 'ward' || normalized === 'db_ward';
-                });
-                if (wardKey) ward = row[wardKey];
-            }
-            ward = normalizeStr(ward);
-            
-            // Try multiple variations of subcounty column names (case-insensitive matching)
-            let subcounty = null;
-            // First try exact matches
-            subcounty = row.dbSubcounty || row['db_subcounty'] || row.db_subcounty || 
-                       row['sub-county'] || row['Sub County'] || row.SubCounty || 
-                       row.Subcounty || row.subcounty;
-            
-            // If not found, search through all keys case-insensitively
-            if (!subcounty) {
-                const subcountyKey = Object.keys(row).find(key => {
-                    if (!key) return false;
-                    const normalized = String(key).toLowerCase().trim().replace(/[-\s]/g, '');
-                    return normalized === 'subcounty' || normalized === 'db_subcounty' || 
-                           normalized === 'subcounty' || normalized.includes('subcounty');
-                });
-                if (subcountyKey) subcounty = row[subcountyKey];
-            }
-            subcounty = normalizeStr(subcounty);
-            
-            // Log extraction for first few rows
-            if (index < 5) {
-                console.log(`Row ${index} metadata extraction:`, {
-                    ward: ward || 'NOT FOUND',
-                    wardType: typeof ward,
-                    wardValue: ward,
-                    subcounty: subcounty || 'NOT FOUND',
-                    subcountyType: typeof subcounty,
-                    subcountyValue: subcounty,
-                    wardRaw: row.dbWard || row['db_ward'] || row.ward || row.Ward || 'N/A',
-                    wardRawType: typeof (row.dbWard || row['db_ward'] || row.ward || row.Ward),
-                    subcountyRaw: row.dbSubcounty || row['db_subcounty'] || row['sub-county'] || row.Subcounty || 'N/A',
-                    subcountyRawType: typeof (row.dbSubcounty || row['db_subcounty'] || row['sub-county'] || row.Subcounty),
-                    allKeys: Object.keys(row),
-                    wardKeys: Object.keys(row).filter(k => k && (k.toLowerCase().includes('ward') || k.toLowerCase().includes('subcounty') || k.toLowerCase().includes('sub-county') || k.toLowerCase().includes('subcounty'))),
-                    rowSample: JSON.stringify(row).substring(0, 500)
-                });
-            }
-            // Check for financial year in the row data (from file columns only, not from existing budgets)
-            const finYear = normalizeStr(
-                row.financialYear || 
-                row.FinancialYear || 
-                row['Financial Year'] || 
-                row.finYear || 
-                row['fin_year'] ||
-                row.finYear
-            );
-
-            if (budgetName) uniqueBudgets.add(budgetName);
-            if (department) uniqueDepartments.add(department);
-            if (ward && ward !== 'unknown' && ward !== 'CountyWide' && ward.trim() !== '') {
-                uniqueWards.add(ward);
-                if (index < 3) console.log(`  Added ward to unique set: "${ward}"`);
-            }
-            if (subcounty && subcounty !== 'unknown' && subcounty !== 'CountyWide' && subcounty.trim() !== '') {
-                uniqueSubcounties.add(subcounty);
-                if (index < 3) console.log(`  Added subcounty to unique set: "${subcounty}"`);
-            }
-            if (finYear) uniqueFinancialYears.add(finYear);
-        });
-
-        // Build duplicate project names list
-        duplicateProjectNames.forEach(normalizedName => {
-            const occurrences = projectNameMap.get(normalizedName);
-            if (occurrences && occurrences.length > 1) {
-                mappingSummary.duplicateProjectNames.push({
-                    projectName: occurrences[0].projectName, // Use first occurrence's original casing
-                    occurrences: occurrences.length,
-                    rows: occurrences.map(occ => ({
-                        rowNumber: occ.rowNumber,
-                        budgetName: occ.budgetName
-                    }))
-                });
-            }
-        });
-
-        // Check budgets (must exist in kemri_budgets)
-        if (uniqueBudgets.size > 0) {
-            const budgetList = Array.from(uniqueBudgets);
-            console.log('Checking budgets:', budgetList);
-            const budgetCheckStart = Date.now();
-            const [budgetRows] = await connection.query(
-                `SELECT budgetId, budgetName, finYearId, departmentId 
-                 FROM kemri_budgets 
-                 WHERE voided = 0`
-            );
-            const budgetCheckTime = Date.now() - budgetCheckStart;
-            console.log(`Budget check query took ${budgetCheckTime}ms, fetched ${budgetRows.length} records`);
-            
-            if (budgetCheckTime > 2000) {
-                console.warn(`⚠️ WARNING: Budget check query took ${budgetCheckTime}ms - consider adding indexes`);
-            }
-            
-            const existingBudgets = new Set();
-            const existingBudgetsMap = new Map(); // Map normalized -> original for debugging
-            
-            budgetRows.forEach(b => {
-                if (b.budgetName) {
-                    const normalized = normalizeStr(b.budgetName).toLowerCase();
-                    existingBudgets.add(normalized);
-                    existingBudgetsMap.set(normalized, b.budgetName);
-                }
-            });
-            
-            console.log(`Found ${existingBudgets.size} existing budgets in database`);
-            if (budgetList.length <= 5) {
-                console.log('Sample existing budgets (normalized):', Array.from(existingBudgets).slice(0, 10));
-            }
-            
-            budgetList.forEach(budgetName => {
-                const normalized = normalizeStr(budgetName).toLowerCase();
-                console.log(`Checking budget: "${budgetName}" -> normalized: "${normalized}"`);
-                
-                if (existingBudgets.has(normalized)) {
-                    const originalName = existingBudgetsMap.get(normalized);
-                    console.log(`✓ Budget found: "${budgetName}" matches database budget: "${originalName}"`);
-                    mappingSummary.budgets.existing.push(budgetName);
-                } else {
-                    console.log(`✗ Budget NOT found: "${budgetName}" (normalized: "${normalized}")`);
-                    // Try to find similar budgets for debugging
-                    const similar = Array.from(existingBudgets).filter(existing => 
-                        existing.includes(normalized.substring(0, 10)) || 
-                        normalized.includes(existing.substring(0, 10))
-                    );
-                    if (similar.length > 0) {
-                        console.log(`  Similar budgets found:`, similar.slice(0, 3).map(n => existingBudgetsMap.get(n)));
-                    }
-                    mappingSummary.budgets.new.push(budgetName);
-                }
-            });
-
-            // Note: We don't extract financial years or departments from existing budgets
-            // because we only want to validate metadata that's actually in the uploaded file.
-            // If a budget exists, its financial year and department are already validated.
-            // We only check financial years and departments that are explicitly in the import data.
-        }
-
-        // Check financial years (with flexible matching)
-        if (uniqueFinancialYears.size > 0) {
-            const fyList = Array.from(uniqueFinancialYears);
-            const fyCheckStart = Date.now();
-            const [allFYs] = await connection.query(
-                `SELECT finYearName FROM kemri_financialyears WHERE (voided IS NULL OR voided = 0)`
-            );
-            const fyCheckTime = Date.now() - fyCheckStart;
-            console.log(`Financial year check query took ${fyCheckTime}ms, fetched ${allFYs.length} records`);
-            
-            const normalizeFinancialYear = (name) => {
-                if (!name) return '';
-                let normalized = String(name).trim().toLowerCase();
-                // Remove FY or fy prefix (with optional space)
-                normalized = normalized.replace(/^fy\s*/i, '');
-                // Normalize all separators (space, dash) to slash
-                normalized = normalized.replace(/[\s\-]/g, '/');
-                // Remove any extra slashes
-                normalized = normalized.replace(/\/+/g, '/');
-                return normalized.trim();
-            };
-            
-            const fyNormalizedMap = new Map();
-            allFYs.forEach(fy => {
-                if (fy.finYearName) {
-                    const normalized = normalizeFinancialYear(fy.finYearName);
-                    fyNormalizedMap.set(normalized, fy.finYearName);
-                }
-            });
-            
-            fyList.forEach(fy => {
-                const normalizedFY = normalizeFinancialYear(fy);
-                if (normalizedFY && fyNormalizedMap.has(normalizedFY)) {
-                    mappingSummary.financialYears.existing.push(fy);
-                } else {
-                    mappingSummary.financialYears.new.push(fy);
-                }
-            });
-        }
-
-        // Check departments (by name and alias)
-        if (uniqueDepartments.size > 0) {
-            const deptList = Array.from(uniqueDepartments);
-            const deptCheckStart = Date.now();
-            const [allDepts] = await connection.query(
-                `SELECT name, alias FROM kemri_departments 
-                 WHERE (voided IS NULL OR voided = 0)`
-            );
-            const deptCheckTime = Date.now() - deptCheckStart;
-            console.log(`Department check query took ${deptCheckTime}ms, fetched ${allDepts.length} records`);
-            const existingNames = new Set();
-            const existingAliases = new Set();
-            
-            allDepts.forEach(d => {
-                if (d.name) existingNames.add(normalizeStr(d.name).toLowerCase());
-                if (d.alias) {
-                    const normalizedAlias = normalizeAlias(d.alias);
-                    existingAliases.add(normalizedAlias);
-                    const aliases = d.alias.split(',').map(a => normalizeStr(a).toLowerCase());
-                    aliases.forEach(a => existingAliases.add(a));
-                    const fullAlias = normalizeStr(d.alias).toLowerCase();
-                    existingAliases.add(fullAlias);
-                }
-            });
-            
-            deptList.forEach(dept => {
-                const normalizedDept = normalizeStr(dept).toLowerCase();
-                const normalizedDeptAlias = normalizeAlias(dept);
-                let found = false;
-                
-                if (existingNames.has(normalizedDept)) {
-                    mappingSummary.departments.existing.push(dept);
-                    found = true;
-                }
-                
-                if (!found && (existingAliases.has(normalizedDept) || existingAliases.has(normalizedDeptAlias))) {
-                    mappingSummary.departments.existing.push(dept);
-                    found = true;
-                }
-                
-                if (!found) {
-                    mappingSummary.departments.new.push(dept);
-                }
-            });
-        }
-
-        // Check wards (case-insensitive matching)
-        console.log(`Checking ${uniqueWards.size} unique wards:`, Array.from(uniqueWards));
-        if (uniqueWards.size > 0) {
-            const wardList = Array.from(uniqueWards);
-            const wardCheckStart = Date.now();
-            const [allWards] = await connection.query(
-                `SELECT name FROM kemri_wards WHERE (voided IS NULL OR voided = 0)`
-            );
-            const wardCheckTime = Date.now() - wardCheckStart;
-            console.log(`Ward check query took ${wardCheckTime}ms, fetched ${allWards.length} records`);
-            
-            const wardNameMap = new Map();
-            const wardWordSetMap = new Map();
-            
-            allWards.forEach(w => {
-                if (w.name) {
-                    const normalized = normalizeStr(w.name).toLowerCase();
-                    wardNameMap.set(normalized, w.name);
-                    const withSlash = normalized.replace(/\s+/g, '/');
-                    if (withSlash !== normalized) {
-                        wardNameMap.set(withSlash, w.name);
-                    }
-                    const withSpace = normalized.replace(/\//g, ' ');
-                    if (withSpace !== normalized) {
-                        wardNameMap.set(withSpace, w.name);
-                    }
-                    const words = normalized.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
-                    if (words) {
-                        wardWordSetMap.set(words, w.name);
-                    }
-                }
-            });
-            
-            wardList.forEach(ward => {
-                let wardName = normalizeStr(ward).toLowerCase();
-                wardName = wardName.replace(/\s+ward\s*$/i, '').trim();
-                
-                console.log(`Checking ward: "${ward}" -> normalized: "${wardName}"`);
-                
-                let found = false;
-                
-                if (wardNameMap.has(wardName)) {
-                    console.log(`  ✓ Ward found: "${ward}" matches database ward`);
-                    mappingSummary.wards.existing.push(ward);
-                    found = true;
-                } else {
-                    const withSlash = wardName.replace(/\s+/g, '/');
-                    if (wardNameMap.has(withSlash)) {
-                        console.log(`  ✓ Ward found (with slash): "${ward}" matches database ward`);
-                        mappingSummary.wards.existing.push(ward);
-                        found = true;
-                    } else {
-                        const withSpace = wardName.replace(/\//g, ' ');
-                        if (wardNameMap.has(withSpace)) {
-                            console.log(`  ✓ Ward found (with space): "${ward}" matches database ward`);
-                            mappingSummary.wards.existing.push(ward);
-                            found = true;
-                        } else {
-                            const words = wardName.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
-                            if (words && wardWordSetMap.has(words)) {
-                                console.log(`  ✓ Ward found (word-order): "${ward}" matches database ward`);
-                                mappingSummary.wards.existing.push(ward);
-                                found = true;
-                            }
-                        }
-                    }
-                }
-                
-                if (!found) {
-                    console.log(`  ✗ Ward NOT found: "${ward}" (normalized: "${wardName}")`);
-                    mappingSummary.wards.new.push(ward);
-                }
-            });
-        }
-
-        // Check subcounties (case-insensitive matching)
-        console.log(`Checking ${uniqueSubcounties.size} unique subcounties:`, Array.from(uniqueSubcounties));
-        if (uniqueSubcounties.size > 0) {
-            const subcountyList = Array.from(uniqueSubcounties);
-            const subcountyCheckStart = Date.now();
-            const [allSubcounties] = await connection.query(
-                `SELECT name FROM kemri_subcounties WHERE (voided IS NULL OR voided = 0)`
-            );
-            const subcountyCheckTime = Date.now() - subcountyCheckStart;
-            console.log(`Subcounty check query took ${subcountyCheckTime}ms, fetched ${allSubcounties.length} records`);
-            
-            const subcountyNameMap = new Map();
-            const subcountyWordSetMap = new Map();
-            
-            allSubcounties.forEach(s => {
-                if (s.name) {
-                    const normalized = normalizeStr(s.name).toLowerCase();
-                    subcountyNameMap.set(normalized, s.name);
-                    const withSlash = normalized.replace(/\s+/g, '/');
-                    if (withSlash !== normalized) {
-                        subcountyNameMap.set(withSlash, s.name);
-                    }
-                    const withSpace = normalized.replace(/\//g, ' ');
-                    if (withSpace !== normalized) {
-                        subcountyNameMap.set(withSpace, s.name);
-                    }
-                    const words = normalized.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
-                    if (words) {
-                        subcountyWordSetMap.set(words, s.name);
-                    }
-                }
-            });
-            
-            subcountyList.forEach(subcounty => {
-                let subcountyName = normalizeStr(subcounty).toLowerCase();
-                subcountyName = subcountyName.replace(/\s+sc\s*$/i, '').trim();
-                subcountyName = subcountyName.replace(/\s+subcounty\s*$/i, '').trim();
-                subcountyName = subcountyName.replace(/\s+sub\s+county\s*$/i, '').trim();
-                
-                console.log(`Checking subcounty: "${subcounty}" -> normalized: "${subcountyName}"`);
-                
-                let found = false;
-                
-                if (subcountyNameMap.has(subcountyName)) {
-                    console.log(`  ✓ Subcounty found: "${subcounty}" matches database subcounty`);
-                    mappingSummary.subcounties.existing.push(subcounty);
-                    found = true;
-                } else {
-                    const withSlash = subcountyName.replace(/\s+/g, '/');
-                    if (subcountyNameMap.has(withSlash)) {
-                        console.log(`  ✓ Subcounty found (with slash): "${subcounty}" matches database subcounty`);
-                        mappingSummary.subcounties.existing.push(subcounty);
-                        found = true;
-                    } else {
-                        const withSpace = subcountyName.replace(/\//g, ' ');
-                        if (subcountyNameMap.has(withSpace)) {
-                            console.log(`  ✓ Subcounty found (with space): "${subcounty}" matches database subcounty`);
-                            mappingSummary.subcounties.existing.push(subcounty);
-                            found = true;
-                        } else {
-                            const words = subcountyName.split(/[\s\/]+/).filter(w => w.length > 0).sort().join(' ');
-                            if (words && subcountyWordSetMap.has(words)) {
-                                console.log(`  ✓ Subcounty found (word-order): "${subcounty}" matches database subcounty`);
-                                mappingSummary.subcounties.existing.push(subcounty);
-                                found = true;
-                            }
-                        }
-                    }
-                }
-                
-                if (!found) {
-                    console.log(`  ✗ Subcounty NOT found: "${subcounty}" (normalized: "${subcountyName}")`);
-                    mappingSummary.subcounties.new.push(subcounty);
-                }
-            });
-        }
-
-        // Identify rows with unmatched metadata (for warnings)
-        dataToImport.forEach((row, index) => {
-            const projectName = (row.projectName || row['Project Name'] || '').toString().trim();
-            // Check for budget in multiple possible column names
-            const budgetName = normalizeStr(
-                row.budgetName || 
-                row['BudgetName'] || 
-                row['Budget Name'] || 
-                row['Budget'] || 
-                row.budget
-            );
-            
-            // Skip rows that have neither project name nor budget name
-            if ((!projectName || projectName.length < 3) && !budgetName) {
-                return;
-            }
-            
-            const department = normalizeStr(row.department || row.Department || row.dbDepartment || row['db_department']);
-            const ward = normalizeStr(row.dbWard || row['db_ward'] || row.ward || row.Ward);
-            // Check for subcounty in multiple possible column names (matching project import pattern)
-            const subcounty = normalizeStr(
-                row.dbSubcounty || 
-                row['db_subcounty'] || 
-                row['sub-county'] || 
-                row.SubCounty || 
-                row['Sub County'] || 
-                row.Subcounty ||
-                row.subcounty
-            );
-            const finYear = normalizeStr(row.financialYear || row.FinancialYear || row['Financial Year'] || row.finYear || row['fin_year']);
-            
-            const unmatched = [];
-            if (budgetName && !mappingSummary.budgets.existing.includes(budgetName) && !mappingSummary.budgets.new.includes(budgetName)) {
-                unmatched.push(`Budget: ${budgetName}`);
-            }
-            if (department && !mappingSummary.departments.existing.includes(department) && !mappingSummary.departments.new.includes(department)) {
-                unmatched.push(`Department: ${department}`);
-            }
-            if (ward && ward !== 'unknown' && ward !== 'CountyWide' && !mappingSummary.wards.existing.includes(ward) && !mappingSummary.wards.new.includes(ward)) {
-                unmatched.push(`Ward: ${ward}`);
-            }
-            if (subcounty && subcounty !== 'unknown' && subcounty !== 'CountyWide' && !mappingSummary.subcounties.existing.includes(subcounty) && !mappingSummary.subcounties.new.includes(subcounty)) {
-                unmatched.push(`Subcounty: ${subcounty}`);
-            }
-            if (finYear && !mappingSummary.financialYears.existing.includes(finYear) && !mappingSummary.financialYears.new.includes(finYear)) {
-                unmatched.push(`Financial Year: ${finYear}`);
-            }
-            
-            if (unmatched.length > 0) {
-                mappingSummary.rowsWithUnmatchedMetadata.push({
-                    rowNumber: index + 2,
-                    projectName: projectName || `Row ${index + 2}`,
-                    unmatched: unmatched
-                });
-            }
-        });
-
-        const overallTime = Date.now() - overallStart;
-        console.log(`Metadata mapping check completed successfully in ${overallTime}ms`);
-        console.log('Mapping summary:', {
-            budgets: {
-                existing: mappingSummary.budgets.existing.length,
-                new: mappingSummary.budgets.new.length,
-                unmatched: mappingSummary.budgets.unmatched.length
-            },
-            financialYears: {
-                existing: mappingSummary.financialYears.existing.length,
-                new: mappingSummary.financialYears.new.length
-            },
-            departments: {
-                existing: mappingSummary.departments.existing.length,
-                new: mappingSummary.departments.new.length
-            },
-            wards: {
-                existing: mappingSummary.wards.existing.length,
-                new: mappingSummary.wards.new.length
-            },
-            subcounties: {
-                existing: mappingSummary.subcounties.existing.length,
-                new: mappingSummary.subcounties.new.length
-            },
-            duplicateProjectNames: mappingSummary.duplicateProjectNames.length,
-            rowsWithUnmatchedMetadata: mappingSummary.rowsWithUnmatchedMetadata.length
-        });
-        
-        if (overallTime > 5000) {
-            console.warn(`⚠️ WARNING: Metadata check took ${overallTime}ms - this is slow and may cause timeouts`);
-        }
-        
-        return res.status(200).json({
-            success: true,
-            message: 'Metadata mapping check completed',
-            mappingSummary
-        });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="budget_import_template.xlsx"');
+        return res.sendFile(templatePath);
     } catch (err) {
-        console.error('Budget metadata mapping check error:', err);
-        console.error('Error stack:', err.stack);
-        return res.status(500).json({ 
-            success: false, 
-            message: 'Failed to check metadata mappings',
-            error: err.message,
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-        });
-    } finally {
-        if (connection) {
-            connection.release();
-            console.log('Database connection released');
-        }
+        console.error('Error serving budget template:', err);
+        return res.status(500).json({ message: 'Failed to serve budget template' });
     }
 });
+
+module.exports = router;
 
 /**
  * @route GET /api/budgets/template

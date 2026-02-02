@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Box, Typography, Button, Paper, CircularProgress, Alert, Snackbar, TextField,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid,
@@ -197,6 +197,7 @@ function CentralImportPage() {
     setMappingSummary(null);
     setShowMappingPreview(false);
   };
+
 
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
@@ -463,10 +464,11 @@ function CentralImportPage() {
         case 'budgets':
           // For budgets, always re-upload the file since preview doesn't send fullData (only previewData with 10 rows)
           // This ensures all rows are imported, not just the preview
+          // The backend will extract the budget name from the file and look up the budgetId
           if (!selectedFile) {
             throw new Error('File is required for budget import. Please select and preview the file again.');
           }
-          // Re-upload file for import (backend will parse the full file)
+          // Re-upload file for import (backend will parse the full file and extract budget from it)
           const confirmFormData = new FormData();
           confirmFormData.append('file', selectedFile);
           response = await apiService.budgets.confirmBudgetImport(confirmFormData);
@@ -510,9 +512,21 @@ function CentralImportPage() {
 
     } catch (err) {
       console.error('Import confirmation error:', err);
+      console.error('Error response:', err.response?.data);
       const errorMessage = err.response?.data?.message || err.message || 'Failed to confirm import.';
       const errorDetails = err.response?.data?.details || (err.response?.data?.errors ? { errors: err.response.data.errors } : null);
-      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      
+      // Log error details for debugging
+      if (errorDetails?.errors) {
+        console.error('Import errors:', errorDetails.errors);
+      }
+      
+      setSnackbar({ 
+        open: true, 
+        message: errorMessage, 
+        severity: 'error',
+        autoHideDuration: errorDetails?.errors?.length > 0 ? 10000 : 6000 // Show longer if there are detailed errors
+      });
       setImportReport({ 
         success: false, 
         message: errorMessage,

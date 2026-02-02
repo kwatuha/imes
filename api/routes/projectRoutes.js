@@ -1275,7 +1275,13 @@ router.post('/confirm-import-data', async (req, res) => {
                 }
 
                 // Prepare project payload
-                const toMoney = (v) => (v != null ? Number(String(v).replace(/,/g, '')) : null);
+                const toMoney = (v) => {
+                    if (v == null || v === '') return null;
+                    const cleaned = String(v).replace(/,/g, '').trim();
+                    if (!cleaned) return null;
+                    const num = Number(cleaned);
+                    return isNaN(num) ? null : num;
+                };
                 // Ensure dates are in YYYY-MM-DD format - track corrections
                 const normalizeDate = (dateValue, fieldName) => {
                     if (!dateValue) return { date: null, corrected: false };
@@ -1316,11 +1322,20 @@ router.post('/confirm-import-data', async (req, res) => {
                     startDate: normalizeDate(row.StartDate, 'StartDate').date,
                     endDate: normalizeDate(row.EndDate, 'EndDate').date,
                     directorate: normalizeStr(row.directorate || row.Directorate) || null,
-                    sectionId: sectionId, // Store sectionId when directorate is resolved
-                    departmentId: departmentId,
-                    finYearId: finYearId,
+                    sectionId: (sectionId != null && !isNaN(sectionId)) ? sectionId : null, // Store sectionId when directorate is resolved
+                    departmentId: (departmentId != null && !isNaN(departmentId)) ? departmentId : null,
+                    finYearId: (finYearId != null && !isNaN(finYearId)) ? finYearId : null,
                     Contracted: toMoney(row.Contracted),
                 };
+                
+                // Remove any properties with NaN values to prevent MySQL errors
+                Object.keys(projectPayload).forEach(key => {
+                    const value = projectPayload[key];
+                    if (value !== null && typeof value === 'number' && isNaN(value)) {
+                        console.warn(`Row ${i + 2}: Removing NaN value for field "${key}"`);
+                        projectPayload[key] = null;
+                    }
+                });
 
                 // Upsert by ProjectRefNum first, else by projectName
                 let projectId = null;
@@ -1328,6 +1343,10 @@ router.post('/confirm-import-data', async (req, res) => {
                     const [existByRef] = await connection.query('SELECT id FROM kemri_projects WHERE ProjectRefNum = ?', [projectPayload.ProjectRefNum]);
                     if (existByRef.length > 0) {
                         projectId = existByRef[0].id;
+                        // Log payload for debugging if there are issues
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log(`Row ${i + 2}: Updating project ${projectId} with payload:`, JSON.stringify(projectPayload, null, 2));
+                        }
                         await connection.query('UPDATE kemri_projects SET ? WHERE id = ?', [projectPayload, projectId]);
                         summary.projectsUpdated++;
                     }
@@ -1336,11 +1355,19 @@ router.post('/confirm-import-data', async (req, res) => {
                     const [existByName] = await connection.query('SELECT id FROM kemri_projects WHERE projectName = ?', [projectPayload.projectName]);
                     if (existByName.length > 0) {
                         projectId = existByName[0].id;
+                        // Log payload for debugging if there are issues
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log(`Row ${i + 2}: Updating project ${projectId} with payload:`, JSON.stringify(projectPayload, null, 2));
+                        }
                         await connection.query('UPDATE kemri_projects SET ? WHERE id = ?', [projectPayload, projectId]);
                         summary.projectsUpdated++;
                     }
                 }
                 if (!projectId) {
+                    // Log payload for debugging if there are issues
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`Row ${i + 2}: Inserting new project with payload:`, JSON.stringify(projectPayload, null, 2));
+                    }
                     const [insProj] = await connection.query('INSERT INTO kemri_projects SET ?', projectPayload);
                     projectId = insProj.insertId;
                     summary.projectsCreated++;
@@ -1574,13 +1601,23 @@ router.post('/confirm-import-data', async (req, res) => {
         if (summary.errors.length > 0) {
             await connection.rollback();
             console.error('Import failed with errors:', summary.errors);
+            // Show first few errors in the main message for better visibility
+            const errorPreview = summary.errors.slice(0, 5).join('; ');
+            const errorMessage = summary.errors.length > 5 
+                ? `Import failed with ${summary.errors.length} errors. First errors: ${errorPreview}...`
+                : `Import failed with errors: ${errorPreview}`;
             return res.status(400).json({ 
                 success: false, 
-                message: 'Import failed with errors. No changes committed.', 
+                message: errorMessage,
                 details: { 
                     errors: summary.errors,
                     errorCount: summary.errors.length,
-                    totalRows: dataToImport.length
+                    totalRows: dataToImport.length,
+                    summary: {
+                        projectsCreated: summary.projectsCreated,
+                        projectsUpdated: summary.projectsUpdated,
+                        linksCreated: summary.linksCreated
+                    }
                 } 
             });
         }
