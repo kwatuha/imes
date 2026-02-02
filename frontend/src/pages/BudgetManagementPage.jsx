@@ -6,7 +6,7 @@ import {
   Stack, useTheme, Tooltip, Grid, Paper, Chip, Autocomplete,
   Tabs, Tab, Card, CardContent, Divider, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Avatar,
-  DialogContentText
+  DialogContentText, Menu, ListItemIcon, ListItemText
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { 
@@ -25,7 +25,8 @@ import {
   PendingActions as PendingIcon,
   TrendingUp as TrendingUpIcon,
   FileDownload as FileDownloadIcon,
-  PictureAsPdf as PictureAsPdfIcon
+  PictureAsPdf as PictureAsPdfIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -48,6 +49,93 @@ function BudgetManagementPage() {
   const [containerItems, setContainerItems] = useState([]);
   const [pendingChanges, setPendingChanges] = useState([]);
   const [activeTab, setActiveTab] = useState(0); // 0: Containers, 1: Container Details
+  
+  // Filter states for budget items
+  const [itemFilters, setItemFilters] = useState({
+    search: '',
+    departmentId: '',
+    subcountyId: '',
+    wardId: ''
+  });
+  
+  // Get unique values from containerItems for filter dropdowns
+  const availableDepartments = useMemo(() => {
+    if (!containerItems || containerItems.length === 0) return [];
+    const unique = new Map();
+    containerItems.forEach(item => {
+      if (item.departmentId && item.departmentName) {
+        unique.set(item.departmentId, { departmentId: item.departmentId, name: item.departmentName });
+      }
+    });
+    return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [containerItems]);
+  
+  const availableSubcounties = useMemo(() => {
+    if (!containerItems || containerItems.length === 0) return [];
+    const unique = new Map();
+    containerItems.forEach(item => {
+      if (item.subcountyId && item.subcountyName) {
+        unique.set(item.subcountyId, { subcountyId: item.subcountyId, name: item.subcountyName });
+      }
+    });
+    return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [containerItems]);
+  
+  const availableWards = useMemo(() => {
+    if (!containerItems || containerItems.length === 0) return [];
+    const unique = new Map();
+    containerItems.forEach(item => {
+      // If subcounty filter is set, only show wards from that subcounty
+      if (item.wardId && item.wardName) {
+        if (!itemFilters.subcountyId || item.subcountyId === parseInt(itemFilters.subcountyId)) {
+          unique.set(item.wardId, { wardId: item.wardId, name: item.wardName, subcountyId: item.subcountyId });
+        }
+      }
+    });
+    return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [containerItems, itemFilters.subcountyId]);
+  
+  // Filter budget items based on filters
+  const filteredItems = useMemo(() => {
+    if (!containerItems || containerItems.length === 0) return [];
+    
+    return containerItems.filter(item => {
+      // Search filter (project name, department, subcounty, ward)
+      if (itemFilters.search) {
+        const searchLower = itemFilters.search.toLowerCase();
+        const matchesSearch = 
+          (item.projectName && item.projectName.toLowerCase().includes(searchLower)) ||
+          (item.departmentName && item.departmentName.toLowerCase().includes(searchLower)) ||
+          (item.subcountyName && item.subcountyName.toLowerCase().includes(searchLower)) ||
+          (item.wardName && item.wardName.toLowerCase().includes(searchLower));
+        if (!matchesSearch) return false;
+      }
+      
+      // Department filter
+      if (itemFilters.departmentId && item.departmentId !== parseInt(itemFilters.departmentId)) {
+        return false;
+      }
+      
+      // Subcounty filter
+      if (itemFilters.subcountyId && item.subcountyId !== parseInt(itemFilters.subcountyId)) {
+        return false;
+      }
+      
+      // Ward filter
+      if (itemFilters.wardId && item.wardId !== parseInt(itemFilters.wardId)) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [containerItems, itemFilters]);
+  
+  // Reset filters when container changes
+  useEffect(() => {
+    if (selectedContainer) {
+      setItemFilters({ search: '', departmentId: '', subcountyId: '', wardId: '' });
+    }
+  }, [selectedContainer?.budgetId]);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -117,6 +205,14 @@ function BudgetManagementPage() {
   });
   const [combinedBudgetView, setCombinedBudgetView] = useState(null); // Stores the combined budget view data
 
+  // Row Action Menu States
+  const [rowActionMenuAnchor, setRowActionMenuAnchor] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
+  
+  // Context Menu States (Right-click)
+  const [contextMenu, setContextMenu] = useState(null);
+  const [selectedContainerForContextMenu, setSelectedContainerForContextMenu] = useState(null);
+
   // Fetch metadata
   const fetchMetadata = useCallback(async () => {
     try {
@@ -167,6 +263,8 @@ function BudgetManagementPage() {
       setProjects(data.projects || data || []);
     } catch (err) {
       console.error('Error fetching projects:', err);
+      // Don't block the page if projects fail - set empty array
+      setProjects([]);
     }
   }, []);
 
@@ -189,6 +287,7 @@ function BudgetManagementPage() {
   const fetchContainers = useCallback(async () => {
     setLoading(true);
     setError(null);
+    
     try {
       const params = {
         page: pagination.page,
@@ -197,8 +296,23 @@ function BudgetManagementPage() {
       };
       
       console.log('Fetching containers with params:', params);
-      const data = await budgetService.getBudgetContainers(params);
-      console.log('Fetched budget containers data:', data);
+      const startTime = Date.now();
+      
+      // Add timeout to prevent hanging (30 seconds)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
+      );
+      
+      const dataPromise = budgetService.getBudgetContainers(params);
+      const data = await Promise.race([dataPromise, timeoutPromise]);
+      const fetchTime = Date.now() - startTime;
+      
+      console.log(`Fetched budget containers data in ${fetchTime}ms:`, data);
+      
+      if (fetchTime > 5000) {
+        console.warn(`⚠️ WARNING: Fetch took ${fetchTime}ms - this is slow`);
+      }
+      
       console.log('Data type:', typeof data);
       console.log('Is array?', Array.isArray(data));
       console.log('Data keys:', Object.keys(data || {}));
@@ -222,15 +336,25 @@ function BudgetManagementPage() {
         }
       }
       
+      // Log if we couldn't find containers in expected structure
+      if (containersList.length === 0 && data && !Array.isArray(data)) {
+        console.warn('⚠️ No containers found in response. Response structure:', Object.keys(data));
+        console.warn('Response data:', JSON.stringify(data, null, 2));
+      }
+      
       console.log('Final containers list to set:', containersList);
       console.log('Final containers count:', containersList.length);
       
-      setContainers(containersList);
+      // Always set containers, even if empty - this ensures state is consistent
+      setContainers(containersList || []);
       setPagination(prev => ({
         ...prev,
-        total: data.pagination?.total || containersList.length,
-        totalPages: data.pagination?.totalPages || Math.ceil(containersList.length / pagination.limit)
+        total: data.pagination?.total || containersList.length || 0,
+        totalPages: data.pagination?.totalPages || Math.ceil((containersList.length || 0) / pagination.limit)
       }));
+      setError(null); // Clear any previous errors on success
+      setLoading(false);
+      console.log('✅ Successfully loaded containers. State updated.');
     } catch (err) {
       console.error('Error fetching budget containers:', err);
       console.error('Error type:', typeof err);
@@ -280,8 +404,9 @@ function BudgetManagementPage() {
       
       setError(errorMessage);
       setContainers([]);
-    } finally {
+      setPagination(prev => ({ ...prev, total: 0, totalPages: 0 }));
       setLoading(false);
+      console.error('❌ Failed to load containers. Error:', errorMessage);
     }
   }, [pagination.page, pagination.limit, filters]);
 
@@ -308,6 +433,9 @@ function BudgetManagementPage() {
   }, [fetchMetadata, fetchProjects]);
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered - calling fetchContainers');
+    console.log('Current filters:', filters);
+    console.log('Current pagination:', pagination);
     fetchContainers();
   }, [fetchContainers]);
 
@@ -880,7 +1008,7 @@ function BudgetManagementPage() {
     setExportingExcel(true);
     try {
       const headers = ['Project Name', 'Department', 'Subcounty', 'Ward', 'Amount (KES)', 'Remarks'];
-      const dataRows = containerItems.map(item => [
+      const dataRows = filteredItems.map(item => [
         formatToSentenceCase(item.projectName) || 'N/A',
         item.departmentName || 'N/A',
         formatToSentenceCase(item.subcountyName) || 'N/A',
@@ -909,7 +1037,7 @@ function BudgetManagementPage() {
       
       setSnackbar({ 
         open: true, 
-        message: `Exported ${containerItems.length} item(s) to Excel successfully!`, 
+        message: `Exported ${filteredItems.length} item(s) to Excel successfully!${filteredItems.length !== containerItems.length ? ` (filtered from ${containerItems.length})` : ''}`, 
         severity: 'success' 
       });
     } catch (err) {
@@ -924,7 +1052,7 @@ function BudgetManagementPage() {
     setExportingPdf(true);
     try {
       const headers = ['Project Name', 'Department', 'Subcounty', 'Ward', 'Amount (KES)', 'Remarks'];
-      const dataRows = containerItems.map(item => [
+      const dataRows = filteredItems.map(item => [
         formatToSentenceCase(item.projectName) || 'N/A',
         item.departmentName || 'N/A',
         formatToSentenceCase(item.subcountyName) || 'N/A',
@@ -935,6 +1063,9 @@ function BudgetManagementPage() {
 
       const doc = new jsPDF('landscape', 'pt', 'a4');
       
+      // Calculate total amount for filtered items
+      const filteredTotal = filteredItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+      
       // Add title
       doc.setFontSize(16);
       doc.setFont(undefined, 'bold');
@@ -943,8 +1074,8 @@ function BudgetManagementPage() {
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       doc.text(`Financial Year: ${selectedContainer?.finYearName || 'N/A'}`, 40, 50);
-      doc.text(`Total Items: ${containerItems.length}`, 40, 65);
-      doc.text(`Total Amount: ${formatCurrency(selectedContainer?.totalAmount || 0)}`, 40, 80);
+      doc.text(`Total Items: ${filteredItems.length}${filteredItems.length !== containerItems.length ? ` (filtered from ${containerItems.length})` : ''}`, 40, 65);
+      doc.text(`Total Amount: ${formatCurrency(filteredTotal)}${filteredItems.length !== containerItems.length ? ` (filtered)` : ''}`, 40, 80);
 
       // Add table
       autoTable(doc, {
@@ -975,7 +1106,7 @@ function BudgetManagementPage() {
       
       setSnackbar({ 
         open: true, 
-        message: `Exported ${containerItems.length} item(s) to PDF successfully!`, 
+        message: `Exported ${filteredItems.length} item(s) to PDF successfully!${filteredItems.length !== containerItems.length ? ` (filtered from ${containerItems.length})` : ''}`, 
         severity: 'success' 
       });
     } catch (err) {
@@ -1228,18 +1359,29 @@ function BudgetManagementPage() {
   };
 
   const handleFilterChange = (name, value) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
+    console.log(`🔍 Filter changed: ${name} = "${value}"`);
+    setFilters(prev => {
+      const newFilters = { ...prev, [name]: value };
+      console.log('New filters state:', newFilters);
+      return newFilters;
+    });
     setPagination(prev => ({ ...prev, page: 1 }));
+    setError(null);
+    // Note: fetchContainers will be called automatically via useEffect when filters change
   };
 
   const handleClearFilters = () => {
+    console.log('Clearing filters and resetting pagination');
     setFilters({
       finYearId: '',
       departmentId: '',
       status: '',
       search: ''
     });
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination(prev => ({ ...prev, page: 1, total: 0, totalPages: 0 }));
+    setError(null);
+    // Force refetch by setting loading to true - fetchContainers will be called via useEffect
+    setLoading(true);
   };
 
   const getStatusColor = (status) => {
@@ -1344,51 +1486,44 @@ function BudgetManagementPage() {
     {
       field: 'actions',
       headerName: 'Actions',
-      flex: 1.5,
-      minWidth: 200,
+      width: 80,
       sortable: false,
       filterable: false,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
-        const isApproved = params.row.status === 'Approved';
-        const isFrozen = params.row.isFrozen === 1;
-        const canApprove = hasPrivilege?.('budget.approve') && !isApproved;
-        
         return (
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="View Details">
-              <IconButton 
-                color="primary" 
-                size="small"
-                onClick={() => handleViewContainer(params.row)}
-              >
-                <ViewIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {!isFrozen && (
-              <Tooltip title="Edit">
-                <IconButton 
-                  color="primary" 
-                  size="small"
-                  onClick={() => handleOpenEditDialog(params.row)}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            {canApprove && (
-              <Tooltip title="Approve">
-                <IconButton 
-                  color="success" 
-                  size="small"
-                  onClick={() => handleOpenApproveDialog(params.row.budgetId)}
-                >
-                  <CheckCircleIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Stack>
+          <Tooltip title="Actions">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedRow(params.row);
+                setRowActionMenuAnchor(e.currentTarget);
+              }}
+              sx={{ color: 'text.secondary' }}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         );
       },
+      renderHeader: () => (
+        <Tooltip title="Actions">
+          <IconButton
+            size="small"
+            sx={{ 
+              color: 'inherit',
+              padding: '4px',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+              }
+            }}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
     },
   ];
 
@@ -1748,29 +1883,68 @@ function BudgetManagementPage() {
               sx={{
                 "& .MuiDataGrid-root": {
                   border: "none",
+                  fontFamily: theme.typography.fontFamily,
                 },
                 "& .MuiDataGrid-cell": {
                   borderBottom: "1px solid",
                   borderColor: "divider",
-                  py: 1,
+                  py: 1.5,
+                  fontSize: '0.875rem',
+                  '&:focus': {
+                    outline: 'none',
+                  },
+                  '&:focus-within': {
+                    outline: 'none',
+                  },
                 },
                 "& .MuiDataGrid-columnHeaders": {
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(102, 126, 234, 0.15)' 
+                    : 'rgba(102, 126, 234, 0.08)',
                   borderBottom: "2px solid",
-                  borderColor: "divider",
-                  fontWeight: 600,
+                  borderColor: theme.palette.primary.main,
+                  fontWeight: 700,
                   fontSize: '0.875rem',
+                  color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.87)',
+                  '& .MuiDataGrid-columnHeaderTitle': {
+                    fontWeight: 700,
+                  },
                 },
                 "& .MuiDataGrid-virtualScroller": {
                   backgroundColor: 'transparent',
                 },
                 "& .MuiDataGrid-footerContainer": {
-                  borderTop: "1px solid",
+                  borderTop: "2px solid",
                   borderColor: "divider",
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.01)',
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.02)' 
+                    : 'rgba(0, 0, 0, 0.01)',
+                  minHeight: '52px',
                 },
-                "& .MuiDataGrid-row:hover": {
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                "& .MuiDataGrid-row": {
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? 'rgba(102, 126, 234, 0.1)' 
+                      : 'rgba(102, 126, 234, 0.05)',
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.mode === 'dark'
+                      ? 'rgba(102, 126, 234, 0.2)'
+                      : 'rgba(102, 126, 234, 0.1)',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark'
+                        ? 'rgba(102, 126, 234, 0.25)'
+                        : 'rgba(102, 126, 234, 0.15)',
+                    },
+                  },
+                },
+                "& .MuiDataGrid-iconButtonContainer": {
+                  visibility: 'visible',
+                },
+                "& .MuiDataGrid-menuIcon": {
+                  visibility: 'visible',
                 },
               }}
             >
@@ -1786,6 +1960,30 @@ function BudgetManagementPage() {
                 onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage + 1 }))}
                 onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, limit: newPageSize, page: 1 }))}
                 rowsPerPageOptions={[25, 50, 100]}
+                onRowContextMenu={(params, event) => {
+                  event.preventDefault();
+                  setSelectedContainerForContextMenu(params.row);
+                  setContextMenu({
+                    mouseX: event.clientX + 2,
+                    mouseY: event.clientY - 6,
+                  });
+                }}
+                sx={{
+                  '& .MuiDataGrid-row': {
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                    },
+                  },
+                  '& .MuiDataGrid-cell': {
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                  },
+                  '& .MuiDataGrid-columnHeaders': {
+                    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
+                    fontWeight: 600,
+                  },
+                }}
               />
             ) : !loading ? (
               <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100%" gap={1.5} p={4}>
@@ -1795,8 +1993,31 @@ function BudgetManagementPage() {
                   {error ? `Error: ${error}` : 'Create a new container to get started'}
                 </Typography>
                 {containers.length === 0 && pagination.total > 0 && (
-                  <Typography variant="caption" color="warning.main" sx={{ mt: 1 }}>
-                    {pagination.total} container(s) may be filtered out. Try clearing filters.
+                  <Box sx={{ mt: 1, textAlign: 'center' }}>
+                    <Typography variant="caption" color="warning.main" display="block">
+                      {pagination.total} container(s) may be filtered out. Try clearing filters.
+                    </Typography>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={() => {
+                        setFilters({
+                          finYearId: '',
+                          departmentId: '',
+                          status: '',
+                          search: ''
+                        });
+                        setPagination(prev => ({ ...prev, page: 1 }));
+                      }}
+                      sx={{ mt: 1 }}
+                    >
+                      Clear All Filters
+                    </Button>
+                  </Box>
+                )}
+                {Object.values(filters).some(v => v !== '') && (
+                  <Typography variant="caption" color="info.main" sx={{ mt: 1 }}>
+                    Active filters: {Object.entries(filters).filter(([_, v]) => v !== '').map(([k, v]) => `${k}=${v}`).join(', ')}
                   </Typography>
                 )}
               </Box>
@@ -2197,7 +2418,15 @@ function BudgetManagementPage() {
             <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
                 <Typography variant="subtitle1" fontWeight={700}>
-                  Budget Items <Chip label={containerItems.length} size="small" sx={{ ml: 1, height: 20 }} />
+                  Budget Items <Chip label={filteredItems.length} size="small" sx={{ ml: 1, height: 20 }} />
+                  {filteredItems.length !== containerItems.length && (
+                    <Chip 
+                      label={`of ${containerItems.length}`} 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ ml: 0.5, height: 20, fontSize: '0.7rem' }} 
+                    />
+                  )}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   {containerItems.length > 0 && (
@@ -2261,6 +2490,98 @@ function BudgetManagementPage() {
                   )}
                 </Stack>
               </Box>
+              
+              {/* Filter Section */}
+              <Box mb={2} sx={{ 
+                p: 1.5, 
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+                borderRadius: 1,
+                border: 1,
+                borderColor: 'divider'
+              }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} sm={6} md={3}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Search items..."
+                      value={itemFilters.search}
+                      onChange={(e) => setItemFilters({ ...itemFilters, search: e.target.value })}
+                      InputProps={{
+                        startAdornment: <FilterIcon sx={{ mr: 1, fontSize: 18, color: 'text.secondary' }} />
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Department</InputLabel>
+                      <Select
+                        value={itemFilters.departmentId}
+                        label="Department"
+                        onChange={(e) => setItemFilters({ ...itemFilters, departmentId: e.target.value })}
+                      >
+                        <MenuItem value="">All Departments</MenuItem>
+                        {availableDepartments.map((dept) => (
+                          <MenuItem key={dept.departmentId} value={dept.departmentId}>
+                            {dept.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Subcounty</InputLabel>
+                      <Select
+                        value={itemFilters.subcountyId}
+                        label="Subcounty"
+                        onChange={(e) => {
+                          // Reset ward filter when subcounty changes
+                          setItemFilters({ ...itemFilters, subcountyId: e.target.value, wardId: '' });
+                        }}
+                      >
+                        <MenuItem value="">All Subcounties</MenuItem>
+                        {availableSubcounties.map((sub) => (
+                          <MenuItem key={sub.subcountyId} value={sub.subcountyId}>
+                            {sub.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Ward</InputLabel>
+                      <Select
+                        value={itemFilters.wardId}
+                        label="Ward"
+                        onChange={(e) => setItemFilters({ ...itemFilters, wardId: e.target.value })}
+                        disabled={!itemFilters.subcountyId && availableWards.length === 0}
+                      >
+                        <MenuItem value="">All Wards</MenuItem>
+                        {availableWards.map((ward) => (
+                          <MenuItem key={ward.wardId} value={ward.wardId}>
+                            {ward.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  {(itemFilters.search || itemFilters.departmentId || itemFilters.subcountyId || itemFilters.wardId) && (
+                    <Grid item xs={12}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setItemFilters({ search: '', departmentId: '', subcountyId: '', wardId: '' })}
+                        startIcon={<CancelIcon />}
+                      >
+                        Clear Filters
+                      </Button>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+              
               <TableContainer>
                 <Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.813rem' } }}>
                   <TableHead>
@@ -2275,8 +2596,8 @@ function BudgetManagementPage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {containerItems.length > 0 ? (
-                      containerItems.map((item, index) => (
+                    {filteredItems.length > 0 ? (
+                      filteredItems.map((item, index) => (
                         <TableRow 
                           key={item.itemId} 
                           hover
@@ -2459,7 +2780,7 @@ function BudgetManagementPage() {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth margin="dense">
+              <FormControl fullWidth margin="dense" sx={{ minWidth: 200 }}>
                 <InputLabel>Department</InputLabel>
                 <Select
                   name="departmentId"
@@ -2992,6 +3313,131 @@ function BudgetManagementPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Row Action Menu (Three Dots) */}
+      <Menu
+        anchorEl={rowActionMenuAnchor}
+        open={Boolean(rowActionMenuAnchor)}
+        onClose={() => {
+          setRowActionMenuAnchor(null);
+          setSelectedRow(null);
+        }}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        {selectedRow && (() => {
+          const isApproved = selectedRow.status === 'Approved';
+          const isFrozen = selectedRow.isFrozen === 1;
+          const canApprove = hasPrivilege?.('budget.approve') && !isApproved;
+          const canUpdate = hasPrivilege?.('budget.update');
+          
+          return [
+            <MenuItem key="view" onClick={() => {
+              handleViewContainer(selectedRow);
+              setRowActionMenuAnchor(null);
+              setSelectedRow(null);
+            }}>
+              <ListItemIcon>
+                <ViewIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>View Details</ListItemText>
+            </MenuItem>,
+            <MenuItem 
+              key="edit"
+              onClick={() => {
+                if (canUpdate && !isFrozen) {
+                  handleOpenEditDialog(selectedRow);
+                  setRowActionMenuAnchor(null);
+                  setSelectedRow(null);
+                }
+              }}
+              disabled={!canUpdate || isFrozen}
+            >
+              <ListItemIcon>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Edit</ListItemText>
+            </MenuItem>,
+            canApprove && (
+              <MenuItem key="approve" onClick={() => {
+                handleOpenApproveDialog(selectedRow.budgetId);
+                setRowActionMenuAnchor(null);
+                setSelectedRow(null);
+              }}>
+                <ListItemIcon>
+                  <CheckCircleIcon fontSize="small" color="success" />
+                </ListItemIcon>
+                <ListItemText>Approve</ListItemText>
+              </MenuItem>
+            )
+          ].filter(Boolean);
+        })()}
+      </Menu>
+
+      {/* Context Menu (Right-click) */}
+      <Menu
+        open={contextMenu !== null}
+        onClose={() => {
+          setContextMenu(null);
+          setSelectedContainerForContextMenu(null);
+        }}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          contextMenu !== null
+            ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+            : undefined
+        }
+      >
+        {selectedContainerForContextMenu && (() => {
+          const isApproved = selectedContainerForContextMenu.status === 'Approved';
+          const isFrozen = selectedContainerForContextMenu.isFrozen === 1;
+          const canApprove = hasPrivilege?.('budget.approve') && !isApproved;
+          const canUpdate = hasPrivilege?.('budget.update');
+          
+          return [
+            <MenuItem key="view" onClick={() => {
+              handleViewContainer(selectedContainerForContextMenu);
+              setContextMenu(null);
+              setSelectedContainerForContextMenu(null);
+            }}>
+              <ListItemIcon>
+                <ViewIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>View Details</ListItemText>
+            </MenuItem>,
+            canUpdate && !isFrozen && (
+              <MenuItem key="edit" onClick={() => {
+                handleOpenEditDialog(selectedContainerForContextMenu);
+                setContextMenu(null);
+                setSelectedContainerForContextMenu(null);
+              }}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Edit</ListItemText>
+              </MenuItem>
+            ),
+            canApprove && (
+              <MenuItem key="approve" onClick={() => {
+                handleOpenApproveDialog(selectedContainerForContextMenu.budgetId);
+                setContextMenu(null);
+                setSelectedContainerForContextMenu(null);
+              }}>
+                <ListItemIcon>
+                  <CheckCircleIcon fontSize="small" color="success" />
+                </ListItemIcon>
+                <ListItemText>Approve</ListItemText>
+              </MenuItem>
+            )
+          ].filter(Boolean);
+        })()}
+      </Menu>
 
       {/* Snackbar for notifications */}
       <Snackbar

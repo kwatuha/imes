@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -7,6 +7,7 @@ import {
   Box,
   CssBaseline,
   Button,
+  CircularProgress,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Outlet, useNavigate, Navigate, useLocation } from 'react-router-dom';
@@ -35,7 +36,18 @@ function MainLayoutContent() {
   const [mobileOpen, setMobileOpen] = useState(false);
   // Sidebar pin (expanded) state for desktop
   const [isSidebarPinnedOpen, setIsSidebarPinnedOpen] = useState(false);
-  const { token, user, logout } = useAuth();
+  
+  // Safely get auth context with error handling
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (error) {
+    // If context is not available, return null and let React handle it
+    console.error('Auth context not available:', error);
+    return null;
+  }
+  
+  const { token, user, logout, loading } = authContext || {};
   const navigate = useNavigate();
   const location = useLocation();
   const { isCollapsed } = useSidebar();
@@ -46,7 +58,6 @@ function MainLayoutContent() {
   // Auto-update page title based on route
   usePageTitleEffect();
 
-
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
@@ -56,6 +67,15 @@ function MainLayoutContent() {
         navigate(ROUTES.CONTRACTOR_DASHBOARD, { replace: true });
     }
   }, [location.pathname, user, navigate]);
+
+  // Show loading state while auth is initializing
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   if (!token) {
     return <Navigate to={ROUTES.LOGIN} replace />;

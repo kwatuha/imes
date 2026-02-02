@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
 
     try {
         const [result] = await pool.query(
-            'INSERT INTO kemri_subcounties (name, countyId, geoLat, geoLon, userId) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO kemri_subcounties (name, countyId, geoLat, geoLon, userId, voided) VALUES (?, ?, ?, ?, ?, 0)',
             [name, countyId, geoLat, geoLon, userId]
         );
         res.status(201).json({ message: 'Sub-county created successfully', subcountyId: result.insertId });

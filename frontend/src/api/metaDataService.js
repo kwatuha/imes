@@ -294,6 +294,17 @@ const metaDataService = {
       throw error;
     }
   },
+  
+  // --- NEW: Get lightweight metadata cache for import validation ---
+  getImportCache: async () => {
+    try {
+      const response = await axiosInstance.get('/metadata/import-cache');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching import metadata cache:", error);
+      throw error;
+    }
+  },
 };
 
 export default metaDataService;

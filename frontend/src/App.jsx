@@ -1,6 +1,6 @@
 import React from 'react';
 import { CssBaseline, ThemeProvider } from '@mui/material';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 
 // Import AuthProvider and ChatProvider
 import { AuthProvider } from './context/AuthContext';
@@ -232,6 +232,10 @@ const router = createBrowserRouter([
       {
         path: 'budget-management',
         element: <BudgetManagementPage />,
+      },
+      {
+        path: 'budgets',
+        element: <Navigate to="/budget-management" replace />,
       },
       {
         path: 'project-analytics',

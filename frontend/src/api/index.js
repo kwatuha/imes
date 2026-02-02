@@ -16,6 +16,7 @@ import projectWorkFlowService from './projectWorkFlowService';
 import approvalService from './approvalService';
 import contractorService from './contractorService'; 
 import reportsService from './reportsService';
+import budgetService from './budgetService';
 
 // Public API service (no authentication required)
 const publicApiService = {
@@ -77,6 +78,7 @@ const apiService = {
   approval: approvalService,
   contractors: contractorService,
   reports: reportsService, // 👈 Mount the reportsService here
+  budgets: budgetService, // 👈 Mount the budgetService here
   public: publicApiService, // 👈 Mount the publicApiService here
 };
 

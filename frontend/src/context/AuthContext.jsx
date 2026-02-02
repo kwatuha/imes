@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const login = useCallback((newToken) => {
+    const login = useCallback(async (newToken) => {
         localStorage.setItem('jwtToken', newToken);
         setToken(newToken);
         try {
@@ -87,8 +87,21 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
+    // Don't throw error immediately - return null and let components handle it gracefully
+    // This prevents crashes during React StrictMode double renders or hot reloads
     if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
+        if (process.env.NODE_ENV === 'development') {
+            console.warn('useAuth called outside AuthProvider. This may happen during development hot reloads.');
+        }
+        // Return a minimal context object to prevent crashes
+        return {
+            token: null,
+            user: null,
+            loading: true,
+            login: () => {},
+            logout: () => {},
+            hasPrivilege: () => false,
+        };
     }
     return context;
 };

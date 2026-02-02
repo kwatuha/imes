@@ -19,12 +19,14 @@ import {
   Assessment as AssessmentIcon,
   Map as MapIcon,
   AccountTree as AccountTreeIcon,
-  CalendarToday as CalendarTodayIcon
+  CalendarToday as CalendarTodayIcon,
+  AccountBalance as AccountBalanceIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import * as XLSX from 'xlsx';
+// Removed client-side metadata caching - always use server-side check
 
 /**
  * Helper function to check if the user has a specific privilege.
@@ -84,6 +86,16 @@ const IMPORT_TYPES = [
     endpoint: '/comprehensive-projects/preview',
     templateEndpoint: '/comprehensive-projects/template',
     color: 'info'
+  },
+  {
+    id: 'budgets',
+    name: 'Budgets',
+    description: 'Import budget items including projects, departments, wards, and subcounties',
+    icon: <AccountBalanceIcon />,
+    privilege: 'budget.create',
+    endpoint: '/budgets/import-data',
+    templateEndpoint: '/budgets/template',
+    color: 'success'
   }
 ];
 
@@ -166,8 +178,8 @@ function CentralImportPage() {
     if (!selectedImportType) return 0;
     if (!selectedFile) return 1;
     if (!previewData) return 2;
-    if (currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview) return 3;
-    if (currentImportType?.id === 'projects' && showMappingPreview) return 4;
+    if ((currentImportType?.id === 'projects' || currentImportType?.id === 'budgets') && mappingSummary && !showMappingPreview) return 3;
+    if ((currentImportType?.id === 'projects' || currentImportType?.id === 'budgets') && showMappingPreview) return 4;
     return 3; // Ready to confirm
   };
 
@@ -182,6 +194,8 @@ function CentralImportPage() {
     setPreviewData(null);
     setParsedHeaders([]);
     setFullParsedData([]);
+    setMappingSummary(null);
+    setShowMappingPreview(false);
   };
 
   const handleFileChange = (event) => {
@@ -190,6 +204,8 @@ function CentralImportPage() {
     setPreviewData(null);
     setParsedHeaders([]);
     setFullParsedData([]);
+    setMappingSummary(null);
+    setShowMappingPreview(false);
   };
 
   const handleUploadForPreview = async () => {
@@ -214,6 +230,8 @@ function CentralImportPage() {
     setPreviewData(null);
     setParsedHeaders([]);
     setFullParsedData([]);
+    setMappingSummary(null);
+    setShowMappingPreview(false);
 
     const formData = new FormData();
     // Use backend-expected field names per import type
@@ -240,6 +258,9 @@ function CentralImportPage() {
         case 'comprehensive-projects':
           response = await apiService.comprehensiveProjects.previewComprehensiveImport(formData);
           break;
+        case 'budgets':
+          response = await apiService.budgets.previewBudgetImport(formData);
+          break;
         default:
           throw new Error('Unknown import type');
       }
@@ -251,7 +272,10 @@ function CentralImportPage() {
         ? Object.keys(response.previewData[0])
         : (response.headers || []);
       setParsedHeaders(derivedHeaders);
-      setFullParsedData(response.fullData);
+      // For budget imports, fullData is not sent to prevent memory issues
+      // We'll need to re-parse or use previewData only for metadata check
+      // Store preview data as fullData for now (will be limited)
+      setFullParsedData(response.fullData || response.previewData);
       setImportReport({
         success: true,
         message: response.message,
@@ -260,24 +284,25 @@ function CentralImportPage() {
         }
       });
 
+
+      // Deduplicate case-insensitive duplicates in mapping summary
+      // Keeps the first occurrence of each case-insensitive match
+      const deduplicateCaseInsensitive = (arr) => {
+        const seen = new Map(); // Map of lowercase -> first occurrence
+        arr.forEach(item => {
+          const lower = String(item).toLowerCase().trim();
+          if (!seen.has(lower)) {
+            seen.set(lower, item);
+          }
+        });
+        return Array.from(seen.values());
+      };
+
       // Check metadata mapping for projects import
       if (currentImportType.id === 'projects' && response.fullData && response.fullData.length > 0) {
         try {
           const mappingResponse = await apiService.projects.checkMetadataMapping({ dataToImport: response.fullData });
           if (mappingResponse.success) {
-            // Deduplicate case-insensitive duplicates in mapping summary
-            // Keeps the first occurrence of each case-insensitive match
-            const deduplicateCaseInsensitive = (arr) => {
-              const seen = new Map(); // Map of lowercase -> first occurrence
-              arr.forEach(item => {
-                const lower = String(item).toLowerCase().trim();
-                if (!seen.has(lower)) {
-                  seen.set(lower, item);
-                }
-              });
-              return Array.from(seen.values());
-            };
-
             const deduplicatedSummary = {
               ...mappingResponse.mappingSummary,
               departments: {
@@ -317,6 +342,64 @@ function CentralImportPage() {
         }
       }
 
+      // Automatically check metadata for budget imports after preview
+      // This helps users review metadata before confirming import
+      if (currentImportType.id === 'budgets' && selectedFile) {
+        try {
+          console.log('Automatically checking metadata for budget import...');
+          const metadataFormData = new FormData();
+          metadataFormData.append('file', selectedFile);
+          
+          const mappingResponse = await apiService.budgets.checkMetadataMapping(metadataFormData);
+          
+          if (mappingResponse && mappingResponse.success && mappingResponse.mappingSummary) {
+            const mappingSummary = mappingResponse.mappingSummary;
+            const deduplicatedSummary = {
+              ...mappingSummary,
+              budgets: {
+                existing: deduplicateCaseInsensitive(mappingSummary.budgets?.existing || []),
+                new: deduplicateCaseInsensitive(mappingSummary.budgets?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingSummary.budgets?.unmatched || [])
+              },
+              departments: {
+                existing: deduplicateCaseInsensitive(mappingSummary.departments?.existing || []),
+                new: deduplicateCaseInsensitive(mappingSummary.departments?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingSummary.departments?.unmatched || [])
+              },
+              subcounties: {
+                existing: deduplicateCaseInsensitive(mappingSummary.subcounties?.existing || []),
+                new: deduplicateCaseInsensitive(mappingSummary.subcounties?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingSummary.subcounties?.unmatched || [])
+              },
+              wards: {
+                existing: deduplicateCaseInsensitive(mappingSummary.wards?.existing || []),
+                new: deduplicateCaseInsensitive(mappingSummary.wards?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingSummary.wards?.unmatched || [])
+              },
+              financialYears: {
+                existing: deduplicateCaseInsensitive(mappingSummary.financialYears?.existing || []),
+                new: deduplicateCaseInsensitive(mappingSummary.financialYears?.new || []),
+                unmatched: deduplicateCaseInsensitive(mappingSummary.financialYears?.unmatched || [])
+              },
+              duplicateProjectNames: mappingSummary.duplicateProjectNames || []
+            };
+
+            setMappingSummary(deduplicatedSummary);
+            // Automatically show mapping preview for budgets
+            setShowMappingPreview(true);
+            setSnackbar({ 
+              open: true, 
+              message: 'Preview completed. Please review metadata mapping before confirming import.', 
+              severity: 'info' 
+            });
+          }
+        } catch (mappingErr) {
+          console.error('Automatic metadata mapping check error:', mappingErr);
+          // Don't block preview if metadata check fails, just log it
+          // User can still manually trigger metadata check if needed
+        }
+      }
+
     } catch (err) {
       console.error('File parsing error:', err);
       setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to parse file for preview.', severity: 'error' });
@@ -337,8 +420,19 @@ function CentralImportPage() {
       return;
     }
 
+    // For budget imports, we need to re-upload the file since fullData is not sent in preview
+    if (currentImportType.id === 'budgets') {
+      if (!selectedFile) {
+        setSnackbar({ open: true, message: 'Please select and preview the file again before confirming import.', severity: 'warning' });
+        return;
+      }
+      // Re-upload the file for confirmation (it will be processed on the server)
+      setSnackbar({ open: true, message: 'Re-uploading file for import confirmation...', severity: 'info' });
+      // We'll handle this in the confirm endpoint by re-processing the file
+    }
+
     if (!fullParsedData || fullParsedData.length === 0) {
-      setSnackbar({ open: true, message: 'No data to confirm import.', severity: 'warning' });
+      setSnackbar({ open: true, message: 'No data to confirm import. Please preview the file first.', severity: 'warning' });
       return;
     }
 
@@ -365,6 +459,17 @@ function CentralImportPage() {
           break;
         case 'comprehensive-projects':
           response = await apiService.comprehensiveProjects.confirmComprehensiveImport({ dataToImport: fullParsedData });
+          break;
+        case 'budgets':
+          // For budgets, always re-upload the file since preview doesn't send fullData (only previewData with 10 rows)
+          // This ensures all rows are imported, not just the preview
+          if (!selectedFile) {
+            throw new Error('File is required for budget import. Please select and preview the file again.');
+          }
+          // Re-upload file for import (backend will parse the full file)
+          const confirmFormData = new FormData();
+          confirmFormData.append('file', selectedFile);
+          response = await apiService.budgets.confirmBudgetImport(confirmFormData);
           break;
         default:
           throw new Error('Unknown import type');
@@ -394,6 +499,9 @@ function CentralImportPage() {
             break;
           case 'comprehensive-projects':
             navigate('/projects');
+            break;
+          case 'budgets':
+            navigate('/budgets');
             break;
           default:
             navigate('/dashboard');
@@ -449,6 +557,12 @@ function CentralImportPage() {
           break;
         case 'participants':
           response = await apiService.participants.downloadParticipantTemplate();
+          break;
+        case 'comprehensive-projects':
+          response = await apiService.comprehensiveProjects.downloadComprehensiveTemplate();
+          break;
+        case 'budgets':
+          response = await apiService.budgets.downloadBudgetTemplate();
           break;
         default:
           throw new Error('Unknown import type');
@@ -523,6 +637,98 @@ function CentralImportPage() {
         setSnackbar({ open: true, message: 'Failed to download or generate template.', severity: 'error' });
         console.error('Template download/generation error:', error, fallbackError);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckMetadata = async () => {
+    if (!currentImportType || currentImportType.id !== 'budgets') {
+      return;
+    }
+
+    // For budget imports, we need the file to check all rows (not just preview)
+    if (!selectedFile) {
+      setSnackbar({ open: true, message: 'Please select and preview the file first before checking metadata.', severity: 'warning' });
+      return;
+    }
+
+    setLoading(true);
+    setSnackbar({ open: true, message: 'Checking metadata mappings from file...', severity: 'info' });
+
+    try {
+      // For budget imports, re-upload the file so server can parse ALL rows (not just 10 preview rows)
+      // The metadata check endpoint now accepts file uploads and will parse the full file
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      
+      console.log('Uploading file for complete metadata check (all rows)');
+      const startTime = Date.now();
+      
+      // Upload file directly to metadata check endpoint (it will parse the full file)
+      const mappingResponse = await apiService.budgets.checkMetadataMapping(formData);
+      const checkTime = Date.now() - startTime;
+      console.log(`Server-side metadata check completed in ${checkTime}ms`);
+      
+      if (mappingResponse && mappingResponse.success && mappingResponse.mappingSummary) {
+        const mappingSummary = mappingResponse.mappingSummary;
+        // Deduplicate case-insensitive duplicates
+        const deduplicateCaseInsensitive = (arr) => {
+          const seen = new Map();
+          arr.forEach(item => {
+            const lower = String(item).toLowerCase().trim();
+            if (!seen.has(lower)) {
+              seen.set(lower, item);
+              }
+            });
+            return Array.from(seen.values());
+          };
+
+          const deduplicatedSummary = {
+            ...mappingSummary,
+            budgets: {
+              existing: deduplicateCaseInsensitive(mappingSummary.budgets?.existing || []),
+              new: deduplicateCaseInsensitive(mappingSummary.budgets?.new || []),
+              unmatched: deduplicateCaseInsensitive(mappingSummary.budgets?.unmatched || [])
+            },
+            departments: {
+              existing: deduplicateCaseInsensitive(mappingSummary.departments?.existing || []),
+              new: deduplicateCaseInsensitive(mappingSummary.departments?.new || []),
+              unmatched: deduplicateCaseInsensitive(mappingSummary.departments?.unmatched || [])
+            },
+            subcounties: {
+              existing: deduplicateCaseInsensitive(mappingSummary.subcounties?.existing || []),
+              new: deduplicateCaseInsensitive(mappingSummary.subcounties?.new || []),
+              unmatched: deduplicateCaseInsensitive(mappingSummary.subcounties?.unmatched || [])
+            },
+            wards: {
+              existing: deduplicateCaseInsensitive(mappingSummary.wards?.existing || []),
+              new: deduplicateCaseInsensitive(mappingSummary.wards?.new || []),
+              unmatched: deduplicateCaseInsensitive(mappingSummary.wards?.unmatched || [])
+            },
+            financialYears: {
+              existing: deduplicateCaseInsensitive(mappingSummary.financialYears?.existing || []),
+              new: deduplicateCaseInsensitive(mappingSummary.financialYears?.new || []),
+              unmatched: deduplicateCaseInsensitive(mappingSummary.financialYears?.unmatched || [])
+            },
+            duplicateProjectNames: mappingSummary.duplicateProjectNames || []
+          };
+
+        setMappingSummary(deduplicatedSummary);
+        setShowMappingPreview(true);
+        setSnackbar({ open: true, message: 'Metadata check completed successfully.', severity: 'success' });
+      } else {
+        console.warn('Budget import: Metadata mapping check returned unsuccessful or missing mappingSummary:', mappingResponse);
+        setSnackbar({ open: true, message: 'Metadata check completed but no summary was returned.', severity: 'warning' });
+      }
+    } catch (mappingErr) {
+      console.error('Budget metadata mapping check error:', mappingErr);
+      console.error('Budget metadata mapping check error details:', mappingErr.response?.data || mappingErr.message);
+      setSnackbar({ 
+        open: true, 
+        message: `Metadata check failed: ${mappingErr.response?.data?.message || mappingErr.message || 'Unknown error'}. Please try again.`, 
+        severity: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -681,7 +887,21 @@ function CentralImportPage() {
           {/* Data Preview Section */}
           {previewData && previewData.length > 0 && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ mb: 1 }}>Data Preview (First {previewData.length} Rows)</Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle1" fontWeight={600}>Data Preview (First {previewData.length} Rows)</Typography>
+                {currentImportType?.id === 'budgets' && !mappingSummary && (
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<AssessmentIcon />}
+                    onClick={handleCheckMetadata}
+                    disabled={loading}
+                    size="small"
+                  >
+                    {loading ? 'Checking...' : 'Check Metadata'}
+                  </Button>
+                )}
+              </Box>
               <TableContainer component={Paper} elevation={1} sx={{ maxHeight: 300, overflow: 'auto', mb: 2 }}>
                 <Table stickyHeader size="small">
                   <TableHead>
@@ -716,8 +936,8 @@ function CentralImportPage() {
             </Box>
           )}
 
-          {/* Metadata Mapping Preview - Only for Projects - Now Prominently Displayed */}
-          {currentImportType?.id === 'projects' && mappingSummary && (
+          {/* Metadata Mapping Preview - For Projects and Budgets - Now Prominently Displayed */}
+          {(currentImportType?.id === 'projects' || currentImportType?.id === 'budgets') && mappingSummary && (
             <Box sx={{ mt: 2 }}>
               <Paper 
                 elevation={3} 
@@ -774,6 +994,103 @@ function CentralImportPage() {
                     </Alert>
 
                 <Grid container spacing={1.5}>
+                  {/* Budgets and Financial Years - Only for Budget Import */}
+                  {currentImportType?.id === 'budgets' && mappingSummary.budgets && (
+                    <>
+                      <Grid item xs={12} md={6}>
+                        <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
+                          <CardContent>
+                            <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
+                              Budgets ({mappingSummary.budgets.existing.length + mappingSummary.budgets.new.length})
+                            </Typography>
+                            {mappingSummary.budgets.existing.length > 0 && (
+                              <Box sx={{ mb: 0.75 }}>
+                                <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                                  <CheckCircleIcon fontSize="small" /> {mappingSummary.budgets.existing.length} Existing
+                                </Typography>
+                                <List dense sx={{ py: 0 }}>
+                                  {mappingSummary.budgets.existing.map((budget, idx) => (
+                                    <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                      <ListItemIcon sx={{ minWidth: 20 }}>
+                                        <CheckCircleIcon fontSize="small" color="success" />
+                                      </ListItemIcon>
+                                      <ListItemText primary={budget} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
+                                    </ListItem>
+                                  ))}
+                                </List>
+                              </Box>
+                            )}
+                            {mappingSummary.budgets.new.length > 0 && (
+                              <Box>
+                                <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                                  <AddCircleIcon fontSize="small" /> {mappingSummary.budgets.new.length} Need to be Created
+                                </Typography>
+                                <List dense sx={{ py: 0 }}>
+                                  {mappingSummary.budgets.new.map((budget, idx) => (
+                                    <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                      <ListItemIcon sx={{ minWidth: 20 }}>
+                                        <AddCircleIcon fontSize="small" color="warning" />
+                                      </ListItemIcon>
+                                      <ListItemText primary={budget} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
+                                    </ListItem>
+                                  ))}
+                                </List>
+                              </Box>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      
+                      {/* Financial Years - Next to Budgets for Budget Import */}
+                      {mappingSummary.financialYears && (
+                        <Grid item xs={12} md={6}>
+                          <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
+                            <CardContent>
+                              <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <CalendarTodayIcon fontSize="small" />
+                                Financial Years ({mappingSummary.financialYears?.existing.length + mappingSummary.financialYears?.new.length || 0})
+                              </Typography>
+                              {mappingSummary.financialYears?.existing.length > 0 && (
+                                <Box sx={{ mb: 0.75 }}>
+                                  <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                                    <CheckCircleIcon fontSize="small" /> {mappingSummary.financialYears.existing.length} Existing
+                                  </Typography>
+                                  <List dense sx={{ py: 0 }}>
+                                    {mappingSummary.financialYears.existing.map((fy, idx) => (
+                                      <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                        <ListItemIcon sx={{ minWidth: 20 }}>
+                                          <CheckCircleIcon fontSize="small" color="success" />
+                                        </ListItemIcon>
+                                        <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+                              {mappingSummary.financialYears?.new.length > 0 && (
+                                <Box>
+                                  <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                                    <AddCircleIcon fontSize="small" /> {mappingSummary.financialYears.new.length} Need to be Created
+                                  </Typography>
+                                  <List dense sx={{ py: 0 }}>
+                                    {mappingSummary.financialYears.new.map((fy, idx) => (
+                                      <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                        <ListItemIcon sx={{ minWidth: 20 }}>
+                                          <AddCircleIcon fontSize="small" color="warning" />
+                                        </ListItemIcon>
+                                        <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Box>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      )}
+                    </>
+                  )}
+
                   {/* Departments */}
                   <Grid item xs={12} md={6}>
                     <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
@@ -783,86 +1100,80 @@ function CentralImportPage() {
                         </Typography>
                         {mappingSummary.departments.existing.length > 0 && (
                           <Box sx={{ mb: 0.75 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.departments.existing.length} Existing
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(2, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.departments.existing.map((dept, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <CheckCircleIcon fontSize="small" color="success" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <CheckCircleIcon fontSize="small" color="success" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{dept}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                         {mappingSummary.departments.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <AddCircleIcon fontSize="small" /> {mappingSummary.departments.new.length} Need to be Created
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(2, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.departments.new.map((dept, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <AddCircleIcon fontSize="small" color="warning" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={dept} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <AddCircleIcon fontSize="small" color="warning" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{dept}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                       </CardContent>
                     </Card>
                   </Grid>
 
-                  {/* Directorates (Sections) */}
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
-                      <CardContent>
-                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
-                          Directorates ({mappingSummary.directorates.existing.length + mappingSummary.directorates.new.length})
-                        </Typography>
+                  {/* Directorates (Sections) - Only for Projects */}
+                  {currentImportType?.id === 'projects' && mappingSummary.directorates && (
+                    <Grid item xs={12} md={6}>
+                      <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
+                        <CardContent>
+                          <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
+                            Directorates ({mappingSummary.directorates.existing.length + mappingSummary.directorates.new.length})
+                          </Typography>
                         {mappingSummary.directorates.existing.length > 0 && (
                           <Box sx={{ mb: 0.75 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.directorates.existing.length} Existing
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(2, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.directorates.existing.map((dir, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <CheckCircleIcon fontSize="small" color="success" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <CheckCircleIcon fontSize="small" color="success" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{dir}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                         {mappingSummary.directorates.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <AddCircleIcon fontSize="small" /> {mappingSummary.directorates.new.length} Need to be Created
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(2, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.directorates.new.map((dir, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <AddCircleIcon fontSize="small" color="warning" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={dir} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <AddCircleIcon fontSize="small" color="warning" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{dir}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                       </CardContent>
                     </Card>
-                  </Grid>
+                    </Grid>
+                  )}
 
                   {/* Sub-counties */}
                   <Grid item xs={12} md={6}>
@@ -873,36 +1184,32 @@ function CentralImportPage() {
                         </Typography>
                         {mappingSummary.subcounties.existing.length > 0 && (
                           <Box sx={{ mb: 0.75 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.subcounties.existing.length} Existing
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.subcounties.existing.map((sc, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <CheckCircleIcon fontSize="small" color="success" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <CheckCircleIcon fontSize="small" color="success" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{sc}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                         {mappingSummary.subcounties.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <AddCircleIcon fontSize="small" /> {mappingSummary.subcounties.new.length} Need to be Created
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.subcounties.new.map((sc, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <AddCircleIcon fontSize="small" color="warning" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={sc} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <AddCircleIcon fontSize="small" color="warning" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{sc}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                       </CardContent>
@@ -918,93 +1225,123 @@ function CentralImportPage() {
                         </Typography>
                         {mappingSummary.wards.existing.length > 0 && (
                           <Box sx={{ mb: 0.75 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <CheckCircleIcon fontSize="small" /> {mappingSummary.wards.existing.length} Existing
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.wards.existing.map((ward, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <CheckCircleIcon fontSize="small" color="success" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <CheckCircleIcon fontSize="small" color="success" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{ward}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                         {mappingSummary.wards.new.length > 0 && (
                           <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem', mb: 0.5 }}>
                               <AddCircleIcon fontSize="small" /> {mappingSummary.wards.new.length} Need to be Created
                             </Typography>
-                            <List dense sx={{ py: 0 }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 0.5 }}>
                               {mappingSummary.wards.new.map((ward, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <AddCircleIcon fontSize="small" color="warning" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={ward} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
+                                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+                                  <AddCircleIcon fontSize="small" color="warning" sx={{ fontSize: '0.875rem' }} />
+                                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>{ward}</Typography>
+                                </Box>
                               ))}
-                            </List>
+                            </Box>
                           </Box>
                         )}
                       </CardContent>
                     </Card>
                   </Grid>
 
-                  {/* Financial Years */}
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
-                      <CardContent>
-                        <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <CalendarTodayIcon fontSize="small" />
-                          Financial Years ({mappingSummary.financialYears?.existing.length + mappingSummary.financialYears?.new.length || 0})
-                        </Typography>
-                        {mappingSummary.financialYears?.existing.length > 0 && (
-                          <Box sx={{ mb: 0.75 }}>
-                            <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
-                              <CheckCircleIcon fontSize="small" /> {mappingSummary.financialYears.existing.length} Existing
-                            </Typography>
-                            <List dense sx={{ py: 0 }}>
-                              {mappingSummary.financialYears.existing.map((fy, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <CheckCircleIcon fontSize="small" color="success" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Box>
-                        )}
-                        {mappingSummary.financialYears?.new.length > 0 && (
-                          <Box>
-                            <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
-                              <AddCircleIcon fontSize="small" /> {mappingSummary.financialYears.new.length} Need to be Created
-                            </Typography>
-                            <List dense sx={{ py: 0 }}>
-                              {mappingSummary.financialYears.new.map((fy, idx) => (
-                                <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
-                                  <ListItemIcon sx={{ minWidth: 20 }}>
-                                    <AddCircleIcon fontSize="small" color="warning" />
-                                  </ListItemIcon>
-                                  <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Box>
-                        )}
-                        {(!mappingSummary.financialYears || (mappingSummary.financialYears.existing.length === 0 && mappingSummary.financialYears.new.length === 0)) && (
-                          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
-                            No financial years found in import data
+                  {/* Financial Years - Only for Projects Import (for Budgets, it's shown next to Budgets above) */}
+                  {currentImportType?.id === 'projects' && mappingSummary.financialYears && (
+                    <Grid item xs={12} md={6}>
+                      <Card variant="outlined" sx={{ '& .MuiCardContent-root': { py: 1.5, '&:last-child': { pb: 1.5 } } }}>
+                        <CardContent>
+                          <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <CalendarTodayIcon fontSize="small" />
+                            Financial Years ({mappingSummary.financialYears?.existing.length + mappingSummary.financialYears?.new.length || 0})
                           </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
+                          {mappingSummary.financialYears?.existing.length > 0 && (
+                            <Box sx={{ mb: 0.75 }}>
+                              <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                                <CheckCircleIcon fontSize="small" /> {mappingSummary.financialYears.existing.length} Existing
+                              </Typography>
+                              <List dense sx={{ py: 0 }}>
+                                {mappingSummary.financialYears.existing.map((fy, idx) => (
+                                  <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                    <ListItemIcon sx={{ minWidth: 20 }}>
+                                      <CheckCircleIcon fontSize="small" color="success" />
+                                    </ListItemIcon>
+                                    <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
+                                  </ListItem>
+                                ))}
+                              </List>
+                            </Box>
+                          )}
+                          {mappingSummary.financialYears?.new.length > 0 && (
+                            <Box>
+                              <Typography variant="caption" color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.75rem' }}>
+                                <AddCircleIcon fontSize="small" /> {mappingSummary.financialYears.new.length} Need to be Created
+                              </Typography>
+                              <List dense sx={{ py: 0 }}>
+                                {mappingSummary.financialYears.new.map((fy, idx) => (
+                                  <ListItem key={idx} sx={{ py: 0, px: 0.5 }}>
+                                    <ListItemIcon sx={{ minWidth: 20 }}>
+                                      <AddCircleIcon fontSize="small" color="warning" />
+                                    </ListItemIcon>
+                                    <ListItemText primary={fy} primaryTypographyProps={{ variant: 'caption', sx: { fontSize: '0.75rem' } }} />
+                                  </ListItem>
+                                ))}
+                              </List>
+                            </Box>
+                          )}
+                          {(!mappingSummary.financialYears || (mappingSummary.financialYears.existing.length === 0 && mappingSummary.financialYears.new.length === 0)) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
+                              No financial years found in import data
+                            </Typography>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )}
                 </Grid>
+
+                {/* Warnings for duplicate project names - Only for Budget imports */}
+                {currentImportType?.id === 'budgets' && mappingSummary.duplicateProjectNames && mappingSummary.duplicateProjectNames.length > 0 && (
+                  <Alert severity="warning" sx={{ mt: 1.5, py: 1 }}>
+                    <Typography variant="body2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
+                      <WarningIcon sx={{ verticalAlign: 'middle', mr: 0.5, fontSize: '1rem' }} />
+                      Warning: {mappingSummary.duplicateProjectNames.length} duplicate project name(s) found
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.85rem', mb: 1 }}>
+                      The following project names appear multiple times in your file. Each occurrence will be imported as a separate budget item.
+                    </Typography>
+                    <Box component="ul" sx={{ mt: 0.75, mb: 0, pl: 2 }}>
+                      {mappingSummary.duplicateProjectNames.slice(0, 10).map((dup, idx) => (
+                        <li key={idx}>
+                          <Typography variant="caption" sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            "{dup.projectName}" appears {dup.occurrences} time(s) in rows: {dup.rows.map(r => r.rowNumber).join(', ')}
+                          </Typography>
+                        </li>
+                      ))}
+                      {mappingSummary.duplicateProjectNames.length > 10 && (
+                        <li>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                            ... and {mappingSummary.duplicateProjectNames.length - 10} more duplicate project name(s)
+                          </Typography>
+                        </li>
+                      )}
+                    </Box>
+                    <Typography variant="caption" sx={{ mt: 0.75, display: 'block', fontSize: '0.75rem' }}>
+                      If these are the same project, consider consolidating them. If they are different projects, ensure they have unique names.
+                    </Typography>
+                  </Alert>
+                )}
 
                 {/* Warnings for unmatched metadata */}
                 {mappingSummary.rowsWithUnmatchedMetadata.length > 0 && (
@@ -1090,7 +1427,7 @@ function CentralImportPage() {
               bgcolor: 'action.hover', 
               borderRadius: 2, 
               border: '2px solid', 
-              borderColor: currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview ? 'warning.main' : 'success.main'
+              borderColor: ((currentImportType?.id === 'projects' || currentImportType?.id === 'budgets') && mappingSummary && !showMappingPreview) ? 'warning.main' : 'success.main'
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
                 <Box sx={{ flex: 1 }}>
@@ -1098,7 +1435,7 @@ function CentralImportPage() {
                     Ready to Import
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
-                    {currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview
+                    {((currentImportType?.id === 'projects' || currentImportType?.id === 'budgets') && mappingSummary && !showMappingPreview)
                       ? '⚠️ Please review the Metadata Mapping Preview above before confirming the import.'
                       : 'Review the preview above and confirm to proceed with the import.'}
                   </Typography>
@@ -1113,7 +1450,7 @@ function CentralImportPage() {
                     disabled={
                       loading || 
                       !checkUserPrivilege(user, currentImportType.privilege) ||
-                      (currentImportType?.id === 'projects' && mappingSummary && !showMappingPreview)
+                      ((currentImportType?.id === 'projects' || currentImportType?.id === 'budgets') && mappingSummary && !showMappingPreview)
                     }
                     sx={{ minWidth: 160 }}
                   >

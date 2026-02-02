@@ -19,7 +19,7 @@ const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && i
 
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000, // Request timeout in milliseconds
+    timeout: 60000, // Request timeout in milliseconds (60 seconds for large operations)
     headers: {
         'Content-Type': 'application/json',
     },

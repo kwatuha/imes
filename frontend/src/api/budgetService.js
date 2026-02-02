@@ -93,7 +93,10 @@ class BudgetService {
   async getBudgetContainers(filters = {}) {
     try {
       console.log('budgetService.getBudgetContainers called with filters:', filters);
-      const response = await axiosInstance.get('/budgets/containers', { params: filters });
+      const response = await axiosInstance.get('/budgets/containers', { 
+        params: filters,
+        timeout: 60000 // 60 seconds timeout for budget containers
+      });
       console.log('budgetService.getBudgetContainers response:', response);
       console.log('budgetService.getBudgetContainers response.data:', response.data);
       return response.data;
@@ -344,6 +347,80 @@ class BudgetService {
       return response.data;
     } catch (error) {
       console.error('Error removing container from combined budget:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Preview budget import from uploaded file
+   */
+  async previewBudgetImport(formData) {
+    try {
+      const response = await axiosInstance.post('/budgets/import-data', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000 // 60 seconds timeout for large file processing
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error previewing budget import:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Confirm and import budget data
+   * Accepts either { dataToImport: [...] } or FormData with file
+   */
+  async confirmBudgetImport(importData) {
+    try {
+      const isFormData = importData instanceof FormData;
+      const config = isFormData ? {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000 // 2 minutes for large file processing
+      } : {
+        timeout: 120000
+      };
+      const response = await axiosInstance.post('/budgets/confirm-import-data', importData, config);
+      return response.data;
+    } catch (error) {
+      console.error('Error confirming budget import:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download budget import template
+   */
+  async downloadBudgetTemplate() {
+    try {
+      const response = await axiosInstance.get('/budgets/template', {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading budget template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check metadata mapping for budget import
+   * Accepts either { dataToImport: [...] } or FormData with file
+   */
+  async checkMetadataMapping(importData) {
+    try {
+      const isFormData = importData instanceof FormData;
+      const config = isFormData ? {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000 // 60 seconds timeout for large file metadata checking
+      } : {
+        timeout: 60000
+      };
+      
+      const response = await axiosInstance.post('/budgets/check-metadata-mapping', importData, config);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking budget metadata mapping:', error);
       throw error;
     }
   }

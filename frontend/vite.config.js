@@ -9,7 +9,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     watch: {
-      usePolling: true
+      usePolling: true,
+      // Reduce file system events for better performance
+      ignored: ['**/node_modules/**', '**/.git/**']
     },
     hmr: {
       // Disable HMR overlay for production-like deployments to prevent errors
@@ -34,6 +36,11 @@ export default defineConfig({
         secure: false,
       },
     },
+    // Performance optimizations
+    fs: {
+      // Allow serving files from one level up to the project root
+      strict: false
+    }
   },
   resolve: {
     alias: {
@@ -57,6 +64,8 @@ export default defineConfig({
       'recharts'
     ],
     // Remove force: true to use cached deps (faster)
+    // Keep dependencies pre-bundled for faster dev server startup
+    force: false,
     esbuildOptions: {
       // Optimize bundle size
       target: 'es2020'
