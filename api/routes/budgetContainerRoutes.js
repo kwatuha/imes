@@ -616,9 +616,9 @@ router.post('/containers/:budgetId/items', auth, privilege(['budget.update']), a
 
             if (existingProjects.length > 0) {
                 finalProjectId = existingProjects[0].id;
-                // Update costOfProject if the new amount is higher, set status to 'Under Procurement' if null, and update budgetId to current budget
+                // Update costOfProject if the new amount is higher, always set status to 'Under Procurement' for budget imports, and update budgetId to current budget
                 await pool.query(
-                    'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                    'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = ?, budgetId = ? WHERE id = ?',
                     [amount, 'Under Procurement', budgetId, finalProjectId]
                 );
             } else {
@@ -630,9 +630,9 @@ router.post('/containers/:budgetId/items', auth, privilege(['budget.update']), a
                 finalProjectId = projectResult.insertId;
             }
         } else {
-            // Update existing project's costOfProject if amount is provided, set status to 'Under Procurement' if null, and update budgetId to current budget
+            // Update existing project's costOfProject if amount is provided, always set status to 'Under Procurement' for budget imports, and update budgetId to current budget
             await pool.query(
-                'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = ?, budgetId = ? WHERE id = ?',
                 [amount, 'Under Procurement', budgetId, finalProjectId]
             );
         }
@@ -849,11 +849,11 @@ router.put('/items/:itemId', auth, privilege(['budget.update']), async (req, res
             values.push(remarks || null);
         }
         
-        // If amount is provided, update the project's costOfProject, set status to 'Under Procurement' if null, and update budgetId
+        // If amount is provided, update the project's costOfProject, always set status to 'Under Procurement' for budget imports, and update budgetId
         const finalProjectIdForUpdate = projectId !== undefined ? projectId : item.projectId;
         if (amount !== undefined && amount > 0 && finalProjectIdForUpdate) {
             await pool.query(
-                'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = ?, budgetId = ? WHERE id = ?',
                 [amount, 'Under Procurement', item.budgetId, finalProjectIdForUpdate]
             );
         }
@@ -2470,9 +2470,9 @@ router.post('/confirm-import-data', upload.single('file'), async (req, res) => {
 
                 if (projectRows.length > 0) {
                     projectId = projectRows[0].id;
-                    // Update costOfProject if the new amount is higher, set status to 'Under Procurement' if null, and update budgetId to current budget
+                    // Update costOfProject if the new amount is higher, always set status to 'Under Procurement' for budget imports, and update budgetId to current budget
                     await connection.query(
-                        'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = COALESCE(status, ?), budgetId = ? WHERE id = ?',
+                        'UPDATE kemri_projects SET costOfProject = GREATEST(COALESCE(costOfProject, 0), ?), status = ?, budgetId = ? WHERE id = ?',
                         [amount, 'Under Procurement', budgetId, projectId]
                     );
                 } else {

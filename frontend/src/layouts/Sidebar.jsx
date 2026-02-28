@@ -289,8 +289,25 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
       .filter(submenu => {
         // Filter based on permissions and visibility
         if (submenu.hidden) return false;
-        if (submenu.permission && !hasPrivilege?.(submenu.permission)) return false;
-        if (submenu.roles && !submenu.roles.includes(user?.roleName)) return false;
+        
+        // If both permission and roles are specified, user needs EITHER permission OR role (OR logic)
+        if (submenu.permission && submenu.roles) {
+          const hasPermission = hasPrivilege && hasPrivilege(submenu.permission);
+          const hasRole = user && submenu.roles.includes(user.roleName);
+          // Show if user has permission OR role
+          return hasPermission || hasRole;
+        }
+        
+        // Check permission-based visibility (if only permission is specified)
+        if (submenu.permission && hasPrivilege && !hasPrivilege(submenu.permission)) {
+          return false;
+        }
+        
+        // Check role-based visibility (if only roles are specified)
+        if (submenu.roles && user && !submenu.roles.includes(user.roleName)) {
+          return false;
+        }
+        
         return true;
       })
       .map(submenu => {
