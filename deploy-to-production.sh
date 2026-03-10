@@ -45,13 +45,14 @@ echo ""
 
 # Step 4: Sync files to remote server
 echo "📦 Syncing files to production server..."
-rsync -avz --progress \
+rsync -avz --no-group --progress \
     --exclude 'node_modules' \
     --exclude '.git' \
     --exclude '*.log' \
     --exclude 'dist' \
     --exclude 'build' \
     --exclude 'uploads/*' \
+    --exclude 'api/uploads' \
     --exclude '.env.local' \
     --exclude '.DS_Store' \
     $LOCAL_DIR/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/
