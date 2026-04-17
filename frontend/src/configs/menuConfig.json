@@ -56,6 +56,11 @@
           "hidden": true
         },
         {
+          "title": "M&E Report",
+          "icon": "AssessmentIcon",
+          "action": "downloadMEReport"
+        },
+        {
           "title": "Absorption Report",
           "icon": "AssessmentIcon",
           "route": "ABSORPTION_REPORT"

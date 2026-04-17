@@ -6,6 +6,7 @@ const pool = require('../config/db'); // Import the database connection pool
 const multer = require('multer');
 const xlsx = require('xlsx');
 const { addStatusFilter } = require('../utils/statusFilterHelper');
+const { wardImportFingerprintKeys } = require('../utils/wardImportNormalize');
 
 // --- Consolidated Imports for All Sub-Routers ---
 const appointmentScheduleRoutes = require('./appointmentScheduleRoutes');
@@ -718,6 +719,17 @@ router.post('/check-metadata-mapping', async (req, res) => {
                     }
                 }
             });
+
+            const wardFingerprintMap = new Map();
+            allWards.forEach(w => {
+                if (w.name) {
+                    wardImportFingerprintKeys(w.name).forEach((fp) => {
+                        if (fp && !wardFingerprintMap.has(fp)) {
+                            wardFingerprintMap.set(fp, w.name);
+                        }
+                    });
+                }
+            });
             
             wardList.forEach(ward => {
                 // Strip "Ward" suffix if present (case-insensitive)
@@ -750,6 +762,14 @@ router.post('/check-metadata-mapping', async (req, res) => {
                                 found = true;
                             }
                         }
+                    }
+                }
+
+                if (!found) {
+                    const keys = wardImportFingerprintKeys(ward);
+                    if (keys.some((k) => k && wardFingerprintMap.has(k))) {
+                        mappingSummary.wards.existing.push(ward);
+                        found = true;
                     }
                 }
                 
@@ -1456,7 +1476,7 @@ router.post('/confirm-import-data', async (req, res) => {
                     let matchedRow = wRows[0];
                     if (!matchedRow) {
                         const [allWRows] = await connection.query(
-                            `SELECT wardId, ${normalizedDbName} as normalized_name FROM kemri_wards 
+                            `SELECT wardId, name, ${normalizedDbName} as normalized_name FROM kemri_wards 
                              WHERE (voided IS NULL OR voided = 0)`
                         );
                         for (const row of allWRows) {
@@ -1465,6 +1485,19 @@ router.post('/confirm-import-data', async (req, res) => {
                                 if (dbWords === inputWordSet) {
                                     matchedRow = row;
                                     break;
+                                }
+                            }
+                        }
+                        if (!matchedRow) {
+                            const inputKeys = new Set(wardImportFingerprintKeys(wardName));
+                            if (inputKeys.size) {
+                                for (const row of allWRows) {
+                                    if (!row.name) continue;
+                                    const dbKeys = wardImportFingerprintKeys(row.name);
+                                    if (dbKeys.some((k) => inputKeys.has(k))) {
+                                        matchedRow = row;
+                                        break;
+                                    }
                                 }
                             }
                         }

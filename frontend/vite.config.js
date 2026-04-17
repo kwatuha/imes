@@ -2,9 +2,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: '/impes/',  // Required for production build to have correct asset paths
+  base: mode === 'production' ? '/admin/' : '/',  // Keep local dev at root
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -101,4 +101,5 @@ export default defineConfig({
     // Optimize chunk splitting
     assetsInlineLimit: 4096
   }
-});
+
+}));

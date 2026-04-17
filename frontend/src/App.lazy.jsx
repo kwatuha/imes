@@ -195,7 +195,7 @@ const router = createBrowserRouter([
     element: <LazyRoute component={Login} />,
   },
 ], {
-  basename: '/impes'
+  basename: import.meta.env.PROD ? '/admin' : '/'
 });
 
 function App() {

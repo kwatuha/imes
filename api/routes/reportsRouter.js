@@ -1,7 +1,563 @@
 const express = require('express');
+const path = require('path');
+const ExcelJS = require('exceljs');
 const router = express.Router();
 const pool = require('../config/db'); // Adjust the path as needed
 const { addStatusFilter } = require('../utils/statusFilterHelper');
+
+function normalizeStatus(status) {
+    const value = (status || '').toString().trim().toLowerCase();
+    if (!value) return 'other';
+    if (value.includes('stalled')) return 'stalled';
+    if (value.includes('terminate')) return 'terminated';
+    if (value.includes('procurement')) return 'under_procurement';
+    if (value.includes('progress') || value.includes('ongoing')) return 'in_progress';
+    if (value.includes('completed') || value.includes('closed')) return 'completed';
+    return 'other';
+}
+
+function formatDateForExcel(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+}
+
+function numberOrBlank(value) {
+    if (value === null || value === undefined || value === '') return '';
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : '';
+}
+
+function computeProgress(project) {
+    const explicitProgress = Number(project.overallProgress);
+    if (Number.isFinite(explicitProgress) && explicitProgress > 0) {
+        return explicitProgress;
+    }
+
+    switch (normalizeStatus(project.status)) {
+        case 'completed':
+            return 100;
+        case 'in_progress':
+            return 50;
+        case 'stalled':
+            return 0;
+        default:
+            return '';
+    }
+}
+
+function composeGeoLocation(project) {
+    const coords = [];
+    if (project.wardCoordinates) coords.push(project.wardCoordinates);
+    if (project.subCountyCoordinates) coords.push(project.subCountyCoordinates);
+    return coords.join(' | ');
+}
+
+function buildMERow(project, index) {
+    const normalizedStatus = normalizeStatus(project.status);
+    const progress = computeProgress(project);
+    const approvedProjectCost = numberOrBlank(project.approvedProjectCost ?? project.costOfProject);
+    const disbursedAmount = numberOrBlank(project.paidOut);
+    const currentYearFunds = numberOrBlank(project.fundsAvailableInYear ?? project.costOfProject);
+    const projectBalance =
+        approvedProjectCost !== '' && disbursedAmount !== ''
+            ? Number(approvedProjectCost) - Number(disbursedAmount)
+            : '';
+
+    return [
+        index + 1,
+        project.projectName || '',
+        project.projectDescription || '',
+        project.objective || '',
+        project.expectedOutput || '',
+        project.ProjectRefNum || '',
+        project.subProgramName || project.categoryName || '',
+        project.subCountyNames || '',
+        project.wardNames || '',
+        composeGeoLocation(project),
+        project.programName || '',
+        project.departmentName || project.directorate || '',
+        project.sectionName || project.directorate || project.departmentName || '',
+        formatDateForExcel(project.createdAt),
+        formatDateForExcel(project.startDate),
+        formatDateForExcel(project.endDate),
+        normalizedStatus === 'completed' ? formatDateForExcel(project.endDate || project.updatedAt) : '',
+        numberOrBlank(project.costOfProject),
+        approvedProjectCost,
+        currentYearFunds,
+        project.proposedSourceFinancing || '',
+        '',
+        '',
+        '',
+        disbursedAmount,
+        approvedProjectCost !== '' && disbursedAmount !== '' && Number(approvedProjectCost) !== 0
+            ? Number(((Number(disbursedAmount) / Number(approvedProjectCost)) * 100).toFixed(2))
+            : '',
+        disbursedAmount,
+        '',
+        projectBalance !== '' ? Number(projectBalance.toFixed(2)) : '',
+        project.status || '',
+        progress,
+        normalizedStatus === 'stalled' ? progress : '',
+        normalizedStatus === 'stalled' ? (project.statusReason || '') : '',
+        '',
+        '',
+        '',
+        '',
+        normalizedStatus === 'stalled' ? 'Complete' : '',
+        ['stalled', 'other'].includes(normalizedStatus) ? (project.statusReason || '') : '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        project.statusReason || ''
+    ];
+}
+
+function buildMESummary(projects) {
+    return projects.reduce(
+        (summary, project) => {
+            const status = normalizeStatus(project.status);
+            if (status === 'stalled') summary.stalled += 1;
+            else if (status === 'in_progress') summary.inProgress += 1;
+            else if (status === 'completed') summary.completed += 1;
+            else if (status === 'terminated') summary.terminated += 1;
+            else if (status === 'under_procurement') summary.underProcurement += 1;
+            else summary.other += 1;
+            return summary;
+        },
+        { stalled: 0, inProgress: 0, completed: 0, terminated: 0, underProcurement: 0, other: 0 }
+    );
+}
+
+function splitGroupedNames(value) {
+    return (value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function buildYearlySummary(projects) {
+    const yearlyMap = new Map();
+
+    projects.forEach((project) => {
+        const yearKey =
+            project.finYearName ||
+            (project.startDate ? String(new Date(project.startDate).getFullYear()) : 'Unspecified');
+
+        if (!yearlyMap.has(yearKey)) {
+            yearlyMap.set(yearKey, {
+                label: yearKey,
+                completed: 0,
+                ongoing: 0,
+                terminated: 0,
+                underProcurement: 0,
+                other: 0,
+                totalBudget: 0,
+            });
+        }
+
+        const entry = yearlyMap.get(yearKey);
+        entry.totalBudget += Number(project.costOfProject) || 0;
+        const status = normalizeStatus(project.status);
+        if (status === 'completed') entry.completed += 1;
+        else if (status === 'in_progress' || status === 'stalled') entry.ongoing += 1;
+        else if (status === 'terminated') entry.terminated += 1;
+        else if (status === 'under_procurement') entry.underProcurement += 1;
+        else entry.other += 1;
+    });
+
+    return [...yearlyMap.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function buildCoverageSummary(projects, fieldName) {
+    const coverageMap = new Map();
+
+    projects.forEach((project) => {
+        const names = splitGroupedNames(project[fieldName]);
+        if (!names.length) {
+            const key = 'Unspecified';
+            if (!coverageMap.has(key)) {
+                coverageMap.set(key, { name: key, projectCount: 0, totalBudget: 0 });
+            }
+            const unspecifiedEntry = coverageMap.get(key);
+            unspecifiedEntry.projectCount += 1;
+            unspecifiedEntry.totalBudget += Number(project.costOfProject) || 0;
+            return;
+        }
+
+        names.forEach((name) => {
+            if (!coverageMap.has(name)) {
+                coverageMap.set(name, { name, projectCount: 0, totalBudget: 0 });
+            }
+            const entry = coverageMap.get(name);
+            entry.projectCount += 1;
+            entry.totalBudget += Number(project.costOfProject) || 0;
+        });
+    });
+
+    return [...coverageMap.values()].sort((a, b) => {
+        if (b.projectCount !== a.projectCount) return b.projectCount - a.projectCount;
+        return a.name.localeCompare(b.name);
+    });
+}
+
+const ME_BORDER_THIN = { style: 'thin', color: { argb: 'FFB4B4B4' } };
+const ME_HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F5496' } };
+const ME_HEADER_FONT = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+const ME_SUBTITLE_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6DCE4' } };
+const ME_SUBTITLE_FONT = { bold: true, color: { argb: 'FF1F3864' }, size: 12 };
+const ME_TOTAL_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB4C7E7' } };
+const ME_ZEBRA_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FB' } };
+
+function meBorderAll(cell) {
+    cell.border = {
+        top: ME_BORDER_THIN,
+        left: ME_BORDER_THIN,
+        bottom: ME_BORDER_THIN,
+        right: ME_BORDER_THIN,
+    };
+}
+
+function styleHeaderRow(worksheet, rowNumber, fromCol, toCol) {
+    for (let col = fromCol; col <= toCol; col += 1) {
+        const cell = worksheet.getRow(rowNumber).getCell(col);
+        cell.fill = ME_HEADER_FILL;
+        cell.font = ME_HEADER_FONT;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        meBorderAll(cell);
+    }
+}
+
+function styleDataRow(worksheet, rowNumber, fromCol, toCol, zebra) {
+    const fill = zebra ? ME_ZEBRA_FILL : undefined;
+    for (let col = fromCol; col <= toCol; col += 1) {
+        const cell = worksheet.getRow(rowNumber).getCell(col);
+        if (fill) cell.fill = fill;
+        cell.alignment = { vertical: 'middle', horizontal: col === fromCol ? 'left' : 'right' };
+        meBorderAll(cell);
+    }
+}
+
+function styleTotalRow(worksheet, rowNumber, fromCol, toCol) {
+    for (let col = fromCol; col <= toCol; col += 1) {
+        const cell = worksheet.getRow(rowNumber).getCell(col);
+        cell.fill = ME_TOTAL_FILL;
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: col === fromCol ? 'left' : 'right' };
+        meBorderAll(cell);
+    }
+}
+
+function writeYearlySheet(worksheet, yearlySummary) {
+    worksheet.getCell('I2').value = 'Budget (Ksh)';
+    styleHeaderRow(worksheet, 2, 2, 9);
+
+    let sumCompleted = 0;
+    let sumOngoing = 0;
+    let sumTerminated = 0;
+    let sumUnder = 0;
+    let sumOther = 0;
+    let sumBudget = 0;
+
+    yearlySummary.forEach((item, index) => {
+        const row = 3 + index;
+        const rowTotal =
+            item.completed +
+            item.ongoing +
+            item.terminated +
+            item.underProcurement +
+            item.other;
+
+        sumCompleted += item.completed;
+        sumOngoing += item.ongoing;
+        sumTerminated += item.terminated;
+        sumUnder += item.underProcurement;
+        sumOther += item.other;
+        sumBudget += item.totalBudget;
+
+        worksheet.getCell(`B${row}`).value = item.label;
+        worksheet.getCell(`C${row}`).value = item.completed;
+        worksheet.getCell(`D${row}`).value = item.ongoing;
+        worksheet.getCell(`E${row}`).value = item.terminated;
+        worksheet.getCell(`F${row}`).value = item.underProcurement;
+        worksheet.getCell(`G${row}`).value = item.other;
+        worksheet.getCell(`H${row}`).value = rowTotal;
+        worksheet.getCell(`I${row}`).value = item.totalBudget;
+        worksheet.getCell(`I${row}`).numFmt = '#,##0';
+
+        styleDataRow(worksheet, row, 2, 9, index % 2 === 1);
+    });
+
+    const totalRow = 3 + yearlySummary.length;
+    const grandTotalProjects = sumCompleted + sumOngoing + sumTerminated + sumUnder + sumOther;
+
+    worksheet.getCell(`B${totalRow}`).value = 'Total';
+    worksheet.getCell(`C${totalRow}`).value = sumCompleted;
+    worksheet.getCell(`D${totalRow}`).value = sumOngoing;
+    worksheet.getCell(`E${totalRow}`).value = sumTerminated;
+    worksheet.getCell(`F${totalRow}`).value = sumUnder;
+    worksheet.getCell(`G${totalRow}`).value = sumOther;
+    worksheet.getCell(`H${totalRow}`).value = grandTotalProjects;
+    worksheet.getCell(`I${totalRow}`).value = sumBudget;
+    worksheet.getCell(`I${totalRow}`).numFmt = '#,##0';
+
+    styleTotalRow(worksheet, totalRow, 2, 9);
+
+    worksheet.getColumn(2).width = 22;
+    worksheet.getColumn(9).width = 18;
+    worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+}
+
+function styleSummaryStatusBlock(worksheet) {
+    worksheet.getCell('C4').font = { bold: true, size: 12 };
+    worksheet.getCell('C4').fill = ME_SUBTITLE_FILL;
+    worksheet.getCell('C4').alignment = { horizontal: 'center' };
+
+    for (let r = 5; r <= 11; r += 1) {
+        for (let c = 2; c <= 3; c += 1) {
+            const cell = worksheet.getRow(r).getCell(c);
+            meBorderAll(cell);
+            if (r <= 10) {
+                cell.alignment = { vertical: 'middle', horizontal: c === 2 ? 'left' : 'right' };
+                if (r % 2 === 0) cell.fill = ME_ZEBRA_FILL;
+            }
+        }
+    }
+    const totalCellB = worksheet.getCell('B11');
+    const totalCellC = worksheet.getCell('C11');
+    totalCellB.font = { bold: true };
+    totalCellC.font = { bold: true };
+    totalCellB.fill = ME_TOTAL_FILL;
+    totalCellC.fill = ME_TOTAL_FILL;
+    worksheet.getColumn(2).width = 28;
+    worksheet.getColumn(3).width = 14;
+}
+
+function writeCoverageSheet(worksheet, subCountyCoverage, wardCoverage) {
+    let row = 1;
+    worksheet.getCell(`B${row}`).value = 'Coverage by Sub-County';
+    worksheet.getCell(`B${row}`).font = ME_SUBTITLE_FONT;
+    worksheet.getCell(`B${row}`).fill = ME_SUBTITLE_FILL;
+    row += 1;
+
+    styleHeaderRow(worksheet, row, 2, 4);
+    row += 1;
+
+    let sumProjects = 0;
+    let sumBudget = 0;
+
+    subCountyCoverage.forEach((item, index) => {
+        worksheet.getCell(`B${row}`).value = item.name;
+        worksheet.getCell(`C${row}`).value = item.projectCount;
+        worksheet.getCell(`D${row}`).value = item.totalBudget;
+        worksheet.getCell(`D${row}`).numFmt = '#,##0';
+        sumProjects += item.projectCount;
+        sumBudget += item.totalBudget;
+        styleDataRow(worksheet, row, 2, 4, index % 2 === 1);
+        row += 1;
+    });
+
+    worksheet.getCell(`B${row}`).value = 'Sub-county total';
+    worksheet.getCell(`C${row}`).value = sumProjects;
+    worksheet.getCell(`D${row}`).value = sumBudget;
+    worksheet.getCell(`D${row}`).numFmt = '#,##0';
+    styleTotalRow(worksheet, row, 2, 4);
+    row += 2;
+
+    worksheet.getCell(`B${row}`).value = 'Coverage by Ward';
+    worksheet.getCell(`B${row}`).font = ME_SUBTITLE_FONT;
+    worksheet.getCell(`B${row}`).fill = ME_SUBTITLE_FILL;
+    row += 1;
+
+    styleHeaderRow(worksheet, row, 2, 4);
+    row += 1;
+
+    let wardSumProjects = 0;
+    let wardSumBudget = 0;
+
+    wardCoverage.forEach((item, index) => {
+        worksheet.getCell(`B${row}`).value = item.name;
+        worksheet.getCell(`C${row}`).value = item.projectCount;
+        worksheet.getCell(`D${row}`).value = item.totalBudget;
+        worksheet.getCell(`D${row}`).numFmt = '#,##0';
+        wardSumProjects += item.projectCount;
+        wardSumBudget += item.totalBudget;
+        styleDataRow(worksheet, row, 2, 4, index % 2 === 1);
+        row += 1;
+    });
+
+    worksheet.getCell(`B${row}`).value = 'Ward total';
+    worksheet.getCell(`C${row}`).value = wardSumProjects;
+    worksheet.getCell(`D${row}`).value = wardSumBudget;
+    worksheet.getCell(`D${row}`).numFmt = '#,##0';
+    styleTotalRow(worksheet, row, 2, 4);
+
+    worksheet.getColumn(2).width = 36;
+    worksheet.getColumn(3).width = 12;
+    worksheet.getColumn(4).width = 18;
+    worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+}
+
+async function fetchMEProjects() {
+    const [rows] = await pool.query(`
+        SELECT
+            p.id,
+            p.projectName,
+            p.projectDescription,
+            p.objective,
+            p.expectedOutput,
+            p.expectedOutcome,
+            p.ProjectRefNum,
+            p.startDate,
+            p.endDate,
+            p.createdAt,
+            p.updatedAt,
+            p.costOfProject,
+            p.paidOut,
+            p.status,
+            p.statusReason,
+            p.directorate,
+            p.overallProgress,
+            d.name AS departmentName,
+            s.name AS sectionName,
+            fy.finYearName,
+            pr.programme AS programName,
+            sp.subProgramme AS subProgramName,
+            cat.categoryName,
+            pf.proposedSourceFinancing,
+            pf.capitalCostConstruction,
+            COALESCE(fyb.fundsAvailableInYear, p.costOfProject) AS fundsAvailableInYear,
+            sc_loc.subCountyNames,
+            sc_loc.subCountyCoordinates,
+            w_loc.wardNames,
+            w_loc.wardCoordinates
+        FROM kemri_projects p
+        LEFT JOIN kemri_departments d
+            ON p.departmentId = d.departmentId AND COALESCE(d.voided, 0) = 0
+        LEFT JOIN kemri_sections s
+            ON p.sectionId = s.sectionId AND COALESCE(s.voided, 0) = 0
+        LEFT JOIN kemri_financialyears fy
+            ON p.finYearId = fy.finYearId AND COALESCE(fy.voided, 0) = 0
+        LEFT JOIN kemri_programs pr
+            ON p.programId = pr.programId AND COALESCE(pr.voided, 0) = 0
+        LEFT JOIN kemri_subprograms sp
+            ON p.subProgramId = sp.subProgramId AND COALESCE(sp.voided, 0) = 0
+        LEFT JOIN kemri_categories cat
+            ON p.categoryId = cat.categoryId AND COALESCE(cat.voided, 0) = 0
+        LEFT JOIN kemri_project_financials pf
+            ON p.id = pf.projectId AND COALESCE(pf.voided, 0) = 0
+        LEFT JOIN (
+            SELECT
+                projectId,
+                SUM(totalCost) AS fundsAvailableInYear
+            FROM kemri_project_fy_breakdown
+            WHERE COALESCE(voided, 0) = 0
+            GROUP BY projectId
+        ) fyb ON p.id = fyb.projectId
+        LEFT JOIN (
+            SELECT
+                psc.projectId,
+                GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ', ') AS subCountyNames,
+                GROUP_CONCAT(
+                    DISTINCT CONCAT_WS(', ', NULLIF(sc.geoLat, ''), NULLIF(sc.geoLon, ''))
+                    ORDER BY sc.name SEPARATOR ' | '
+                ) AS subCountyCoordinates
+            FROM kemri_project_subcounties psc
+            JOIN kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
+            WHERE psc.voided = 0 AND COALESCE(sc.voided, 0) = 0
+            GROUP BY psc.projectId
+        ) sc_loc ON p.id = sc_loc.projectId
+        LEFT JOIN (
+            SELECT
+                pw.projectId,
+                GROUP_CONCAT(DISTINCT w.name ORDER BY w.name SEPARATOR ', ') AS wardNames,
+                GROUP_CONCAT(
+                    DISTINCT CONCAT_WS(', ', NULLIF(w.geoLat, ''), NULLIF(w.geoLon, ''))
+                    ORDER BY w.name SEPARATOR ' | '
+                ) AS wardCoordinates
+            FROM kemri_project_wards pw
+            JOIN kemri_wards w ON pw.wardId = w.wardId
+            WHERE pw.voided = 0 AND COALESCE(w.voided, 0) = 0
+            GROUP BY pw.projectId
+        ) w_loc ON p.id = w_loc.projectId
+        WHERE p.voided = 0
+        ORDER BY p.projectName ASC, p.id ASC
+    `);
+
+    return rows;
+}
+
+/**
+ * @route GET /api/reports/me-report/export
+ * @description Generate the M&E report workbook from the template using best-effort project data
+ * @access Public (router mounted before auth middleware)
+ */
+router.get('/me-report/export', async (req, res) => {
+    try {
+        const templatePath = path.resolve(__dirname, '..', 'templates', 'me_report_template.xlsx');
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(templatePath);
+
+        const projectsSheet = workbook.getWorksheet('Projects');
+        const summarySheet = workbook.getWorksheet('Summary');
+        const yearlySheet = workbook.getWorksheet('yearly');
+        const coverageSheet = workbook.getWorksheet('coverage');
+
+        if (!projectsSheet || !summarySheet || !yearlySheet || !coverageSheet) {
+            return res.status(500).json({
+                message: 'M&E report template is missing required sheets (Projects, Summary, yearly, coverage).'
+            });
+        }
+
+        const projects = await fetchMEProjects();
+        const rows = projects.map((project, index) => buildMERow(project, index));
+        rows.forEach((row) => projectsSheet.addRow(row));
+
+        const summary = buildMESummary(projects);
+        summarySheet.getCell('C5').value = summary.stalled;
+        summarySheet.getCell('C6').value = summary.inProgress;
+        summarySheet.getCell('C7').value = summary.completed;
+        summarySheet.getCell('C8').value = summary.terminated;
+        summarySheet.getCell('C9').value = summary.underProcurement;
+        summarySheet.getCell('C10').value = summary.other;
+        summarySheet.getCell('C11').value =
+            summary.stalled +
+            summary.inProgress +
+            summary.completed +
+            summary.terminated +
+            summary.underProcurement +
+            summary.other;
+        styleSummaryStatusBlock(summarySheet);
+
+        const yearlySummary = buildYearlySummary(projects);
+        const subCountyCoverage = buildCoverageSummary(projects, 'subCountyNames');
+        const wardCoverage = buildCoverageSummary(projects, 'wardNames');
+
+        writeYearlySheet(yearlySheet, yearlySummary);
+        writeCoverageSheet(coverageSheet, subCountyCoverage, wardCoverage);
+
+        projectsSheet.views = [{ state: 'frozen', ySplit: 2 }];
+        styleHeaderRow(projectsSheet, 1, 1, 46);
+        styleHeaderRow(projectsSheet, 2, 1, 46);
+        projectsSheet.getColumn(2).width = 42;
+
+        const fileName = `me_report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        console.error('Error generating M&E report:', error);
+        res.status(500).json({
+            message: 'Error generating M&E report',
+            error: error.message
+        });
+    }
+});
 
 // --- Department Summary Report Calls ---
 /**

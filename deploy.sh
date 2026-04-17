@@ -4,7 +4,7 @@
 # This script builds Docker images and pushes them to GitHub Container Registry
 
 # Configuration - UPDATE THESE VALUES
-GITHUB_USERNAME="your-github-username"
+GITHUB_USERNAME="kwatuha@gmail.com"
 VERSION="v1.0.0"
 GITHUB_TOKEN=""  # Set this environment variable or update here
 

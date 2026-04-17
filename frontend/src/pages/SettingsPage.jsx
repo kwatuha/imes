@@ -770,6 +770,17 @@ const SubcountyManagement = () => {
   const [subcountyFormErrors, setSubcountyFormErrors] = useState({});
   const [wardFormErrors, setWardFormErrors] = useState({});
 
+  /** High-contrast table headers (secondary/primary alone can be too light for white text) */
+  const subcountyWardTableHeadRowSx = useMemo(() => ({
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : theme.palette.grey[800],
+    borderBottom: `1px solid ${theme.palette.mode === 'dark' ? theme.palette.grey[600] : theme.palette.grey[700]}`,
+    '& .MuiTableCell-root': {
+      color: theme.palette.common.white,
+      fontWeight: 700,
+      fontSize: '0.875rem',
+    },
+  }), [theme]);
+
   const fetchSubcounties = useCallback(async () => {
     setLoading(true);
     try {
@@ -1029,9 +1040,9 @@ const SubcountyManagement = () => {
         <TableContainer component={Paper} sx={{ borderRadius: '8px', overflow: 'hidden', boxShadow: theme.shadows[2] }}>
           <Table>
             <TableHead>
-              <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Subcounty</TableCell>
-                <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
+              <TableRow sx={subcountyWardTableHeadRowSx}>
+                <TableCell>Subcounty</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1077,11 +1088,11 @@ const SubcountyManagement = () => {
                             <TableContainer component={Paper} sx={{ mb: 2, boxShadow: theme.shadows[1] }}>
                               <Table size="small">
                                 <TableHead>
-                                  <TableRow sx={{ backgroundColor: theme.palette.secondary.main }}>
-                                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>ID</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Name</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold', color: 'white' }}>Coordinates</TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: 'white' }}>Actions</TableCell>
+                                  <TableRow sx={subcountyWardTableHeadRowSx}>
+                                    <TableCell>ID</TableCell>
+                                    <TableCell>Name</TableCell>
+                                    <TableCell>Coordinates</TableCell>
+                                    <TableCell align="right">Actions</TableCell>
                                   </TableRow>
                                 </TableHead>
                                 <TableBody>

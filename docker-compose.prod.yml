@@ -7,14 +7,21 @@ services:
   nginx_proxy:
     image: nginx:alpine
     container_name: nginx_proxy
+    # Published HTTP/HTTPS for legacy and county: avoid host :80/:443 conflicts (use reverse proxy if needed).
     ports:
+      - "8443:443"
       - "8080:80"
     volumes:
       - ./nginx/nginx-production.conf:/etc/nginx/nginx.conf
+      # Per-server: deploy script copies https-ecimes.conf or https-pmis.conf → https-site.conf before compose up.
+      - ./nginx/https-site.conf:/etc/nginx/conf.d/https-site.conf
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
       - nginx_cache:/var/cache/nginx
     depends_on:
       - frontend
       - api
+      - public-dashboard
     restart: unless-stopped
 
   frontend:
@@ -32,6 +39,8 @@ services:
       context: ./api
       dockerfile: Dockerfile
     container_name: node_api
+    expose:
+      - "3000"
     ports:
       - "3000:3000"
     volumes:
@@ -58,6 +67,7 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    # Direct access (same on legacy and county); main citizen UI is still via nginx /citizen/
     ports:
       - "5174:80"
 

@@ -1,0 +1,11 @@
+# Overlay for legacy (pmis) deploy: publish nginx on host port 80.
+# Let's Encrypt HTTP-01 only checks http://<domain>/.well-known/... on port 80.
+# Base docker-compose.prod.yml maps 8080:80; without this overlay, public :80 never hits certbot's webroot.
+#
+# If "address already in use" on :80, stop the other listener or set LEGACY_SKIP_BIND_80=1 and proxy
+# /.well-known/ on the host to http://127.0.0.1:8080/
+
+services:
+  nginx_proxy:
+    ports:
+      - "80:80"

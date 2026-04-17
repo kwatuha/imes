@@ -99,9 +99,10 @@ const IMPORT_TYPES = [
   }
 ];
 
-// Optional static template paths (served from frontend public/ with Vite base '/impes')
+// Optional static template paths (prod under /admin, dev at root)
+const ADMIN_BASE = import.meta.env.PROD ? '/admin' : '';
 const STATIC_TEMPLATE_PATHS = {
-  projects: '/impes/templates/projects_import_template.xlsx',
+  projects: `${ADMIN_BASE}/templates/projects_import_template.xlsx`,
 };
 
 // Expected column headers for each template type (used for client-side fallback generation)

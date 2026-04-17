@@ -38,6 +38,11 @@ Thumbs.db
 api/uploads/
 api/migrations/
 
+# Shell / editor noise (never commit)
+last_history.txt
+.~lock.*#
+**/.~lock.*#
+
 # Temporary files
 tmp/
 temp/

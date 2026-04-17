@@ -79,7 +79,7 @@ import { modernTheme } from './theme/modernTheme';
 // Add CentralImportPage for unified import hub
 import CentralImportPage from './pages/CentralImportPage';
 
-// Define your routes with basename for /impes path
+// Use /admin only in production; keep dev at root for local accessibility
 const router = createBrowserRouter([
   {
     path: '/',
@@ -248,7 +248,7 @@ const router = createBrowserRouter([
     element: <Login />,
   },
 ], {
-  basename: '/impes'  // Add this basename configuration
+  basename: import.meta.env.PROD ? '/admin' : '/'
 });
 
 function App() {

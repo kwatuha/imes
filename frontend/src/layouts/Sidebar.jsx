@@ -59,6 +59,7 @@ import { useMenuCategory } from '../context/MenuCategoryContext.jsx';
 import { useSidebar } from '../context/SidebarContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
 import { getFilteredMenuCategories } from '../configs/menuConfigUtils.js';
+import reportsService from '../api/reportsService';
 import logo from '../assets/logo.png';
 import userProfilePicture from '../assets/user.png';
 
@@ -84,17 +85,24 @@ const ICON_MAP = {
   AttachMoneyIcon,
 };
 
-const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme, isCollapsed }) => {
+const Item = ({ title, to, onClick, icon, selected, setSelected, privilegeCheck, theme, isCollapsed }) => {
   const navigate = useNavigate();
   
   if (privilegeCheck && !privilegeCheck()) {
     return null;
   }
 
-  const handleClick = () => {
-    console.log('Menu item clicked:', title, 'navigating to:', to);
-    setSelected(to);
-    navigate(to);
+  const handleClick = async () => {
+    if (to) {
+      console.log('Menu item clicked:', title, 'navigating to:', to);
+      setSelected(to);
+      navigate(to);
+      return;
+    }
+
+    if (onClick) {
+      await onClick();
+    }
   };
 
   return (
@@ -109,8 +117,8 @@ const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme, i
           margin: '2px 6px',
           borderRadius: '6px',
           cursor: 'pointer',
-          backgroundColor: selected === to ? theme.palette.action.selected : 'transparent',
-          color: selected === to ? theme.palette.primary.main : theme.palette.text.primary,
+          backgroundColor: to && selected === to ? theme.palette.action.selected : 'transparent',
+          color: to && selected === to ? theme.palette.primary.main : theme.palette.text.primary,
           '&:hover': {
             backgroundColor: theme.palette.action.hover,
             transform: isCollapsed ? 'scale(1.1)' : 'translateX(2px)',
@@ -135,7 +143,7 @@ const Item = ({ title, to, icon, selected, setSelected, privilegeCheck, theme, i
             variant="body2" 
             sx={{ 
               fontSize: '0.8rem', 
-              fontWeight: selected === to ? '600' : '500',
+              fontWeight: to && selected === to ? '600' : '500',
               overflow: 'hidden', 
               whiteSpace: 'nowrap', 
               textOverflow: 'ellipsis',
@@ -219,6 +227,7 @@ const SearchableMenu = ({ items, selected, setSelected, theme, isCollapsed }) =>
               <Item
                 title={item.title}
                 to={item.to}
+                onClick={item.onClick}
                 icon={item.icon}
                 selected={selected}
                 setSelected={setSelected}
@@ -267,6 +276,23 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const [selected, setSelected] = useState(location.pathname);
+
+  const handleDownloadMEReport = useCallback(async () => {
+    try {
+      const { blob, fileName } = await reportsService.downloadMEReport();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download M&E report:', error);
+      window.alert('Failed to download the M&E report. Please try again.');
+    }
+  }, []);
   
   // Get sidebar collapse state from context
   const { isCollapsed, toggleSidebar } = useSidebar();
@@ -313,13 +339,17 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
       .map(submenu => {
         const route = submenu.route && ROUTES[submenu.route] ? ROUTES[submenu.route] : submenu.to;
         const IconComponent = ICON_MAP[submenu.icon] || DashboardIcon;
+        const actionHandlers = {
+          downloadMEReport: handleDownloadMEReport,
+        };
         return {
           title: submenu.title,
           to: route,
+          onClick: submenu.action ? actionHandlers[submenu.action] : undefined,
           icon: <IconComponent />,
         };
       });
-  }, [selectedCategory, hasPrivilege, user]);
+  }, [selectedCategory, hasPrivilege, user, handleDownloadMEReport]);
   
   // Update selected state when route changes
   useEffect(() => {
@@ -339,6 +369,7 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
     { title: "Project Dashboards", to: ROUTES.REPORTING_OVERVIEW, icon: <AssessmentIcon /> },
     { title: "Regional Rpts", to: ROUTES.REGIONAL_DASHBOARD, icon: <AssessmentIcon /> },
     { title: "Regional Dashboards", to: ROUTES.REGIONAL_REPORTING, icon: <AssessmentIcon /> },
+    { title: "M&E Report", onClick: handleDownloadMEReport, icon: <AssessmentIcon /> },
     { title: "Absorption Report", to: ROUTES.ABSORPTION_REPORT, icon: <AssessmentIcon /> },
     { title: "Performance Management Report", to: ROUTES.PERFORMANCE_MANAGEMENT_REPORT, icon: <AssessmentIcon /> },
     { title: "CAPR Report", to: ROUTES.CAPR_REPORT, icon: <AssessmentIcon /> },

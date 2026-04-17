@@ -6,6 +6,25 @@ import axiosInstance from './axiosInstance';
  */
 
 const reportsService = {
+  downloadMEReport: async () => {
+    try {
+      const response = await axiosInstance.get('/reports/me-report/export', {
+        responseType: 'blob',
+      });
+
+      const disposition = response.headers?.['content-disposition'] || '';
+      const fileNameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+      return {
+        blob: response.data,
+        fileName: fileNameMatch?.[1] || 'me_report.xlsx',
+      };
+    } catch (error) {
+      console.error("Failed to download M&E report:", error);
+      throw error;
+    }
+  },
+
   // --- Department Summary Report Calls ---
   getDepartmentSummaryReport: async (filters = {}) => {
     try {

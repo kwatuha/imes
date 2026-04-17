@@ -39,8 +39,11 @@ import CountyProposedProjectsPage from './pages/CountyProposedProjectsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 
 function App() {
+  // Support both local direct dev (/) and nginx-mounted path (/citizen).
+  const routerBasename = window.location.pathname.startsWith('/citizen') ? '/citizen' : '/';
+
   return (
-    <Router>
+    <Router basename={routerBasename}>
       <CssBaseline />
       
       {/* Navigation Bar */}

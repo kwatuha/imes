@@ -1017,7 +1017,7 @@ function UserManagementPage() {
             <Button
               variant="outlined"
               startIcon={<DashboardIcon />}
-              onClick={() => window.open('/impes/dashboard-config', '_blank')}
+              onClick={() => window.open(`${import.meta.env.PROD ? '/admin' : ''}/dashboard-config`, '_blank')}
               sx={{ borderColor: colors.greenAccent[500], color: colors.greenAccent[500], '&:hover': { backgroundColor: colors.greenAccent[700], color: 'white' }, fontWeight: 'semibold', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}
             >
               Configure Dashboard
