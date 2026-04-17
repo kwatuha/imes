@@ -17,6 +17,8 @@
 #   DEPLOY_SKIP_CONFIRM=1  skip y/n prompt
 #   LEGACY_BIND_PUBLIC_80=1  also map host :80→nginx (only if free; needed for Certbot HTTP-01
 #                            unless you proxy /.well-known/ to http://127.0.0.1:8080/)
+#
+# Secrets: create $REMOTE_DIR/.env on the server (copy from .env.example); rsync does not upload .env.
 
 set -e
 
@@ -73,6 +75,7 @@ rsync -avz --no-group --progress \
     --exclude 'uploads/*' \
     --exclude 'api/uploads' \
     --exclude '.env.local' \
+    --exclude '.env' \
     --exclude '.DS_Store' \
     --include 'public-dashboard/' \
     --include 'public-dashboard/**' \

@@ -1,4 +1,6 @@
 # Environment files
+# Root .env: secrets for docker-compose.prod.yml (DB passwords, etc.) — never commit
+.env
 # IMPORTANT: .env.development and .env.production are committed (non-secret config)
 # Only .env.local files (with secrets/local overrides) are ignored
 .env.local
@@ -37,6 +39,10 @@ Thumbs.db
 *~
 api/uploads/
 api/migrations/
+
+# DB dumps (scripts/sync-kemri-projects-to-remote.sh)
+kemri_projects_dump.sql.gz
+kemri_projects_dump.sql
 
 # Shell / editor noise (never commit)
 last_history.txt

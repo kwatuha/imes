@@ -21,6 +21,7 @@ DEPLOY_DIR="$REMOTE_DIR"
 HTTPS_DOMAIN="${HTTPS_DOMAIN:-ecimes.kisumu.go.ke}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-admin@kisumu.go.ke}"
 # Same compose as legacy: docker-compose.prod.yml (host 8080→HTTP, 8443→HTTPS, 5174→public-dashboard).
+# DB secrets: $DEPLOY_DIR/.env (not rsync'd — create on server from .env.example).
 PROD_COMPOSE="-f docker-compose.prod.yml"
 
 # Local dev DB (same credentials as docker-compose.yml / docker-compose.prod.yml mysql_db)
