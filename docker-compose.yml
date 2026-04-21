@@ -1,3 +1,5 @@
+# Local development only (HTTP). For production use docker-compose.prod.yml — do not run both
+# interchangeably without `docker compose down` first or nginx_proxy keeps prod volumes and will fail.
 version: '3.8'
 services:
   nginx_proxy:
@@ -11,6 +13,7 @@ services:
     depends_on:
       - frontend
       - api
+      - public-dashboard
 
   frontend:
     build:
@@ -46,6 +49,7 @@ services:
     command: npm run dev
     environment:
       - VITE_API_URL=/api
+      - VITE_CITIZEN_BASE=1
       - VITE_MAPS_API_KEY=AIzaSyArNdYrq_WsuoGc34C7Osua7kbpt2Twf_s
 
   api:

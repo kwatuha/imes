@@ -15,6 +15,7 @@ import ProjectManagementPage from './pages/ProjectManagementPage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import ProjectGanttChartPage from './pages/ProjectGanttChartPage';
 import ReportsPage from './pages/ReportsPage';
+import ReportLibraryPage from './pages/ReportLibraryPage';
 import UserManagementPage from './pages/UserManagementPage';
 import Login from './components/Login';
 
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
       {
         path: 'reports',
         element: <ReportsPage />,
+      },
+      {
+        path: 'report-library',
+        element: <ReportLibraryPage />,
       },
       {
         path: 'view-reports',

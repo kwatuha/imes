@@ -36,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
 import ProjectsModal from '../components/ProjectsModal';
 import { getOverviewStats } from '../services/publicApi';
+import { publicAssetUrl } from '../utils/publicAssetUrl';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -166,7 +167,7 @@ const HomePage = () => {
             <Grid item xs={12} md={3} sx={{ display: 'flex', justifyContent: { xs: 'center', md: 'flex-end' }, pr: { md: 2 } }}>
               <Box
                 component="img"
-                src="images/logo.min.png"
+                src={publicAssetUrl('images/logo.min.png')}
                 alt="County Government of Kisumu Logo"
                 sx={{
                   height: 140,
@@ -373,7 +374,7 @@ const HomePage = () => {
                 <Box
                   sx={{
                     height: 450,
-                    backgroundImage: 'url("/images/wells-walgudha-road.jpg")',
+                    backgroundImage: `url("${publicAssetUrl('images/wells-walgudha-road.jpg')}")`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat',
@@ -511,7 +512,7 @@ const HomePage = () => {
               <Box
                 sx={{
                   height: { xs: 400, md: '100%' },
-                  backgroundImage: 'url("/images/wells-walgudha-road.jpg")',
+                  backgroundImage: `url("${publicAssetUrl('images/wells-walgudha-road.jpg')}")`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
@@ -593,7 +594,7 @@ const HomePage = () => {
               <Box
                 sx={{
                   height: 250,
-                  backgroundImage: 'url("images/governor_coming_out_of_road_machine.jpg")',
+                  backgroundImage: `url("${publicAssetUrl('images/governor_coming_out_of_road_machine.jpg')}")`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   position: 'relative',
@@ -643,7 +644,7 @@ const HomePage = () => {
               <Box
                 sx={{
                   height: 250,
-                  backgroundImage: 'url("images/governor_driving_road_equipment.jpg")',
+                  backgroundImage: `url("${publicAssetUrl('images/governor_driving_road_equipment.jpg')}")`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   position: 'relative',
@@ -693,7 +694,7 @@ const HomePage = () => {
               <Box
                 sx={{
                   height: 250,
-                  backgroundImage: 'url("images/governor_greeting.jpg")',
+                  backgroundImage: `url("${publicAssetUrl('images/governor_greeting.jpg')}")`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   position: 'relative',
@@ -743,7 +744,7 @@ const HomePage = () => {
               <Box
                 sx={{
                   height: 250,
-                  backgroundImage: 'url("images/wells-walgudha-road.jpg")',
+                  backgroundImage: `url("${publicAssetUrl('images/wells-walgudha-road.jpg')}")`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   position: 'relative',

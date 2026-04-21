@@ -43,6 +43,7 @@ api/migrations/
 # DB dumps (scripts/sync-kemri-projects-to-remote.sh)
 kemri_projects_dump.sql.gz
 kemri_projects_dump.sql
+feedback_pull_from_remote.sql.gz
 
 # Shell / editor noise (never commit)
 last_history.txt
@@ -67,4 +68,5 @@ db_data/
 # Coverage
 coverage/
 .nyc_output/
+scripts/
 

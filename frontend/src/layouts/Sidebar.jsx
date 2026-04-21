@@ -19,7 +19,7 @@ import {
   Avatar,
   Badge,
   Chip,
-  LinearProgress
+  LinearProgress,
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
 import "react-pro-sidebar/dist/css/styles.css";
@@ -53,13 +53,13 @@ import PublicIcon from '@mui/icons-material/Public';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import ApprovalIcon from '@mui/icons-material/Approval';
 import StorageIcon from '@mui/icons-material/Storage';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMenuCategory } from '../context/MenuCategoryContext.jsx';
 import { useSidebar } from '../context/SidebarContext.jsx';
 import { ROUTES } from '../configs/appConfig.js';
 import { getFilteredMenuCategories } from '../configs/menuConfigUtils.js';
-import reportsService from '../api/reportsService';
 import logo from '../assets/logo.png';
 import userProfilePicture from '../assets/user.png';
 
@@ -83,6 +83,7 @@ const ICON_MAP = {
   AnnouncementIcon,
   PublicIcon,
   AttachMoneyIcon,
+  LibraryBooksIcon,
 };
 
 const Item = ({ title, to, onClick, icon, selected, setSelected, privilegeCheck, theme, isCollapsed }) => {
@@ -276,23 +277,6 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const [selected, setSelected] = useState(location.pathname);
-
-  const handleDownloadMEReport = useCallback(async () => {
-    try {
-      const { blob, fileName } = await reportsService.downloadMEReport();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download M&E report:', error);
-      window.alert('Failed to download the M&E report. Please try again.');
-    }
-  }, []);
   
   // Get sidebar collapse state from context
   const { isCollapsed, toggleSidebar } = useSidebar();
@@ -339,17 +323,13 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
       .map(submenu => {
         const route = submenu.route && ROUTES[submenu.route] ? ROUTES[submenu.route] : submenu.to;
         const IconComponent = ICON_MAP[submenu.icon] || DashboardIcon;
-        const actionHandlers = {
-          downloadMEReport: handleDownloadMEReport,
-        };
         return {
           title: submenu.title,
           to: route,
-          onClick: submenu.action ? actionHandlers[submenu.action] : undefined,
           icon: <IconComponent />,
         };
       });
-  }, [selectedCategory, hasPrivilege, user, handleDownloadMEReport]);
+  }, [selectedCategory, hasPrivilege, user]);
   
   // Update selected state when route changes
   useEffect(() => {
@@ -369,7 +349,7 @@ const Sidebar = ({ isPinnedOpen = false, onTogglePinned }) => {
     { title: "Project Dashboards", to: ROUTES.REPORTING_OVERVIEW, icon: <AssessmentIcon /> },
     { title: "Regional Rpts", to: ROUTES.REGIONAL_DASHBOARD, icon: <AssessmentIcon /> },
     { title: "Regional Dashboards", to: ROUTES.REGIONAL_REPORTING, icon: <AssessmentIcon /> },
-    { title: "M&E Report", onClick: handleDownloadMEReport, icon: <AssessmentIcon /> },
+    { title: "Report library", to: ROUTES.REPORT_LIBRARY, icon: <LibraryBooksIcon /> },
     { title: "Absorption Report", to: ROUTES.ABSORPTION_REPORT, icon: <AssessmentIcon /> },
     { title: "Performance Management Report", to: ROUTES.PERFORMANCE_MANAGEMENT_REPORT, icon: <AssessmentIcon /> },
     { title: "CAPR Report", to: ROUTES.CAPR_REPORT, icon: <AssessmentIcon /> },

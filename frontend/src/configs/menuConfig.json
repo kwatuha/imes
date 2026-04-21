@@ -56,9 +56,9 @@
           "hidden": true
         },
         {
-          "title": "M&E Report",
-          "icon": "AssessmentIcon",
-          "action": "downloadMEReport"
+          "title": "Report library",
+          "icon": "LibraryBooksIcon",
+          "route": "REPORT_LIBRARY"
         },
         {
           "title": "Absorption Report",

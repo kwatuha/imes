@@ -27,6 +27,7 @@ import {
 import { submitFeedback } from '../services/publicApi';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import RatingInput from './RatingInput';
+import FeedbackSubmittedDialog from './FeedbackSubmittedDialog';
 
 const ProjectFeedbackModal = ({ open, onClose, project }) => {
   const [formData, setFormData] = useState({
@@ -84,8 +85,8 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
       console.log('Feedback submission result:', result);
       
       setSuccess(true);
-      
-      // Reset form
+
+      // Reset form (acknowledgement is shown in FeedbackSubmittedDialog)
       setFormData({
         name: '',
         email: '',
@@ -98,12 +99,6 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
         ratingTransparency: null,
         ratingFeasibilityConfidence: null
       });
-      
-      // Close modal after 2 seconds
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 2000);
     } catch (err) {
       console.error('Error submitting feedback:', err);
       setError(`Failed to submit feedback: ${err.message || 'Please try again later.'}`);
@@ -140,6 +135,7 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
   }
 
   return (
+    <>
     <Dialog 
       open={open} 
       onClose={handleClose}
@@ -258,13 +254,6 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
         </Paper>
 
         <Divider sx={{ mb: 3 }} />
-
-        {/* Success Message */}
-        {success && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            Thank you for your feedback! Your input has been submitted successfully.
-          </Alert>
-        )}
 
         {/* Error Message */}
         {error && (
@@ -482,6 +471,8 @@ const ProjectFeedbackModal = ({ open, onClose, project }) => {
         </Button>
       </DialogActions>
     </Dialog>
+    <FeedbackSubmittedDialog open={success} onClose={handleClose} />
+    </>
   );
 };
 

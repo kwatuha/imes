@@ -34,9 +34,11 @@ import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsGalleryPage from './pages/ProjectsGalleryPage';
 import PublicFeedbackPage from './pages/PublicFeedbackPage';
+import FeedbackPage from './pages/FeedbackPage';
 import CitizenProposalsPage from './pages/CitizenProposalsPage';
 import CountyProposedProjectsPage from './pages/CountyProposedProjectsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import { publicAssetUrl } from './utils/publicAssetUrl';
 
 function App() {
   // Support both local direct dev (/) and nginx-mounted path (/citizen).
@@ -62,7 +64,7 @@ function App() {
             <Grid item sx={{ display: 'flex', alignItems: 'flex-start', pr: 1 }}>
               <Box
                 component="img"
-                src="images/logo.min.png"
+                src={publicAssetUrl('images/logo.min.png')}
                 alt="County Government of Kisumu Logo"
                 sx={{
                   height: 50,
@@ -312,6 +314,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsGalleryPage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/public-feedback" element={<PublicFeedbackPage />} />
           <Route path="/citizen-proposals" element={<CitizenProposalsPage />} />
           <Route path="/county-projects" element={<CountyProposedProjectsPage />} />
@@ -338,7 +341,7 @@ function App() {
                 <Grid item sx={{ pr: 1 }}>
                   <Box
                     component="img"
-                    src="images/logo.min.png"
+                    src={publicAssetUrl('images/logo.min.png')}
                     alt="County Government of Kisumu Logo"
                     sx={{
                       height: 40,

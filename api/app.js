@@ -41,6 +41,7 @@ const citizenProposalsRoutes = require('./routes/citizenProposalsRoutes')
 const comprehensiveProjectRoutes = require('./routes/comprehensiveProjectRoutes')
 const budgetRoutes = require('./routes/budgetRoutes')
 const budgetContainerRoutes = require('./routes/budgetContainerRoutes')
+const reportLibraryRoutes = require('./routes/reportLibraryRoutes')
 
 const port = 3000;
 const app = express();
@@ -89,6 +90,7 @@ app.use('/api/dashboard', dashboardConfigRoutes);
 app.use('/api/data-access', dataAccessRoutes);
 
 app.use('/api', authenticate);
+app.use('/api/report-library', reportLibraryRoutes);
 app.use('/api/projects', projectRouter);
 
 // Mount other top-level routers

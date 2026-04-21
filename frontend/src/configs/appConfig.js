@@ -60,6 +60,7 @@ export const ROUTES = {
     RAW_DATA: '/raw-data',
     PROJECTS: '/projects',
     REPORTS: '/reports',
+    REPORT_LIBRARY: '/report-library',
     GIS_MAPPING: '/maps',
     REPORTING_OVERVIEW: '/view-reports',
     REGIONAL_REPORTING: '/regional-reports',

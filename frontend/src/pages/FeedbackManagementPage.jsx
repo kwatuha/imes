@@ -30,7 +30,6 @@ import {
   IconButton,
   List,
   ListItem,
-  Tooltip,
   Badge,
   Tabs,
   Tab,
@@ -55,15 +54,17 @@ import {
   Assessment,
   Forum,
   Star,
-  Gavel
+  Gavel,
+  PictureAsPdf
 } from '@mui/icons-material';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../api/axiosInstance';
 import FeedbackAnalytics from '../components/feedback/FeedbackAnalytics';
 import FeedbackModerationPage from './FeedbackModerationPage';
 import { Navigate } from 'react-router-dom';
 import { ROUTES } from '../configs/appConfig';
-
 const FeedbackManagementPage = () => {
   // useAuth() will throw if not within AuthProvider
   // This component should always be rendered within MainLayout which is within AuthProvider
@@ -94,6 +95,23 @@ const FeedbackManagementPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalFeedbacks, setModalFeedbacks] = useState([]);
   const [modalTitle, setModalTitle] = useState('');
+  /** DB-wide counts (moderation-approved only) — do not use feedbacks.length (paginated, max 10). */
+  const [feedbackStats, setFeedbackStats] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  /** Stat cards must not use paginated `feedbacks` only — fetch full slice for the modal. */
+  const [statModalLoading, setStatModalLoading] = useState(false);
+  const [exportingStatModalPdf, setExportingStatModalPdf] = useState(false);
+  /** Status filter for the open KPI modal (`all` | `pending` | …) — used to refresh the list after respond. */
+  const [statModalStatusKey, setStatModalStatusKey] = useState(null);
+
+  const fetchFeedbackStats = useCallback(async () => {
+    try {
+      const { data } = await axiosInstance.get('/public/feedback/stats');
+      setFeedbackStats(data);
+    } catch (err) {
+      console.error('Error fetching feedback stats:', err);
+    }
+  }, []);
 
   const fetchFeedbacks = useCallback(async () => {
     try {
@@ -129,25 +147,67 @@ const FeedbackManagementPage = () => {
     fetchFeedbacks();
   }, [fetchFeedbacks]);
 
+  useEffect(() => {
+    fetchFeedbackStats();
+  }, [fetchFeedbackStats]);
+
   const handleAccordionChange = (id) => (event, isExpanded) => {
     setExpandedId(isExpanded ? id : null);
   };
 
-  const handleStatCardClick = (status, title) => {
-    const filtered = status === 'all' 
-      ? feedbacks 
-      : feedbacks.filter(f => f.status === status);
-    
-    setModalFeedbacks(filtered);
+  const handleStatCardClick = async (status, title) => {
+    setStatModalStatusKey(status || 'all');
     setModalTitle(title);
     setModalOpen(true);
+    setModalFeedbacks([]);
+    setStatModalLoading(true);
+    try {
+      const params = new URLSearchParams({ page: '1', limit: '2000' });
+      if (status && status !== 'all') {
+        params.append('status', status);
+      }
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      const { data } = await axiosInstance.get(
+        `/public/feedback/admin?${params.toString()}`
+      );
+      setModalFeedbacks(data.feedbacks || []);
+    } catch (err) {
+      console.error('Error loading stat modal feedback:', err);
+      setError('Failed to load feedback for this category.');
+      setModalFeedbacks([]);
+    } finally {
+      setStatModalLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setModalFeedbacks([]);
     setModalTitle('');
+    setStatModalLoading(false);
+    setStatModalStatusKey(null);
   };
+
+  const refreshStatModalFeedbacks = useCallback(async () => {
+    if (!modalOpen || statModalStatusKey === null) return;
+    try {
+      const params = new URLSearchParams({ page: '1', limit: '2000' });
+      if (statModalStatusKey && statModalStatusKey !== 'all') {
+        params.append('status', statModalStatusKey);
+      }
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      const { data } = await axiosInstance.get(
+        `/public/feedback/admin?${params.toString()}`
+      );
+      setModalFeedbacks(data.feedbacks || []);
+    } catch (err) {
+      console.error('Error refreshing stat modal feedback:', err);
+    }
+  }, [modalOpen, statModalStatusKey, searchTerm]);
 
   const handleOpenResponseModal = (feedback) => {
     setSelectedFeedback(feedback);
@@ -180,7 +240,9 @@ const FeedbackManagementPage = () => {
       setSuccessMessage('Response submitted successfully!');
       handleCloseResponseModal();
       fetchFeedbacks();
-      
+      fetchFeedbackStats();
+      await refreshStatModalFeedbacks();
+
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error submitting response:', err);
@@ -201,7 +263,9 @@ const FeedbackManagementPage = () => {
 
       setSuccessMessage(`Status updated to ${newStatus}`);
       fetchFeedbacks();
-      
+      fetchFeedbackStats();
+      await refreshStatModalFeedbacks();
+
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       console.error('Error updating status:', err);
@@ -229,6 +293,138 @@ const FeedbackManagementPage = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const buildFeedbackListPdf = (list, kpiOrSectionTitle, infoLines) => {
+    const doc = new jsPDF('landscape', 'pt', 'a4');
+    doc.setFontSize(14);
+    doc.text('Public feedback management', 40, 28);
+    doc.setFontSize(11);
+    let y = 42;
+    doc.text(kpiOrSectionTitle, 40, y);
+    y += 14;
+    doc.setFontSize(9);
+    infoLines.forEach((line) => {
+      doc.text(line, 40, y);
+      y += 12;
+    });
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 40, y);
+    y += 18;
+
+    const cell = (v) =>
+      v === null || v === undefined || v === '' ? '—' : String(v);
+
+    const body = list.map((f) => [
+      String(f.id),
+      cell(f.name),
+      cell(f.project_name),
+      cell(f.subject),
+      cell(f.status),
+      cell(f.moderation_status),
+      formatDate(f.created_at),
+      cell(f.message),
+      cell(f.admin_response),
+    ]);
+
+    autoTable(doc, {
+      head: [
+        [
+          'ID',
+          'Citizen',
+          'Project',
+          'Subject',
+          'Status',
+          'Moderation',
+          'Submitted',
+          'Message',
+          'Admin response',
+        ],
+      ],
+      body,
+      startY: y,
+      styles: {
+        fontSize: 7,
+        cellPadding: 3,
+        overflow: 'linebreak',
+        valign: 'top',
+      },
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
+      margin: { left: 36, right: 36 },
+    });
+
+    return doc;
+  };
+
+  const handleExportFeedbackPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const params = new URLSearchParams({ page: '1', limit: '10000' });
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+
+      const { data } = await axiosInstance.get(
+        `/public/feedback/admin?${params.toString()}`
+      );
+      const list = data.feedbacks || [];
+      if (!list.length) {
+        setError('No feedback to export for the current filters.');
+        return;
+      }
+
+      const doc = buildFeedbackListPdf(list, 'Full list (current filters)', [
+        `Status filter: ${statusFilter} | Search: ${searchTerm || '—'}`,
+        `Records: ${list.length}`,
+      ]);
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      doc.save(`feedback_management_${dateStr}.pdf`);
+      setSuccessMessage(`Exported ${list.length} feedback record(s) to PDF.`);
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      setError('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleExportStatModalPdf = () => {
+    if (!modalFeedbacks.length || statModalLoading) {
+      return;
+    }
+    setExportingStatModalPdf(true);
+    try {
+      const doc = buildFeedbackListPdf(
+        modalFeedbacks,
+        modalTitle || 'KPI category',
+        [
+          `Page filters — status: ${statusFilter} | search: ${searchTerm || '—'}`,
+          `This download matches the KPI card list (${modalFeedbacks.length} record${modalFeedbacks.length === 1 ? '' : 's'})`,
+        ]
+      );
+      const dateStr = new Date().toISOString().split('T')[0];
+      const safe = (modalTitle || 'kpi')
+        .replace(/[^a-z0-9]+/gi, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 48) || 'kpi';
+      doc.save(`feedback_kpi_${safe}_${dateStr}.pdf`);
+      setSuccessMessage(`Downloaded PDF (${modalFeedbacks.length} record${modalFeedbacks.length === 1 ? '' : 's'}).`);
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (err) {
+      console.error('KPI modal PDF export failed:', err);
+      setError('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingStatModalPdf(false);
+    }
   };
 
   if (loading && feedbacks.length === 0) {
@@ -347,10 +543,10 @@ const FeedbackManagementPage = () => {
             <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
               <Comment sx={{ fontSize: '2rem', mb: 0.5 }} />
               <Typography variant="h5" fontWeight="bold">
-                {feedbacks.length}
+                {feedbackStats?.total_feedback ?? '—'}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                Total Citizen Feedback
+                Total (moderation-approved)
               </Typography>
             </CardContent>
           </Card>
@@ -373,7 +569,7 @@ const FeedbackManagementPage = () => {
             <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
               <Schedule sx={{ fontSize: '2rem', mb: 0.5 }} />
               <Typography variant="h5" fontWeight="bold">
-                {feedbacks.filter(f => f.status === 'pending').length}
+                {feedbackStats?.pending_feedback ?? '—'}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Awaiting Response
@@ -399,7 +595,7 @@ const FeedbackManagementPage = () => {
             <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
               <CheckCircle sx={{ fontSize: '2rem', mb: 0.5 }} />
               <Typography variant="h5" fontWeight="bold">
-                {feedbacks.filter(f => f.status === 'responded').length}
+                {feedbackStats?.responded_feedback ?? '—'}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Responded
@@ -425,7 +621,7 @@ const FeedbackManagementPage = () => {
             <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
               <Reply sx={{ fontSize: '2rem', mb: 0.5 }} />
               <Typography variant="h5" fontWeight="bold">
-                {feedbacks.filter(f => f.status === 'reviewed').length}
+                {feedbackStats?.reviewed_feedback ?? '—'}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                 Under Review
@@ -437,11 +633,38 @@ const FeedbackManagementPage = () => {
 
       {/* Filters */}
       <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <FilterList sx={{ mr: 1, color: 'primary.main' }} />
-          <Typography variant="h6" fontWeight="bold">
-            Filter Feedback
-          </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 2,
+            flexWrap: 'wrap',
+            gap: 1,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <FilterList sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant="h6" fontWeight="bold">
+              Filter Feedback
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={
+              exportingPdf ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <PictureAsPdf />
+              )
+            }
+            disabled={exportingPdf}
+            onClick={handleExportFeedbackPdf}
+            sx={{ textTransform: 'none' }}
+          >
+            Download PDF
+          </Button>
         </Box>
 
         <Grid container spacing={2}>
@@ -832,6 +1055,7 @@ const FeedbackManagementPage = () => {
                         color="primary"
                         startIcon={<Reply />}
                         onClick={() => handleOpenResponseModal(feedback)}
+                        disabled={submitting}
                       >
                         Respond to Feedback
                       </Button>
@@ -988,18 +1212,52 @@ const FeedbackManagementPage = () => {
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6" fontWeight="bold">
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold" sx={{ flex: 1, minWidth: 0 }}>
               {modalTitle}
             </Typography>
-            <IconButton onClick={handleCloseModal} size="small">
-              <Close />
-            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={
+                  exportingStatModalPdf ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : (
+                    <PictureAsPdf />
+                  )
+                }
+                disabled={
+                  statModalLoading ||
+                  !modalFeedbacks.length ||
+                  exportingStatModalPdf
+                }
+                onClick={handleExportStatModalPdf}
+                sx={{ textTransform: 'none' }}
+              >
+                Download PDF
+              </Button>
+              <IconButton onClick={handleCloseModal} size="small" aria-label="Close">
+                <Close />
+              </IconButton>
+            </Box>
           </Box>
         </DialogTitle>
         
         <DialogContent dividers>
-          {modalFeedbacks.length === 0 ? (
+          {statModalLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : modalFeedbacks.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="body1" color="text.secondary">
                 No feedback found in this category.
@@ -1039,9 +1297,42 @@ const FeedbackManagementPage = () => {
                       </Typography>
                     )}
                     
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" display="block">
                       Submitted: {formatDate(feedback.created_at)}
                     </Typography>
+
+                    {feedback.status === 'pending' && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 1,
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          mt: 1.5,
+                        }}
+                      >
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          startIcon={<Reply />}
+                          onClick={() => handleOpenResponseModal(feedback)}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Respond to feedback
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="info"
+                          startIcon={<Visibility />}
+                          onClick={() => handleUpdateStatus(feedback.id, 'reviewed')}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Mark as Under Review
+                        </Button>
+                      </Box>
+                    )}
                     
                     {feedback.admin_response && (
                       <Box sx={{ mt: 2, p: 2, backgroundColor: '#e8f5e8', borderRadius: 1 }}>

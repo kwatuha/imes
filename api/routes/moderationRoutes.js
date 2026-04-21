@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const auth = require('../middleware/authenticate');
+const { FEEDBACK_DEFAULT_ACKNOWLEDGEMENT } = require('../constants/feedbackMessages');
 
 // ==================== MODERATION MANAGEMENT ====================
 
@@ -306,27 +307,54 @@ router.get('/analytics', auth, async (req, res) => {
 router.post('/:feedbackId/approve', auth, async (req, res) => {
     try {
         const { feedbackId } = req.params;
-        const { moderator_notes } = req.body;
+        const { moderator_notes, post_default_acknowledgement } = req.body;
         const moderatorId = req.user.userId;
+        const postDefault = post_default_acknowledgement === true || post_default_acknowledgement === 'true';
 
-        // Update the public feedback moderation status
-        const updateQuery = `
-            UPDATE public_feedback 
-            SET 
-                moderation_status = 'approved',
-                moderation_reason = NULL,
-                custom_reason = NULL,
-                moderator_notes = ?,
-                moderated_by = ?,
-                moderated_at = NOW()
-            WHERE id = ?
-        `;
-
-        await pool.query(updateQuery, [moderator_notes, moderatorId, feedbackId]);
+        if (postDefault) {
+            const updateQuery = `
+                UPDATE public_feedback 
+                SET 
+                    moderation_status = 'approved',
+                    moderation_reason = NULL,
+                    custom_reason = NULL,
+                    moderator_notes = ?,
+                    moderated_by = ?,
+                    moderated_at = NOW(),
+                    admin_response = ?,
+                    status = 'responded',
+                    responded_by = ?,
+                    responded_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = ?
+            `;
+            await pool.query(updateQuery, [
+                moderator_notes ?? null,
+                moderatorId,
+                FEEDBACK_DEFAULT_ACKNOWLEDGEMENT,
+                moderatorId,
+                feedbackId
+            ]);
+        } else {
+            const updateQuery = `
+                UPDATE public_feedback 
+                SET 
+                    moderation_status = 'approved',
+                    moderation_reason = NULL,
+                    custom_reason = NULL,
+                    moderator_notes = ?,
+                    moderated_by = ?,
+                    moderated_at = NOW()
+                WHERE id = ?
+            `;
+            await pool.query(updateQuery, [moderator_notes ?? null, moderatorId, feedbackId]);
+        }
 
         res.json({
             success: true,
-            message: 'Feedback approved successfully'
+            message: postDefault
+                ? 'Feedback approved and default acknowledgement posted to the citizen.'
+                : 'Feedback approved successfully'
         });
     } catch (error) {
         console.error('Error approving feedback:', error);

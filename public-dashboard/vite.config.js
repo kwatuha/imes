@@ -2,8 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
+// When VITE_CITIZEN_BASE=1 (Docker nginx at http://host:8080/citizen/), use base /citizen/ so /src and /@vite
+// are not confused with the admin app (nginx would otherwise route /src to react_frontend).
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/citizen/' : '/',
+  base:
+    mode === 'production' || process.env.VITE_CITIZEN_BASE === '1'
+      ? '/citizen/'
+      : '/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',

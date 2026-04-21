@@ -79,10 +79,12 @@ function buildMERow(project, index) {
         project.programName || '',
         project.departmentName || project.directorate || '',
         project.sectionName || project.directorate || project.departmentName || '',
-        formatDateForExcel(project.createdAt),
+        // Date of Approval/Financial Approval — show linked project financial year label
+        project.finYearName || '',
         formatDateForExcel(project.startDate),
         formatDateForExcel(project.endDate),
-        normalizedStatus === 'completed' ? formatDateForExcel(project.endDate || project.updatedAt) : '',
+        // Actual Project Completion Date — intentionally left blank per reporting requirements
+        '',
         numberOrBlank(project.costOfProject),
         approvedProjectCost,
         currentYearFunds,
@@ -1021,7 +1023,52 @@ router.get('/projects-over-time', async (req, res) => {
         // Use shared status filter helper for consistent normalization
         addStatusFilter(status, whereConditions, queryParams, 'p');
 
-        const sqlQuery = `
+        // Only join location tables when filtering by county/subcounty — otherwise
+        // projects with multiple counties/subcounties are counted multiple times.
+        const useGeoJoins = !!(countyId || subcountyId);
+        const geoJoins = useGeoJoins
+            ? `
+            LEFT JOIN
+                kemri_project_counties pc ON p.id = pc.projectId
+            LEFT JOIN
+                kemri_counties c ON pc.countyId = c.countyId
+            LEFT JOIN
+                kemri_project_subcounties psc ON p.id = psc.projectId
+            LEFT JOIN
+                kemri_subcounties sc ON psc.subcountyId = sc.subcountyId`
+            : '';
+
+        const whereSql =
+            whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        const sqlQuery = useGeoJoins
+            ? `
+            SELECT
+                sub.name,
+                COUNT(*) AS value,
+                SUM(sub.costOfProject) AS totalBudget,
+                SUM(sub.paidOut) AS totalPaid
+            FROM (
+                SELECT
+                    p.id,
+                    fy.finYearName AS name,
+                    MAX(p.costOfProject) AS costOfProject,
+                    MAX(p.paidOut) AS paidOut
+                FROM
+                    kemri_projects p
+                JOIN
+                    kemri_financialyears fy ON p.finYearId = fy.finYearId
+                ${geoJoins}
+                ${whereSql}
+                GROUP BY
+                    p.id, fy.finYearName
+            ) sub
+            GROUP BY
+                sub.name
+            ORDER BY
+                sub.name;
+        `
+            : `
             SELECT
                 fy.finYearName AS name,
                 COUNT(p.id) AS value,
@@ -1031,15 +1078,7 @@ router.get('/projects-over-time', async (req, res) => {
                 kemri_projects p
             JOIN
                 kemri_financialyears fy ON p.finYearId = fy.finYearId
-            LEFT JOIN
-                kemri_project_counties pc ON p.id = pc.projectId
-            LEFT JOIN
-                kemri_counties c ON pc.countyId = c.countyId
-            LEFT JOIN
-                kemri_project_subcounties psc ON p.id = psc.projectId
-            LEFT JOIN
-                kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
-            ${whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''}
+            ${whereSql}
             GROUP BY
                 fy.finYearName
             ORDER BY
@@ -1269,7 +1308,50 @@ router.get('/yearly-trends', async (req, res) => {
         // Use shared status filter helper for consistent normalization
         addStatusFilter(status, whereConditions, queryParams, 'p');
 
-        const sqlQuery = `
+        const useGeoJoins = !!(countyId || subcountyId);
+        const geoJoins = useGeoJoins
+            ? `
+            LEFT JOIN
+                kemri_project_counties pc ON p.id = pc.projectId
+            LEFT JOIN
+                kemri_counties c ON pc.countyId = c.countyId
+            LEFT JOIN
+                kemri_project_subcounties psc ON p.id = psc.projectId
+            LEFT JOIN
+                kemri_subcounties sc ON psc.subcountyId = sc.subcountyId`
+            : '';
+
+        const whereSql =
+            whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        const sqlQuery = useGeoJoins
+            ? `
+            SELECT
+                sub.name,
+                COUNT(*) AS projectCount,
+                SUM(sub.costOfProject) AS totalBudget,
+                SUM(sub.paidOut) AS totalPaid
+            FROM (
+                SELECT
+                    p.id,
+                    fy.finYearName AS name,
+                    MAX(p.costOfProject) AS costOfProject,
+                    MAX(p.paidOut) AS paidOut
+                FROM
+                    kemri_projects p
+                JOIN
+                    kemri_financialyears fy ON p.finYearId = fy.finYearId
+                ${geoJoins}
+                ${whereSql}
+                GROUP BY
+                    p.id, fy.finYearName
+            ) sub
+            GROUP BY
+                sub.name
+            ORDER BY
+                sub.name;
+        `
+            : `
             SELECT
                 fy.finYearName AS name,
                 COUNT(p.id) AS projectCount,
@@ -1279,21 +1361,13 @@ router.get('/yearly-trends', async (req, res) => {
                 kemri_projects p
             JOIN
                 kemri_financialyears fy ON p.finYearId = fy.finYearId
-            LEFT JOIN
-                kemri_project_counties pc ON p.id = pc.projectId
-            LEFT JOIN
-                kemri_counties c ON pc.countyId = c.countyId
-            LEFT JOIN
-                kemri_project_subcounties psc ON p.id = psc.projectId
-            LEFT JOIN
-                kemri_subcounties sc ON psc.subcountyId = sc.subcountyId
-            ${whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''}
+            ${whereSql}
             GROUP BY
                 fy.finYearName
             ORDER BY
                 fy.finYearName;
         `;
-        
+
         const [rows] = await pool.query(sqlQuery, queryParams);
         res.status(200).json(rows);
 

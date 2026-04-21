@@ -1,6 +1,8 @@
 // backend/config/db.js
+const path = require('path');
 const mysql = require('mysql2/promise');
-require('dotenv').config(); // Load environment variables (like DB_HOST, DB_USER, etc.)
+// Always load api/.env so scripts work when run from repo root (cwd .env would be wrong).
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 // console.log({
 //     host: process.env.DB_HOST,

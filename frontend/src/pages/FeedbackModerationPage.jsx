@@ -68,6 +68,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import ModerationAnalytics from '../components/ModerationAnalytics';
 import axiosInstance from '../api/axiosInstance';
+import { FEEDBACK_RECEIVED_ACKNOWLEDGEMENT } from '../constants/feedbackMessages';
 
 const FeedbackModerationPage = () => {
   const { user } = useAuth();
@@ -198,8 +199,9 @@ const FeedbackModerationPage = () => {
     setReopenReason('');
   };
 
-  const handleModerationSubmit = async () => {
+  const handleModerationSubmit = async (options = {}) => {
     if (!selectedFeedback) return;
+    const postDefaultAcknowledgement = options.postDefaultAcknowledgement === true;
 
     try {
       setSubmitting(true);
@@ -212,6 +214,9 @@ const FeedbackModerationPage = () => {
       switch (moderationAction) {
         case 'approve':
           endpoint = `/moderate/${selectedFeedback.id}/approve`;
+          if (postDefaultAcknowledgement) {
+            payload.post_default_acknowledgement = true;
+          }
           break;
         case 'reject':
           if (!moderationReason) {
@@ -257,7 +262,11 @@ const FeedbackModerationPage = () => {
         'reopen': 'reopened'
       };
       
-      setSuccessMessage(`Feedback ${actionMessages[moderationAction] || moderationAction}d successfully`);
+      setSuccessMessage(
+        moderationAction === 'approve' && postDefaultAcknowledgement
+          ? 'Feedback approved and default acknowledgement posted to the citizen.'
+          : `Feedback ${actionMessages[moderationAction] || moderationAction}d successfully`
+      );
       handleCloseModerationModal();
       fetchFeedbacks();
       fetchStatistics();
@@ -914,11 +923,47 @@ const FeedbackModerationPage = () => {
                 : 'Add any additional notes about this moderation decision...'
             }
           />
+
+          {moderationAction === 'approve' && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                Default citizen message (optional one-click)
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1, lineHeight: 1.5 }}>
+                Use <strong>Approve &amp; post default acknowledgement</strong> to approve for public display and
+                immediately publish the standard thank-you message below as the official response. Use plain{' '}
+                <strong>Approve</strong> if you only want to make it visible without posting that text yet.
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: 'action.hover',
+                  borderLeft: 4,
+                  borderColor: 'primary.main',
+                  fontStyle: 'italic',
+                }}
+              >
+                {FEEDBACK_RECEIVED_ACKNOWLEDGEMENT}
+              </Typography>
+            </Alert>
+          )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 2, pb: 2 }}>
           <Button onClick={handleCloseModerationModal}>Cancel</Button>
+          {moderationAction === 'approve' && (
+            <Button
+              onClick={() => handleModerationSubmit({ postDefaultAcknowledgement: true })}
+              variant="contained"
+              disabled={submitting}
+              color="primary"
+            >
+              {submitting ? <CircularProgress size={20} /> : 'Approve & post default acknowledgement'}
+            </Button>
+          )}
           <Button
-            onClick={handleModerationSubmit}
+            onClick={() => handleModerationSubmit({ postDefaultAcknowledgement: false })}
             variant="contained"
             disabled={submitting}
             color={
@@ -929,7 +974,7 @@ const FeedbackModerationPage = () => {
             }
           >
             {submitting ? <CircularProgress size={20} /> : 
-             moderationAction === 'approve' ? 'Approve' :
+             moderationAction === 'approve' ? 'Approve only' :
              moderationAction === 'reject' ? 'Reject Permanently' :
              moderationAction === 'flag' ? 'Flag for Review' :
              moderationAction === 'reopen' ? 'Reopen for Review' : 'Update'}

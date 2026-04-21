@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material';
 import { formatDate } from '../utils/formatters';
 import { getFeedbackList, getFeedbackStats } from '../services/publicApi';
+import { FEEDBACK_RECEIVED_ACKNOWLEDGEMENT } from '../constants/feedbackMessages';
 
 const PublicFeedbackPage = () => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -59,12 +60,18 @@ const PublicFeedbackPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStatus, setModalStatus] = useState('');
   const [modalFeedbacks, setModalFeedbacks] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
   const [feedbackStats, setFeedbackStats] = useState(null);
+  /** Total rows for current list filters (from API), not page length */
+  const [listTotal, setListTotal] = useState(0);
 
   useEffect(() => {
     fetchFeedbacks();
-    fetchFeedbackStats();
   }, [page, statusFilter, searchTerm]);
+
+  useEffect(() => {
+    fetchFeedbackStats();
+  }, []);
 
   const fetchFeedbacks = async () => {
     try {
@@ -75,12 +82,16 @@ const PublicFeedbackPage = () => {
       
       const data = await getFeedbackList(filters);
       setFeedbacks(data.feedbacks || []);
+      setListTotal(Number(data.pagination?.total ?? 0));
       setTotalPages(data.pagination?.totalPages || 1);
       setError(null);
     } catch (err) {
       console.error('Error fetching feedback:', err);
       // For demo, use mock data
-      setFeedbacks(generateMockFeedback());
+      const mock = generateMockFeedback();
+      setFeedbacks(mock);
+      setListTotal(mock.length);
+      setTotalPages(1);
       setError(null);
     } finally {
       setLoading(false);
@@ -147,20 +158,30 @@ const PublicFeedbackPage = () => {
     setExpandedId(isExpanded ? id : null);
   };
 
-  const handleStatClick = (status) => {
-    const filtered = status === 'all' 
-      ? feedbacks 
-      : feedbacks.filter(f => f.status === status);
-    
-    setModalFeedbacks(filtered);
+  const handleStatClick = async (status) => {
     setModalStatus(status);
     setModalOpen(true);
+    setModalFeedbacks([]);
+    setModalLoading(true);
+    try {
+      const filters = { page: 1, limit: 500 };
+      if (status !== 'all') filters.status = status;
+      if (searchTerm) filters.search = searchTerm;
+      const data = await getFeedbackList(filters);
+      setModalFeedbacks(data.feedbacks || []);
+    } catch (e) {
+      console.error('Error loading feedback for modal:', e);
+      setModalFeedbacks([]);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setModalFeedbacks([]);
     setModalStatus('');
+    setModalLoading(false);
   };
 
   const getStatusInfo = (status) => {
@@ -270,13 +291,13 @@ const PublicFeedbackPage = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <Comment sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
-                {feedbacks.length}
+                {Number(feedbackStats?.total_feedback ?? 0)}
               </Typography>
               <Typography variant="body2">
                 Total Citizen Feedback
               </Typography>
               <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-                Click to view all
+                Approved for public · click to browse
               </Typography>
             </CardContent>
           </Card>
@@ -299,7 +320,7 @@ const PublicFeedbackPage = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <Schedule sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
-                {feedbacks.filter(f => f.status === 'pending').length}
+                {Number(feedbackStats?.pending_feedback ?? 0)}
               </Typography>
               <Typography variant="body2">
                 Awaiting Response
@@ -328,7 +349,7 @@ const PublicFeedbackPage = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <CheckCircle sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
-                {feedbacks.filter(f => f.status === 'responded').length}
+                {Number(feedbackStats?.responded_feedback ?? 0)}
               </Typography>
               <Typography variant="body2">
                 Responded
@@ -357,7 +378,7 @@ const PublicFeedbackPage = () => {
             <CardContent sx={{ textAlign: 'center' }}>
               <Reply sx={{ fontSize: '2.5rem', mb: 1 }} />
               <Typography variant="h4" fontWeight="bold">
-                {feedbacks.filter(f => f.status === 'reviewed').length}
+                {Number(feedbackStats?.reviewed_feedback ?? 0)}
               </Typography>
               <Typography variant="body2">
                 Under Review
@@ -373,7 +394,12 @@ const PublicFeedbackPage = () => {
       {/* Feedback List */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h6" fontWeight="bold" gutterBottom>
-          Recent Feedback ({feedbacks.length})
+          Recent Feedback
+          {listTotal > 0 && (
+            <Typography component="span" variant="body2" color="text.secondary" sx={{ fontWeight: 400, ml: 1 }}>
+              ({listTotal} matching your filters)
+            </Typography>
+          )}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Click on any feedback to view full details and official responses
@@ -503,8 +529,8 @@ const PublicFeedbackPage = () => {
                     </Paper>
                   </Box>
 
-                  {/* Official Response */}
-                  {feedback.status === 'responded' && feedback.admin_response && (
+                  {/* Official response — once provided, acknowledgement below is not shown */}
+                  {feedback.admin_response && String(feedback.admin_response).trim() !== '' && (
                     <Box>
                       <Typography variant="subtitle2" color="success.main" fontWeight="bold" gutterBottom>
                         OFFICIAL RESPONSE
@@ -537,16 +563,12 @@ const PublicFeedbackPage = () => {
                     </Box>
                   )}
 
-                  {/* Pending/Reviewed Status Messages */}
-                  {feedback.status === 'pending' && (
-                    <Alert severity="info" sx={{ borderRadius: '8px' }}>
-                      This feedback is pending review by county officials. You will be notified once a response is provided.
-                    </Alert>
-                  )}
-
-                  {feedback.status === 'reviewed' && (
-                    <Alert severity="warning" sx={{ borderRadius: '8px' }}>
-                      This feedback is currently under review. A response will be provided shortly.
+                  {/* Same acknowledgement as on submit, until an official response exists */}
+                  {(!feedback.admin_response || String(feedback.admin_response).trim() === '') && (
+                    <Alert severity="success" sx={{ borderRadius: '8px' }}>
+                      <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                        {FEEDBACK_RECEIVED_ACKNOWLEDGEMENT}
+                      </Typography>
                     </Alert>
                   )}
                 </AccordionDetails>
@@ -647,7 +669,11 @@ const PublicFeedbackPage = () => {
         </DialogTitle>
 
         <DialogContent dividers>
-          {modalFeedbacks.length > 0 ? (
+          {modalLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : modalFeedbacks.length > 0 ? (
             <List>
               {modalFeedbacks.map((feedback, index) => (
                 <React.Fragment key={feedback.id || index}>
@@ -703,7 +729,7 @@ const PublicFeedbackPage = () => {
                       </Typography>
                     </Paper>
 
-                    {feedback.status === 'responded' && feedback.admin_response && (
+                    {feedback.admin_response && String(feedback.admin_response).trim() !== '' ? (
                       <Paper 
                         elevation={0}
                         sx={{ 
@@ -726,6 +752,12 @@ const PublicFeedbackPage = () => {
                           Responded on {formatDate(feedback.responded_at)}
                         </Typography>
                       </Paper>
+                    ) : (
+                      <Alert severity="success" sx={{ borderRadius: '8px' }}>
+                        <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                          {FEEDBACK_RECEIVED_ACKNOWLEDGEMENT}
+                        </Typography>
+                      </Alert>
                     )}
                   </ListItem>
                   {index < modalFeedbacks.length - 1 && <Divider />}

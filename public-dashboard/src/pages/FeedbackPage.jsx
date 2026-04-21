@@ -14,6 +14,7 @@ import {
 import { Send } from '@mui/icons-material';
 import { submitFeedback } from '../services/publicApi';
 import RatingInput from '../components/RatingInput';
+import FeedbackSubmittedDialog from '../components/FeedbackSubmittedDialog';
 
 const FeedbackPage = () => {
   const [formData, setFormData] = useState({
@@ -53,7 +54,7 @@ const FeedbackPage = () => {
       setError(null);
       await submitFeedback(formData);
       setSuccess(true);
-      // Reset form
+      // Reset form (acknowledgement is shown in FeedbackSubmittedDialog)
       setFormData({
         name: '',
         email: '',
@@ -66,8 +67,6 @@ const FeedbackPage = () => {
         ratingTransparency: null,
         ratingFeasibilityConfidence: null
       });
-      // Hide success message after 5 seconds
-      setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       console.error('Error submitting feedback:', err);
       setError('Failed to submit feedback. Please try again later.');
@@ -87,11 +86,7 @@ const FeedbackPage = () => {
         </Typography>
       </Box>
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(false)}>
-          Thank you for your feedback! We will review it and get back to you if needed.
-        </Alert>
-      )}
+      <FeedbackSubmittedDialog open={success} onClose={() => setSuccess(false)} />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
